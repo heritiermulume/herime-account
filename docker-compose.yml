@@ -1,0 +1,79 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    container_name: herime-sso
+    restart: unless-stopped
+    working_dir: /var/www
+    volumes:
+      - ./:/var/www
+      - ./docker/php/local.ini:/usr/local/etc/php/conf.d/local.ini
+    networks:
+      - herime-network
+    depends_on:
+      - db
+      - redis
+
+  nginx:
+    image: nginx:alpine
+    container_name: herime-sso-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./:/var/www
+      - ./docker/nginx/:/etc/nginx/conf.d/
+    networks:
+      - herime-network
+    depends_on:
+      - app
+
+  db:
+    image: mysql:8.0
+    container_name: herime-sso-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: herime_sso
+      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_USER: herime_user
+      MYSQL_PASSWORD: herime_password
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./docker/mysql/my.cnf:/etc/mysql/my.cnf
+    ports:
+      - "3306:3306"
+    networks:
+      - herime-network
+
+  redis:
+    image: redis:alpine
+    container_name: herime-sso-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - herime-network
+
+  mailhog:
+    image: mailhog/mailhog
+    container_name: herime-sso-mailhog
+    restart: unless-stopped
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    networks:
+      - herime-network
+
+volumes:
+  db_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  herime-network:
+    driver: bridge
