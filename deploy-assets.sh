@@ -46,10 +46,23 @@ echo -e "${YELLOW}📤 Étape 2 : Transfert sur O2Switch...${NC}"
 echo -e "${BLUE}   Destination : ${DEFAULT_HOST}:${DEFAULT_PATH}/public/${NC}"
 echo ""
 
-read -p "Voulez-vous transférer maintenant ? (o/N) " -n 1 -r
-echo ""
+# Vérifier si les paramètres sont fournis (mode non-interactif)
+SHOULD_TRANSFER=false
 
-if [[ $REPLY =~ ^[Oo]$ ]]; then
+if [[ "$1" != "" && "$2" != "" ]]; then
+    # Mode non-interactif : transférer automatiquement si les deux paramètres sont fournis
+    SHOULD_TRANSFER=true
+    echo -e "${BLUE}Mode automatique activé - transfert sans confirmation${NC}"
+else
+    # Mode interactif : demander confirmation
+    read -p "Voulez-vous transférer maintenant ? (o/N) " -n 1 -r
+    echo ""
+    if [[ $REPLY =~ ^[Oo]$ ]]; then
+        SHOULD_TRANSFER=true
+    fi
+fi
+
+if [[ "$SHOULD_TRANSFER" == "true" ]]; then
     echo -e "${YELLOW}Transfert en cours...${NC}"
     
     if scp -r public/build/ "${DEFAULT_HOST}:${DEFAULT_PATH}/public/"; then
@@ -72,6 +85,9 @@ else
     echo ""
     echo -e "${BLUE}💡 Pour transférer manuellement, exécutez :${NC}"
     echo "   scp -r public/build/ ${DEFAULT_HOST}:${DEFAULT_PATH}/public/"
+    echo ""
+    echo -e "${BLUE}💡 Ou pour transférer automatiquement :${NC}"
+    echo "   ./deploy-assets.sh votre-identifiant@o2switch.fr www/votre-domaine.com"
 fi
 
 echo ""
