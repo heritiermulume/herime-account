@@ -35,7 +35,7 @@ services:
     container_name: herime-sso-mysql
     restart: unless-stopped
     environment:
-      MYSQL_DATABASE: herime_sso
+      MYSQL_DATABASE: herime_account
       MYSQL_ROOT_PASSWORD: root_password
       MYSQL_USER: herime_user
       MYSQL_PASSWORD: herime_password

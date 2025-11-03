@@ -5,7 +5,11 @@
 ⚠️  IMPORTANT : O2Switch n'a PAS Node.js/NPM
    → Compilez les assets sur votre machine locale (npm run build)
    → Transférez public/build/ via SCP/FTP (voir section COMPILATION ci-dessous)
-   → Consultez DEPLOY_SANS_NPM.md pour plus de détails
+   → Consultez DEPLOY_SANS_NPM.md et PRODUCTION_VS_DEVELOPMENT.md pour plus de détails
+   
+💡 EN PRODUCTION : Un seul serveur (Laravel via Nginx)
+   → Pas besoin de serveur Vite en production
+   → Les assets sont pré-compilés et servis depuis public/build/
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -104,7 +108,7 @@ APP_URL=https://votre-domaine.com
 
 DB_CONNECTION=mysql
 DB_HOST=localhost
-DB_DATABASE=nom_base_o2switch
+DB_DATABASE=herime_account
 DB_USERNAME=user_o2switch
 DB_PASSWORD=mot_de_passe_o2switch
 
