@@ -1,0 +1,119 @@
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🚀 COMMANDES DE DÉPLOIEMENT SUR O2SWITCH - RÉFÉRENCE RAPIDE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📍 DÉPLOIEMENT INITIAL (AUTOMATIQUE - RECOMMANDÉ)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ssh votre-identifiant@o2switch.fr
+cd www/votre-domaine.com
+git clone https://github.com/heritiermulume/herime-account.git .
+cp env.o2switch.example .env
+nano .env  # Éditer avec vos infos
+chmod +x deploy-o2switch.sh
+./deploy-o2switch.sh
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📍 DÉPLOIEMENT INITIAL (MANUEL)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ssh votre-identifiant@o2switch.fr
+cd www/votre-domaine.com
+git clone https://github.com/heritiermulume/herime-account.git .
+cp env.o2switch.example .env
+nano .env
+
+composer install --no-dev --optimize-autoloader
+php artisan key:generate
+php artisan migrate --force
+php artisan passport:install --force
+php artisan db:seed --force
+php artisan config:cache
+php artisan route:cache
+php artisan view:cache
+php artisan optimize
+
+chmod -R 755 storage bootstrap/cache public
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📍 MISE À JOUR (APRÈS UN PUSH SUR GITHUB)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ssh votre-identifiant@o2switch.fr
+cd www/votre-domaine.com
+
+git pull origin main
+composer install --no-dev --optimize-autoloader
+php artisan migrate --force
+php artisan config:cache
+php artisan route:cache
+php artisan view:cache
+php artisan optimize
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📍 COMPILATION DES ASSETS FRONTEND
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+# Si Node.js est disponible sur le serveur :
+npm install --production
+npm run build
+
+# Sinon, compiler localement et transférer :
+# Sur votre machine :
+npm run build
+scp -r public/build/ utilisateur@o2switch.fr:www/votre-domaine.com/public/
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📍 DÉPANNAGE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+# Voir les logs
+tail -f storage/logs/laravel.log
+
+# Vérifier les migrations
+php artisan migrate:status
+
+# Vider les caches
+php artisan cache:clear
+php artisan config:clear
+php artisan route:clear
+php artisan view:clear
+
+# Vérifier les permissions
+ls -la storage bootstrap/cache
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📍 VARIABLES IMPORTANTES .env
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+APP_ENV=production
+APP_DEBUG=false
+APP_URL=https://votre-domaine.com
+
+DB_CONNECTION=mysql
+DB_HOST=localhost
+DB_DATABASE=nom_base_o2switch
+DB_USERNAME=user_o2switch
+DB_PASSWORD=mot_de_passe_o2switch
+
+MAIL_HOST=smtp.o2switch.net
+MAIL_PORT=587
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📍 IDENTIFIANTS PAR DÉFAUT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Email: admin@example.com
+Mot de passe: password
+
+⚠️  Changez-les immédiatement après le premier login !
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
