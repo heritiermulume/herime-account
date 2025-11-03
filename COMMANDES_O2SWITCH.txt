@@ -11,6 +11,11 @@
    → Pas besoin de serveur Vite en production
    → Les assets sont pré-compilés et servis depuis public/build/
 
+📊 CRÉER LA BASE DE DONNÉES
+   → Via panneau O2Switch : "Bases de données" → "Créer"
+   → Via SSH : mysql -u root -p → CREATE DATABASE herime_account;
+   → Consultez CREATE_DATABASE_O2SWITCH.md pour plus de détails
+
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 📍 DÉPLOIEMENT INITIAL (AUTOMATIQUE - RECOMMANDÉ)
@@ -79,14 +84,68 @@ scp -r public/build/ utilisateur@o2switch.fr:www/votre-domaine.com/public/
 
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📍 MIGRATIONS ET SEEDERS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+# Se connecter en SSH
+ssh votre-identifiant@o2switch.fr
+cd www/votre-domaine.com
+
+# 1. Vérifier le statut des migrations
+php artisan migrate:status
+
+# 2. Exécuter TOUTES les migrations
+php artisan migrate --force
+
+# 3. Installer Passport (si pas déjà fait)
+php artisan passport:install --force
+
+# 4. Exécuter TOUS les seeders
+php artisan db:seed --force
+
+# 5. Exécuter un seeder spécifique (optionnel)
+php artisan db:seed --class=DatabaseSeeder --force
+php artisan db:seed --class=AdminSeeder --force
+
+# 6. Réinitialiser la base (ATTENTION : supprime toutes les données)
+php artisan migrate:fresh --force
+php artisan db:seed --force
+php artisan passport:install --force
+
+# 7. Vérifier que tout est OK
+php artisan migrate:status
+php artisan db:show
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 📍 DÉPANNAGE
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+# Erreur "Access denied" MySQL
+# → Vérifier le fichier .env (remplacer votre_db_user par les vraies valeurs)
+# → Vider le cache : php artisan config:clear
+# → Consultez RESOUDRE_ERREUR_ACCESS_DENIED.md pour plus de détails
+
+# Erreur "Table already exists" (OAuth)
+# → Les tables OAuth existent mais les migrations ne sont pas marquées comme exécutées
+# → Solution : Marquer les migrations comme exécutées dans la table migrations
+# → Consultez RESOUDRE_ERREUR_TABLE_EXISTS.md pour plus de détails
+
+# Erreur migrations Passport en double (2025_11_03_*oauth*)
+# → Passport a créé des migrations en double
+# → Solution : Supprimer les migrations 2025_11_03_*oauth*.php
+# → Commandes : rm database/migrations/2025_11_03_*oauth*.php
+# → Consultez CORRIGER_MIGRATIONS_PASSPORT.md pour plus de détails
 
 # Voir les logs
 tail -f storage/logs/laravel.log
 
 # Vérifier les migrations
 php artisan migrate:status
+
+# Vérifier la configuration de la base de données
+php artisan db:show
+cat .env | grep DB_
 
 # Vider les caches
 php artisan cache:clear
