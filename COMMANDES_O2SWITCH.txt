@@ -2,6 +2,13 @@
 🚀 COMMANDES DE DÉPLOIEMENT SUR O2SWITCH - RÉFÉRENCE RAPIDE
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+⚠️  IMPORTANT : O2Switch n'a PAS Node.js/NPM
+   → Compilez les assets sur votre machine locale (npm run build)
+   → Transférez public/build/ via SCP/FTP (voir section COMPILATION ci-dessous)
+   → Consultez DEPLOY_SANS_NPM.md pour plus de détails
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 📍 DÉPLOIEMENT INITIAL (AUTOMATIQUE - RECOMMANDÉ)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
