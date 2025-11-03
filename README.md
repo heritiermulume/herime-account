@@ -200,7 +200,42 @@ FACEBOOK_CLIENT_SECRET=your-facebook-client-secret
 
 ## 🚀 Déploiement
 
-### Production
+### Déploiement sur O2Switch
+
+Pour déployer rapidement votre application sur O2Switch depuis GitHub, nous avons créé des guides et scripts automatisés :
+
+**📚 Documentation :**
+- **[DEPLOY_QUICKSTART.md](./DEPLOY_QUICKSTART.md)** - Guide rapide de déploiement (10 minutes)
+- **[DEPLOY_O2SWITCH.md](./DEPLOY_O2SWITCH.md)** - Guide complet et détaillé
+
+**🚀 Déploiement automatique :**
+```bash
+# 1. Se connecter en SSH à O2Switch
+ssh votre-identifiant@o2switch.fr
+cd www/votre-domaine.com
+
+# 2. Cloner le projet
+git clone https://github.com/heritiermulume/herime-account.git .
+
+# 3. Configurer l'environnement
+cp env.o2switch.example .env
+nano .env  # Éditer avec vos informations
+
+# 4. Exécuter le script de déploiement
+chmod +x deploy-o2switch.sh
+./deploy-o2switch.sh
+```
+
+Le script `deploy-o2switch.sh` automatise tout :
+- ✅ Installation des dépendances
+- ✅ Compilation des assets
+- ✅ Configuration de l'environnement
+- ✅ Exécution des migrations
+- ✅ Installation de Passport
+- ✅ Création de l'administrateur
+- ✅ Optimisation de l'application
+
+### Production (Configuration manuelle)
 
 1. **Serveur web (Nginx/Apache)**
 ```nginx
