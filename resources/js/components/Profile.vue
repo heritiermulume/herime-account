@@ -463,16 +463,19 @@ export default {
           // Mettre à jour avec la nouvelle URL de l'API
           if (profileResponse.data.data.user?.avatar_url) {
             form.avatar_url = profileResponse.data.data.user.avatar_url
-            console.log('✅ form.avatar_url updated to:', form.avatar_url)
-          } else if (profileResponse.data.data.user?.avatar && user.value?.id) {
+            console.log('✅ form.avatar_url updated from API response:', form.avatar_url)
+          } else if (profileResponse.data.data.user?.avatar && authStore.user?.id) {
             // Si avatar_url n'est pas dans la réponse mais avatar existe, construire l'URL
-            form.avatar_url = `/api/user/avatar/${user.value.id}`
-            console.log('✅ form.avatar_url constructed:', form.avatar_url)
+            form.avatar_url = `/api/user/avatar/${authStore.user.id}`
+            console.log('✅ form.avatar_url constructed from avatar field:', form.avatar_url)
           }
           
           // Forcer un re-render en ajoutant un timestamp à l'URL pour éviter le cache
-          if (form.avatar_url && form.avatar_url.startsWith('/api/')) {
-            form.avatar_url = form.avatar_url + '?t=' + Date.now()
+          if (form.avatar_url && (form.avatar_url.startsWith('/api/') || form.avatar_url.includes('/api/user/avatar/'))) {
+            // Retirer le timestamp existant s'il y en a un
+            const urlWithoutTimestamp = form.avatar_url.split('?t=')[0]
+            form.avatar_url = urlWithoutTimestamp + '?t=' + Date.now()
+            console.log('✅ form.avatar_url with timestamp:', form.avatar_url)
           }
           
           // Show success message
