@@ -227,16 +227,18 @@ export default {
 
       try {
         const formData = new FormData()
-        formData.append('name', form.name)
-        formData.append('phone', form.phone)
-        formData.append('company', form.company)
-        formData.append('position', form.position)
+        // Toujours envoyer tous les champs, même s'ils sont vides
+        formData.append('name', form.name || '')
+        formData.append('phone', form.phone || '')
+        formData.append('company', form.company || '')
+        formData.append('position', form.position || '')
         
         if (avatarFile.value) {
           formData.append('avatar', avatarFile.value)
         }
 
         console.log('🔄 Updating profile with FormData')
+        console.log('   Form values:', { name: form.name, phone: form.phone, company: form.company, position: form.position })
         
         const response = await axios.post('/api/user/profile', formData, {
           headers: {
