@@ -159,7 +159,7 @@
                   ]">
                     {{ user.is_active ? 'Actif' : 'Inactif' }}
                   </span>
-                  <div class="flex flex-wrap items-center justify-end gap-1 sm:gap-2 max-w-full">
+                  <div class="flex items-center justify-end gap-1 sm:gap-2 max-w-full overflow-x-auto whitespace-nowrap">
                     <!-- Activer / Désactiver -->
                     <button
                       @click="toggleUserStatus(user)"
