@@ -326,6 +326,42 @@
             </div>
           </transition>
         </teleport>
+
+        <!-- Delete Confirm Modal -->
+        <teleport to="body">
+          <transition enter-active-class="transition ease-out duration-200" enter-from-class="opacity-0" enter-to-class="opacity-100" leave-active-class="transition ease-in duration-150" leave-from-class="opacity-100" leave-to-class="opacity-0">
+            <div v-if="showDelete" class="fixed inset-0 z-50 flex items-center justify-center">
+              <div class="fixed inset-0 bg-black bg-opacity-50" @click="showDelete = false"></div>
+              <div class="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md mx-4 p-6">
+                <div class="flex items-center justify-between mb-3">
+                  <h3 class="text-lg font-medium text-gray-900 dark:text-white">Confirmer la suppression</h3>
+                  <button class="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700" @click="showDelete = false" aria-label="Fermer">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+                  </button>
+                </div>
+                <div class="flex items-start space-x-3">
+                  <div class="flex-shrink-0">
+                    <div class="h-10 w-10 rounded-full bg-red-100 dark:bg-red-900 flex items-center justify-center">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-600 dark:text-red-300" viewBox="0 0 24 24" fill="currentColor"><path d="M12 9v4m0 4h.01M12 2a10 10 0 100 20 10 10 0 000-20z"/></svg>
+                    </div>
+                  </div>
+                  <div>
+                    <p class="text-sm text-gray-700 dark:text-gray-200">Voulez-vous vraiment supprimer l'utilisateur
+                      <span class="font-semibold">{{ deleteTarget?.name }}</span> ? Cette action est irréversible.</p>
+                    <p v-if="deleteError" class="mt-2 text-sm text-red-600 dark:text-red-400">{{ deleteError }}</p>
+                  </div>
+                </div>
+                <div class="mt-6 flex justify-end space-x-2">
+                  <button class="px-4 py-2 rounded bg-gray-200 dark:bg-gray-700 dark:text-white hover:bg-gray-300 dark:hover:bg-gray-600" @click="showDelete = false">Annuler</button>
+                  <button :disabled="deleteLoading" class="px-4 py-2 rounded bg-red-600 text-white hover:bg-red-700 disabled:opacity-50" @click="confirmDeleteUser">
+                    <span v-if="deleteLoading">Suppression...</span>
+                    <span v-else>Supprimer</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </transition>
+        </teleport>
   </div>
 </template>
 
@@ -467,6 +503,10 @@ export default {
     const editUser = ref(null)
     const showPreview = ref(false)
     const showEdit = ref(false)
+    const showDelete = ref(false)
+    const deleteTarget = ref(null)
+    const deleteLoading = ref(false)
+    const deleteError = ref('')
     const openPreview = (u) => { previewUser.value = u; showPreview.value = true }
     const openEdit = (u) => { editUser.value = { ...u }; showEdit.value = true }
     const saveEdit = async () => {
@@ -502,20 +542,30 @@ export default {
       }
     }
 
-    const deleteUser = async (user) => {
-      if (!confirm(`Êtes-vous sûr de vouloir supprimer l'utilisateur ${user.name} ?`)) {
-        return
-      }
-      
+    const deleteUser = (user) => {
+      deleteTarget.value = user
+      deleteError.value = ''
+      showDelete.value = true
+    }
+
+    const confirmDeleteUser = async () => {
+      if (!deleteTarget.value) return
+      deleteLoading.value = true
+      deleteError.value = ''
       try {
-        const response = await axios.delete(`/admin/users/${user.id}`)
-        
+        const response = await axios.delete(`/admin/users/${deleteTarget.value.id}`)
         if (response.data.success) {
-          await fetchUsers(pagination.value.current_page)
+          showDelete.value = false
+          deleteTarget.value = null
+          await fetchUsers(pagination.value?.current_page || 1)
+        } else {
+          deleteError.value = response.data.message || 'Suppression échouée'
         }
       } catch (err) {
         console.error('Error deleting user:', err)
-        error.value = 'Erreur lors de la suppression de l\'utilisateur'
+        deleteError.value = 'Erreur lors de la suppression de l\'utilisateur'
+      } finally {
+        deleteLoading.value = false
       }
     }
 
@@ -542,6 +592,7 @@ export default {
       visiblePages,
       toggleUserStatus,
       deleteUser,
+      confirmDeleteUser,
       getAvatarUrl,
       onAvatarError,
       toggleAdminRole,
@@ -551,7 +602,11 @@ export default {
       previewUser,
       editUser,
       showPreview,
-      showEdit
+      showEdit,
+      showDelete,
+      deleteTarget,
+      deleteLoading,
+      deleteError
     }
   }
 }
