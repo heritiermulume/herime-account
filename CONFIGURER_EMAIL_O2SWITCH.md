@@ -6,13 +6,30 @@ L'envoi d'email pour la réinitialisation de mot de passe est maintenant activé
 
 ## 🔧 Configuration SMTP sur O2Switch
 
-### Option 1 : Utiliser le serveur SMTP d'O2Switch
+### Configuration pour Herime.com
 
-Ajoutez ces variables dans votre fichier `.env` sur O2Switch :
+Pour votre compte Herime, utilisez ces paramètres dans votre fichier `.env` :
 
 ```env
 MAIL_MAILER=smtp
-MAIL_HOST=mail.o2switch.net
+MAIL_HOST=herime.com
+MAIL_PORT=465
+MAIL_USERNAME=mail@herime.com
+MAIL_PASSWORD=s6e)4ew)3b92messagerie.
+MAIL_ENCRYPTION=ssl
+MAIL_FROM_ADDRESS=mail@herime.com
+MAIL_FROM_NAME="Compte Herime"
+```
+
+**Note :** Le port 465 utilise SSL, donc `MAIL_ENCRYPTION=ssl`. Si cela ne fonctionne pas, essayez `MAIL_ENCRYPTION=tls`.
+
+### Option 1 : Utiliser le serveur SMTP d'O2Switch (générique)
+
+Pour d'autres domaines, ajoutez ces variables dans votre fichier `.env` :
+
+```env
+MAIL_MAILER=smtp
+MAIL_HOST=mail.votre-domaine.com
 MAIL_PORT=587
 MAIL_USERNAME=votre-email@votre-domaine.com
 MAIL_PASSWORD=votre-mot-de-passe-email
@@ -78,9 +95,23 @@ MAIL_FROM_NAME="Compte Herime"
    ```
 
 3. **Ajoutez/modifiez les variables MAIL_* :**
+   
+   Pour Herime.com :
    ```env
    MAIL_MAILER=smtp
-   MAIL_HOST=mail.o2switch.net
+   MAIL_HOST=herime.com
+   MAIL_PORT=465
+   MAIL_USERNAME=mail@herime.com
+   MAIL_PASSWORD=s6e)4ew)3b92messagerie.
+   MAIL_ENCRYPTION=ssl
+   MAIL_FROM_ADDRESS=mail@herime.com
+   MAIL_FROM_NAME="Compte Herime"
+   ```
+   
+   Pour d'autres domaines :
+   ```env
+   MAIL_MAILER=smtp
+   MAIL_HOST=mail.votre-domaine.com
    MAIL_PORT=587
    MAIL_USERNAME=votre-email@votre-domaine.com
    MAIL_PASSWORD=votre-mot-de-passe

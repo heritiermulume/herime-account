@@ -248,8 +248,25 @@ DB_DATABASE=herime_account
 DB_USERNAME=user_o2switch
 DB_PASSWORD=mot_de_passe_o2switch
 
-MAIL_HOST=smtp.o2switch.net
-MAIL_PORT=587
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📍 CONFIGURATION EMAIL (HERIME.COM)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Ajoutez ces variables dans votre fichier .env :
+
+MAIL_MAILER=smtp
+MAIL_HOST=herime.com
+MAIL_PORT=465
+MAIL_USERNAME=mail@herime.com
+MAIL_PASSWORD=s6e)4ew)3b92messagerie.
+MAIL_ENCRYPTION=ssl
+MAIL_FROM_ADDRESS=mail@herime.com
+MAIL_FROM_NAME="Compte Herime"
+
+⚠️  IMPORTANT :
+   - Le port 465 utilise SSL (MAIL_ENCRYPTION=ssl)
+   - Si ça ne fonctionne pas, essayez MAIL_ENCRYPTION=tls
+   - Après modification, exécutez : php artisan config:clear
 
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
