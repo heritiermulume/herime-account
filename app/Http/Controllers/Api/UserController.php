@@ -320,7 +320,8 @@ class UserController extends Controller
     }
 
     /**
-     * Delete account
+     * Delete account (désactive seulement le compte pour les utilisateurs normaux)
+     * Seul l'administrateur peut définitivement supprimer un compte
      */
     public function deleteAccount(Request $request): JsonResponse
     {
@@ -328,7 +329,7 @@ class UserController extends Controller
         
         $validator = Validator::make($request->all(), [
             'password' => 'required|string',
-            'confirmation' => 'required|in:DELETE',
+            'reason' => 'required|string|max:1000',
         ]);
 
         if ($validator->fails()) {
@@ -347,23 +348,30 @@ class UserController extends Controller
             ], 400);
         }
 
-        // Delete avatar if exists (dans le dossier privé)
-        // Utiliser avatar_filename si disponible, sinon avatar (ancien format)
-        $avatarToDelete = $user->avatar_filename ?? ($user->avatar && strpos($user->avatar, '/api/user/avatar/') === false ? $user->avatar : null);
+        // Pour les utilisateurs normaux, on désactive seulement le compte
+        // On stocke la raison de la désactivation dans les préférences
+        $preferences = $user->preferences ?? [];
+        $preferences['deactivation_reason'] = $request->reason;
+        $preferences['deactivation_date'] = now()->toISOString();
         
-        if ($avatarToDelete) {
-            $avatarPath = 'avatars/' . basename($avatarToDelete);
-            if (Storage::disk('private')->exists($avatarPath)) {
-                Storage::disk('private')->delete($avatarPath);
-            }
-        }
+        // Désactiver le compte
+        $user->update([
+            'is_active' => false,
+            'preferences' => $preferences
+        ]);
 
-        // Delete user and related data
-        $user->delete();
+        // Revoke all tokens
+        $user->tokens()->delete();
+
+        \Log::info('Account deactivated by user', [
+            'user_id' => $user->id,
+            'user_email' => $user->email,
+            'reason' => $request->reason
+        ]);
 
         return response()->json([
             'success' => true,
-            'message' => 'Account deleted successfully'
+            'message' => 'Votre compte a été désactivé avec succès. Un administrateur peut le réactiver si nécessaire.'
         ]);
     }
 }

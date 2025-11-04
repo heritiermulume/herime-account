@@ -194,12 +194,28 @@
       </div>
     </div>
 
-    <!-- Account Settings -->
-    <div class="bg-white dark:bg-gray-800 shadow rounded-lg">
-      <div class="px-4 py-5 sm:p-6">
-        <h3 class="text-lg leading-6 font-medium text-gray-900 dark:text-white mb-6">
-          Paramètres du compte
-        </h3>
+          <!-- Account Settings -->
+          <div class="bg-white dark:bg-gray-800 shadow rounded-lg">
+            <div class="px-4 py-5 sm:p-6">
+              <h3 class="text-lg leading-6 font-medium text-gray-900 dark:text-white mb-6">
+                Paramètres du compte
+              </h3>
+              
+              <!-- Danger Zone -->
+              <div class="mt-8 pt-8 border-t border-gray-200 dark:border-gray-700">
+                <h4 class="text-lg font-medium text-red-600 dark:text-red-400 mb-4">
+                  Zone dangereuse
+                </h4>
+                <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                  La suppression de votre compte désactivera votre compte. Seul un administrateur peut définitivement supprimer un compte.
+                </p>
+                <button
+                  @click="showDeleteModal = true"
+                  class="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-md text-sm transition-colors duration-200"
+                >
+                  Supprimer le compte
+                </button>
+              </div>
         
         <div class="space-y-4">
           <!-- Email Notifications -->
