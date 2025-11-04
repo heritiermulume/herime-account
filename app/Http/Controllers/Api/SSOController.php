@@ -137,28 +137,48 @@ class SSOController extends Controller
             ], 401);
         }
         
-        $sessions = $user->sessions()
-            ->orderBy('last_activity', 'desc')
-            ->get()
-            ->map(function ($session) {
-                return [
-                    'id' => $session->id,
-                    'device_name' => $session->device_name ?? 'Unknown Device',
-                    'platform' => $session->platform ?? 'Unknown',
-                    'browser' => $session->browser ?? 'Unknown',
-                    'ip_address' => $session->ip_address,
-                    'is_current' => $session->is_current ?? false,
-                    'last_activity' => $session->last_activity ? $session->last_activity->toISOString() : null,
-                    'created_at' => $session->created_at ? $session->created_at->toISOString() : null,
-                ];
-            });
+        try {
+            $sessions = $user->sessions()
+                ->orderBy('last_activity', 'desc')
+                ->orderBy('created_at', 'desc')
+                ->get()
+                ->map(function ($session) {
+                    return [
+                        'id' => $session->id,
+                        'device_name' => $session->device_name ?? 'Unknown Device',
+                        'platform' => $session->platform ?? 'Unknown',
+                        'browser' => $session->browser ?? 'Unknown',
+                        'ip_address' => $session->ip_address ?? 'Unknown',
+                        'is_current' => $session->is_current ?? false,
+                        'last_activity' => $session->last_activity ? $session->last_activity->toISOString() : ($session->created_at ? $session->created_at->toISOString() : null),
+                        'created_at' => $session->created_at ? $session->created_at->toISOString() : null,
+                    ];
+                });
 
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'sessions' => $sessions
-            ]
-        ]);
+            \Log::info('Sessions loaded', [
+                'user_id' => $user->id,
+                'sessions_count' => $sessions->count()
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'sessions' => $sessions
+                ]
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Error loading sessions', [
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error loading sessions',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
