@@ -75,12 +75,16 @@ class UserController extends Controller
         // Handle avatar upload
         if ($request->hasFile('avatar')) {
             // Delete old avatar if exists
-            if ($user->avatar && Storage::exists($user->avatar)) {
-                Storage::delete($user->avatar);
+            if ($user->avatar && Storage::disk('public')->exists($user->avatar)) {
+                Storage::disk('public')->delete($user->avatar);
             }
 
+            // Store avatar in public storage
             $avatarPath = $request->file('avatar')->store('avatars', 'public');
             $data['avatar'] = $avatarPath;
+            
+            // Log pour debug
+            \Log::info('Avatar uploaded:', ['path' => $avatarPath]);
         }
 
         // Mettre à jour uniquement les champs fournis
@@ -164,9 +168,23 @@ class UserController extends Controller
             ], 422);
         }
 
-        $user->update([
-            'preferences' => $request->preferences
+        // Fusionner avec les préférences existantes pour préserver les valeurs non modifiées
+        $currentPreferences = $user->preferences ?? [];
+        $newPreferences = array_merge($currentPreferences, $request->preferences);
+        
+        // Log pour debug
+        \Log::info('Preferences update:', [
+            'current' => $currentPreferences,
+            'new' => $request->preferences,
+            'merged' => $newPreferences
         ]);
+
+        $user->update([
+            'preferences' => $newPreferences
+        ]);
+
+        // Recharger pour s'assurer que les données sont à jour
+        $user->refresh();
 
         return response()->json([
             'success' => true,
