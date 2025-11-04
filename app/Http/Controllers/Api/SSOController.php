@@ -147,11 +147,33 @@ class SSOController extends Controller
                 ], 401);
             }
 
-            $sessions = $user->sessions()
+            // Récupérer les sessions avec une requête simple
+            $sessionsQuery = $user->sessions()
                 ->orderBy('last_activity', 'desc')
-                ->orderBy('created_at', 'desc')
-                ->get()
-                ->map(function ($session) {
+                ->orderBy('created_at', 'desc');
+            
+            $sessionsRaw = $sessionsQuery->get();
+            
+            \Log::info('Raw sessions query result', [
+                'user_id' => $user->id,
+                'sessions_found' => $sessionsRaw->count(),
+                'first_session_id' => $sessionsRaw->first()?->id
+            ]);
+            
+            $sessions = $sessionsRaw->map(function ($session) {
+                try {
+                    $lastActivity = null;
+                    if ($session->last_activity) {
+                        $lastActivity = $session->last_activity->toIso8601String();
+                    } elseif ($session->created_at) {
+                        $lastActivity = $session->created_at->toIso8601String();
+                    }
+                    
+                    $createdAt = null;
+                    if ($session->created_at) {
+                        $createdAt = $session->created_at->toIso8601String();
+                    }
+                    
                     return [
                         'id' => $session->id,
                         'device_name' => $session->device_name ?? 'Unknown Device',
@@ -159,10 +181,17 @@ class SSOController extends Controller
                         'browser' => $session->browser ?? 'Unknown',
                         'ip_address' => $session->ip_address ?? 'Unknown',
                         'is_current' => $session->is_current ?? false,
-                        'last_activity' => $session->last_activity ? $session->last_activity->toIso8601String() : ($session->created_at ? $session->created_at->toIso8601String() : null),
-                        'created_at' => $session->created_at ? $session->created_at->toIso8601String() : null,
+                        'last_activity' => $lastActivity,
+                        'created_at' => $createdAt,
                     ];
-                });
+                } catch (\Exception $e) {
+                    \Log::error('Error mapping session', [
+                        'session_id' => $session->id,
+                        'error' => $e->getMessage()
+                    ]);
+                    return null;
+                }
+            })->filter(); // Retirer les valeurs null
 
             \Log::info('Sessions loaded', [
                 'user_id' => $user->id,
