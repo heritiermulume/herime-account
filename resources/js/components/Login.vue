@@ -294,7 +294,7 @@
 
 <script>
 import { ref, reactive, onMounted, inject, Teleport, Transition } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import axios from 'axios'
 
@@ -303,6 +303,7 @@ export default {
   emits: ['switch-to-register'],
   setup(props, { emit }) {
     const router = useRouter()
+    const route = useRoute()
     const authStore = useAuthStore()
     
     // Initialiser le thème sombre si nécessaire
@@ -394,10 +395,30 @@ export default {
       requiresTwoFactor.value = false // Reset au début
 
       try {
-        console.log('Calling authStore.login...')
-        const result = await authStore.login(form)
+        // Récupérer les paramètres redirect et force_token de l'URL pour les passer à l'API
+        const loginData = { ...form }
+        if (route.query.redirect) {
+          loginData.redirect = route.query.redirect
+        }
+        if (route.query.force_token) {
+          loginData.force_token = route.query.force_token
+        }
+        if (route.query.client_domain) {
+          loginData.client_domain = route.query.client_domain
+        }
+        
+        console.log('Calling authStore.login...', loginData)
+        const result = await authStore.login(loginData)
         console.log('Login successful:', result)
-        // Redirect to dashboard after successful login
+        
+        // Vérifier s'il y a une redirection SSO vers un domaine externe
+        if (result?.data?.sso_redirect_url) {
+          // Rediriger vers le domaine externe avec le token SSO
+          window.location.href = result.data.sso_redirect_url
+          return
+        }
+        
+        // Sinon, rediriger vers le dashboard local
         router.push('/dashboard')
       } catch (err) {
         console.error('Login error:', err)
@@ -454,7 +475,15 @@ export default {
       try {
         const result = await authStore.verifyTwoFactor(form.email, twoFactorCode.value)
         console.log('2FA verification successful:', result)
-        // Redirect to dashboard after successful verification
+        
+        // Vérifier s'il y a une redirection SSO vers un domaine externe
+        if (result?.data?.sso_redirect_url) {
+          // Rediriger vers le domaine externe avec le token SSO
+          window.location.href = result.data.sso_redirect_url
+          return
+        }
+        
+        // Sinon, rediriger vers le dashboard local
         router.push('/dashboard')
       } catch (err) {
         console.error('2FA verification error:', err)

@@ -374,6 +374,9 @@ class SimpleAuthController extends Controller
         // Create access token for API authentication
         $token = $user->createToken('API Token')->accessToken;
 
+        // Vérifier si on doit rediriger vers un domaine externe après connexion
+        $redirectUrl = $this->determineRedirectUrl($request);
+
         // Forcer l'inclusion de avatar_url et last_login_at
         $user->makeVisible(['avatar', 'avatar_url', 'last_login_at', 'is_active']);
         $userData = $user->load('currentSession')->toArray();
@@ -384,15 +387,24 @@ class SimpleAuthController extends Controller
             $userData['last_login_at'] = $user->last_login_at ? $user->last_login_at->toISOString() : null;
         }
         
+        // Si une redirection externe est nécessaire, l'inclure dans la réponse JSON
+        $responseData = [
+            'user' => $userData,
+            'authenticated' => true,
+            'access_token' => $token,
+            'token_type' => 'Bearer'
+        ];
+
+        if ($redirectUrl) {
+            $ssoToken = $this->generateSSOToken($user);
+            $responseData['sso_redirect_url'] = $redirectUrl . '?token=' . $ssoToken;
+            $responseData['sso_token'] = $ssoToken;
+        }
+        
         return response()->json([
             'success' => true,
-            'message' => 'Login successful',
-            'data' => [
-                'user' => $userData,
-                'authenticated' => true,
-                'access_token' => $token,
-                'token_type' => 'Bearer'
-            ]
+            'message' => 'Authentification à deux facteurs réussie',
+            'data' => $responseData
         ]);
     }
 
