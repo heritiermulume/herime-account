@@ -229,7 +229,7 @@ class UserController extends Controller
             $parts = $user->name ? preg_split('/\s+/', trim($user->name)) : [];
             $firstName = $parts[0] ?? null;
             $lastName = isset($parts[1]) ? implode(' ', array_slice($parts, 1)) : null;
-            NotificationService::sendIfEnabled($user, new PasswordChangedMail($firstName, $lastName));
+            NotificationService::sendForEvent($user, 'password_changes', new PasswordChangedMail($firstName, $lastName));
 
         return response()->json([
             'success' => true,
@@ -326,7 +326,7 @@ class UserController extends Controller
             $parts = $user->name ? preg_split('/\s+/', trim($user->name)) : [];
             $firstName = $parts[0] ?? null;
             $lastName = isset($parts[1]) ? implode(' ', array_slice($parts, 1)) : null;
-            NotificationService::sendIfEnabled($user, new AccountDeactivatedMail($firstName, $lastName));
+            NotificationService::sendForEvent($user, 'account_status', new AccountDeactivatedMail($firstName, $lastName));
 
         return response()->json([
             'success' => true,
@@ -382,7 +382,7 @@ class UserController extends Controller
             $parts = $user->name ? preg_split('/\s+/', trim($user->name)) : [];
             $firstName = $parts[0] ?? null;
             $lastName = isset($parts[1]) ? implode(' ', array_slice($parts, 1)) : null;
-            NotificationService::sendIfEnabled($user, new AccountDeactivatedMail($firstName, $lastName, $request->reason));
+            NotificationService::sendForEvent($user, 'account_status', new AccountDeactivatedMail($firstName, $lastName, $request->reason));
 
         \Log::info('Account deactivated by user', [
             'user_id' => $user->id,

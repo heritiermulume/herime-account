@@ -61,7 +61,7 @@ class SimpleAuthController extends Controller
             $device = $request->userAgent();
             $ip = $request->ip();
             $time = now()->toDateTimeString();
-            NotificationService::sendIfEnabled($user, new NewLoginMail($firstName, $lastName, $ip, $device, $time));
+            NotificationService::sendForEvent($user, 'suspicious_logins', new NewLoginMail($firstName, $lastName, $ip, $device, $time));
         } catch (\Throwable $e) {
             \Log::warning('Failed to queue new login email', ['error' => $e->getMessage()]);
         }
