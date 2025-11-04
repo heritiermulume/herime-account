@@ -32,14 +32,19 @@ class LoginController extends Controller
 
             $token = $this->generateSSOToken($user);
 
-            // Si une URL de redirection a été détectée, rediriger vers le domaine externe
+            // Si une URL de redirection a été détectée, passer à la vue pour redirection JS immédiate
             if ($redirectUrl) {
                 $callbackUrl = $redirectUrl . (strpos($redirectUrl, '?') !== false ? '&' : '?') . 'token=' . $token;
                 \Log::info('SSO Redirect with token', [
                     'redirect_url' => $callbackUrl,
                     'user_id' => $user->id
                 ]);
-                return redirect($callbackUrl);
+                
+                // Passer l'URL de redirection à la vue pour redirection JavaScript immédiate
+                // Cela évite que Vue.js charge avant la redirection
+                return view('welcome', [
+                    'sso_redirect' => $callbackUrl
+                ]);
             }
 
             // Sinon, rediriger vers le dashboard local (cas où l'utilisateur se connecte directement)
