@@ -242,7 +242,7 @@
 </template>
 
 <script>
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 
@@ -252,6 +252,20 @@ export default {
   setup(props, { emit }) {
     const router = useRouter()
     const authStore = useAuthStore()
+    
+    // Initialiser le thème sombre si nécessaire
+    onMounted(() => {
+      // Vérifier la préférence dark mode sauvegardée
+      const savedDarkMode = localStorage.getItem('darkMode')
+      if (savedDarkMode !== null) {
+        const isDark = savedDarkMode === 'true'
+        document.documentElement.classList.toggle('dark', isDark)
+      } else {
+        // Vérifier la préférence système
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+        document.documentElement.classList.toggle('dark', prefersDark)
+      }
+    })
     
     const form = reactive({
       name: '',

@@ -93,12 +93,6 @@
     background-color: #4b5563;
   }
   
-  /* Force auth pages background to match dashboard */
-  .auth-page-background {
-    background-color: #f9fafb !important; /* bg-gray-50 */
-  }
-  
-  .dark .auth-page-background {
-    background-color: #111827 !important; /* dark:bg-gray-900 */
-  }
+  /* Note: auth-page-background a été remplacé par bg-gray-50 dark:bg-gray-900 dans les composants */
+  /* Cette classe CSS n'est plus utilisée mais conservée pour compatibilité */
 }
