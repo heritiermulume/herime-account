@@ -134,13 +134,6 @@
 
             <div class="flex flex-col sm:flex-row-reverse gap-3 mt-4">
               <button
-                type="button"
-                @click="goToLogin"
-                class="w-full sm:w-auto px-4 py-3 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-medium rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition duration-200"
-              >
-                Retour
-              </button>
-              <button
                 type="submit"
                 :disabled="loading"
                 class="w-full sm:flex-1 py-3 px-4 bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:ring-blue-200 text-white font-medium rounded-lg transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -153,6 +146,13 @@
                   Réinitialisation...
                 </span>
                 <span v-else>Réinitialiser le mot de passe</span>
+              </button>
+              <button
+                type="button"
+                @click="goToLogin"
+                class="w-full sm:w-auto px-4 py-3 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-medium rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition duration-200"
+              >
+                Retour
               </button>
             </div>
           </div>
