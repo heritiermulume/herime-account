@@ -56,13 +56,26 @@ class AvatarController extends Controller
         
         // Obtenir le contenu du fichier
         $fileContent = Storage::disk('private')->get($avatarPath);
-        $mimeType = Storage::disk('private')->mimeType($avatarPath);
+        
+        // Détecter le type MIME basé sur l'extension
+        $extension = strtolower(pathinfo($user->avatar, PATHINFO_EXTENSION));
+        $mimeTypes = [
+            'jpg' => 'image/jpeg',
+            'jpeg' => 'image/jpeg',
+            'png' => 'image/png',
+            'gif' => 'image/gif',
+            'webp' => 'image/webp',
+        ];
+        $mimeType = $mimeTypes[$extension] ?? 'image/jpeg';
         
         // Retourner l'image avec les bons headers
         return response($fileContent, 200)
             ->header('Content-Type', $mimeType)
             ->header('Content-Disposition', 'inline; filename="' . basename($user->avatar) . '"')
-            ->header('Cache-Control', 'private, max-age=3600');
+            ->header('Cache-Control', 'private, max-age=3600')
+            ->header('Access-Control-Allow-Origin', '*')
+            ->header('Access-Control-Allow-Methods', 'GET, OPTIONS')
+            ->header('Access-Control-Allow-Headers', 'Authorization, Content-Type');
     }
     
     /**

@@ -109,29 +109,19 @@ class User extends Authenticatable implements MustVerifyEmail
     public function getAvatarUrlAttribute(): string
     {
         if ($this->avatar) {
-            // Vérifier si le fichier existe dans le stockage privé
-            $avatarPath = 'avatars/' . basename($this->avatar);
-            if (\Storage::disk('private')->exists($avatarPath)) {
-                // Retourner l'URL vers la route sécurisée
-                $baseUrl = config('app.url');
-                $url = rtrim($baseUrl, '/') . '/api/user/avatar/' . $this->id;
-                
-                \Log::info('Avatar URL generated (secure)', [
-                    'avatar_path' => $avatarPath,
-                    'generated_url' => $url,
-                    'user_id' => $this->id
-                ]);
-                
-                return $url;
-            }
+            // Construire l'URL vers la route sécurisée
+            // On ne vérifie pas l'existence du fichier ici pour éviter les erreurs
+            // La route AvatarController vérifiera l'existence
+            $baseUrl = config('app.url');
+            $url = rtrim($baseUrl, '/') . '/api/user/avatar/' . $this->id;
             
-            // Si le fichier n'existe pas, logger pour debug
-            \Log::warning('Avatar file not found in private storage', [
-                'avatar_path' => $avatarPath,
-                'full_path' => storage_path('app/private/' . $avatarPath),
-                'exists' => file_exists(storage_path('app/private/' . $avatarPath)),
-                'storage_exists' => \Storage::disk('private')->exists($avatarPath)
+            \Log::info('Avatar URL generated (secure)', [
+                'avatar' => $this->avatar,
+                'generated_url' => $url,
+                'user_id' => $this->id
             ]);
+            
+            return $url;
         }
         
         // Retourner l'avatar généré par défaut

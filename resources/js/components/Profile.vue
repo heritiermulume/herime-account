@@ -354,7 +354,14 @@ export default {
       
       // Sinon, construire l'URL vers l'API sécurisée
       if (user.value?.id && user.value?.avatar) {
-        return `/api/user/avatar/${user.value.id}`
+        const url = `/api/user/avatar/${user.value.id}`
+        console.log('🔗 Constructed avatar URL:', url, 'from user avatar:', user.value.avatar)
+        return url
+      }
+      
+      // Si on a un avatar_url depuis la réponse API, l'utiliser
+      if (form.avatar_url && form.avatar_url.startsWith('/api/')) {
+        return form.avatar_url
       }
       
       // Si pas d'avatar, retourner null pour afficher l'icône
