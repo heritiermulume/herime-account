@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\User;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Arr;
+use App\Models\UserEmailNotification;
 
 class NotificationService
 {
@@ -98,13 +99,42 @@ class NotificationService
                 return;
             }
 
-            // Optional frequency handling — if user set "never", skip for non-security events
+            // Frequency handling
             $frequency = $preferences['email_frequency'] ?? 'immediate';
-            if ($frequency === 'never' && !in_array($eventKey, ['suspicious_logins', 'password_changes'])) {
+            if ($frequency === 'never') {
+                // Skip all except critical security could be queued elsewhere
                 return;
             }
 
-            Mail::to($user->email)->send($mailable);
+            if ($frequency === 'immediate') {
+                Mail::to($user->email)->send($mailable);
+                return;
+            }
+
+            // For daily/weekly/monthly: enqueue for later digest
+            $scheduledAt = match ($frequency) {
+                'daily' => now()->endOfDay(),
+                'weekly' => now()->endOfWeek(),
+                'monthly' => now()->endOfMonth(),
+                default => now()->endOfDay(),
+            };
+
+            UserEmailNotification::create([
+                'user_id' => $user->id,
+                'event_key' => $eventKey,
+                'payload' => [
+                    'mailable' => get_class($mailable),
+                    'data' => [
+                        'firstName' => property_exists($mailable, 'firstName') ? $mailable->firstName : null,
+                        'lastName' => property_exists($mailable, 'lastName') ? $mailable->lastName : null,
+                        'ip' => property_exists($mailable, 'ip') ? $mailable->ip : null,
+                        'device' => property_exists($mailable, 'device') ? $mailable->device : null,
+                        'time' => property_exists($mailable, 'time') ? $mailable->time : null,
+                        // add other fields as needed
+                    ],
+                ],
+                'scheduled_at' => $scheduledAt,
+            ]);
         } catch (\Throwable $e) {
             \Log::error('NotificationService: failed to send event email', [
                 'user_id' => $user->id ?? null,
@@ -113,6 +143,48 @@ class NotificationService
                 'mailable' => is_object($mailable) ? get_class($mailable) : (string) $mailable,
                 'error' => $e->getMessage(),
             ]);
+        }
+    }
+
+    /**
+     * Send a queued notification item (single event mail)
+     */
+    public static function sendQueued(UserEmailNotification $item): bool
+    {
+        $user = User::find($item->user_id);
+        if (!$user) {
+            $item->sent_at = now();
+            $item->save();
+            return false;
+        }
+
+        // Respect global email switch
+        if (!self::emailEnabled($user)) {
+            $item->sent_at = now();
+            $item->save();
+            return false;
+        }
+
+        try {
+            $payload = $item->payload ?? [];
+            $mailableClass = $payload['mailable'] ?? null;
+            if ($mailableClass && class_exists($mailableClass)) {
+                $data = $payload['data'] ?? [];
+                $mailable = new $mailableClass(...array_values($data));
+                Mail::to($user->email)->send($mailable);
+            }
+            $item->sent_at = now();
+            $item->save();
+            return true;
+        } catch (\Throwable $e) {
+            \Log::error('NotificationService: failed to send queued item', [
+                'id' => $item->id,
+                'error' => $e->getMessage(),
+            ]);
+            // Do not rethrow to avoid blocking the batch
+            $item->sent_at = now();
+            $item->save();
+            return false;
         }
     }
 }
