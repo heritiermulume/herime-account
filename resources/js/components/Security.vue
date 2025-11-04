@@ -192,7 +192,7 @@
               </span>
               <button
                 v-if="!device.is_current"
-                @click="revokeDevice(device.id)"
+                @click="openRevokeDevice(device)"
                 class="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 text-sm font-medium"
               >
                 Révoquer
@@ -261,6 +261,47 @@
         </div>
       </div>
     </div>
+
+    <!-- Revoke Device Modal -->
+    <teleport to="body">
+      <transition enter-active-class="transition ease-out duration-200" enter-from-class="opacity-0" enter-to-class="opacity-100" leave-active-class="transition ease-in duration-150" leave-from-class="opacity-100" leave-to-class="opacity-0">
+        <div v-if="showRevokeDevice" class="fixed inset-0 z-50 flex items-center justify-center">
+          <div class="fixed inset-0 bg-black bg-opacity-50" @click="showRevokeDevice = false"></div>
+          <div class="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md mx-4 p-6">
+            <div class="flex items-center justify-between mb-3">
+              <h3 class="text-lg font-medium text-gray-900 dark:text-white">Confirmer la révocation</h3>
+              <button class="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700" @click="showRevokeDevice = false" aria-label="Fermer">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+              </button>
+            </div>
+            <div class="flex items-start space-x-3">
+              <div class="flex-shrink-0">
+                <div class="h-10 w-10 rounded-full bg-red-100 dark:bg-red-900 flex items-center justify-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-600 dark:text-red-300" viewBox="0 0 24 24" fill="currentColor"><path d="M12 9v4m0 4h.01M12 2a10 10 0 100 20 10 10 0 000-20z"/></svg>
+                </div>
+              </div>
+              <div>
+                <p class="text-sm text-gray-700 dark:text-gray-200">Voulez-vous vraiment révoquer cet appareil ?</p>
+                <div v-if="revokeDeviceTarget" class="mt-2 text-sm text-gray-600 dark:text-gray-300 space-y-1">
+                  <div><span class="text-gray-500">Appareil:</span> {{ revokeDeviceTarget.device_name }}</div>
+                  <div><span class="text-gray-500">Plateforme:</span> {{ revokeDeviceTarget.platform }} • {{ revokeDeviceTarget.browser }}</div>
+                  <div><span class="text-gray-500">IP:</span> {{ revokeDeviceTarget.ip_address }}</div>
+                  <div><span class="text-gray-500">Dernière activité:</span> {{ formatDate(revokeDeviceTarget.last_activity) }}</div>
+                </div>
+                <p v-if="revokeDeviceError" class="mt-2 text-sm text-red-600 dark:text-red-400">{{ revokeDeviceError }}</p>
+              </div>
+            </div>
+            <div class="mt-6 flex justify-end space-x-2">
+              <button class="px-4 py-2 rounded bg-gray-200 dark:bg-gray-700 dark:text-white hover:bg-gray-300 dark:hover:bg-gray-600" @click="showRevokeDevice = false">Annuler</button>
+              <button :disabled="revokeDeviceLoading" class="px-4 py-2 rounded bg-red-600 text-white hover:bg-red-700 disabled:opacity-50" @click="confirmRevokeDevice">
+                <span v-if="revokeDeviceLoading">Révocation...</span>
+                <span v-else>Révoquer</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </transition>
+    </teleport>
   </div>
 </template>
 
@@ -282,6 +323,12 @@ export default {
     const loginHistory = ref([])
     const devicesPage = ref(1)
     const loginHistoryPage = ref(1)
+    
+    // Revoke device modal state
+    const showRevokeDevice = ref(false)
+    const revokeDeviceTarget = ref(null)
+    const revokeDeviceLoading = ref(false)
+    const revokeDeviceError = ref('')
     
     // Paginated computed properties
     const paginatedDevices = computed(() => {
@@ -346,20 +393,31 @@ export default {
       }
     }
 
-    const revokeDevice = async (deviceId) => {
-      if (confirm('Êtes-vous sûr de vouloir révoquer cet appareil?')) {
-        try {
-          await axios.delete(`/sso/sessions/${deviceId}`)
-          devices.value = devices.value.filter(device => device.id !== deviceId)
-          notify.success('Succès', 'Appareil révoqué avec succès!')
-        } catch (error) {
-          console.error('Error revoking device:', error)
-          if (error.response?.data?.message) {
-            notify.error('Erreur', error.response.data.message)
-          } else {
-            notify.error('Erreur', 'Erreur lors de la révocation de l\'appareil')
-          }
+    const openRevokeDevice = (device) => {
+      revokeDeviceTarget.value = device
+      revokeDeviceError.value = ''
+      showRevokeDevice.value = true
+    }
+
+    const confirmRevokeDevice = async () => {
+      if (!revokeDeviceTarget.value) return
+      revokeDeviceLoading.value = true
+      revokeDeviceError.value = ''
+      try {
+        await axios.delete(`/sso/sessions/${revokeDeviceTarget.value.id}`)
+        devices.value = devices.value.filter(device => device.id !== revokeDeviceTarget.value.id)
+        showRevokeDevice.value = false
+        revokeDeviceTarget.value = null
+        notify.success('Succès', 'Appareil révoqué avec succès!')
+      } catch (error) {
+        console.error('Error revoking device:', error)
+        if (error.response?.data?.message) {
+          revokeDeviceError.value = error.response.data.message
+        } else {
+          revokeDeviceError.value = 'Erreur lors de la révocation de l\'appareil'
         }
+      } finally {
+        revokeDeviceLoading.value = false
       }
     }
 
@@ -457,7 +515,12 @@ export default {
       paginatedLoginHistory,
       updatePassword,
       toggleTwoFactor,
-      revokeDevice,
+      openRevokeDevice,
+      confirmRevokeDevice,
+      showRevokeDevice,
+      revokeDeviceTarget,
+      revokeDeviceLoading,
+      revokeDeviceError,
       formatDate
     }
   }
