@@ -22,15 +22,20 @@ echo ""
 log "1. Résolution des conflits Git..."
 git fetch origin main 2>/dev/null || true
 
-# Supprimer les fichiers conflictuels
+# Supprimer les fichiers conflictuels du cache
 git rm --cached bootstrap/cache/.gitignore storage/app/.gitignore storage/app/private/.gitignore storage/app/public/.gitignore storage/framework/.gitignore storage/framework/cache/.gitignore storage/framework/cache/data/.gitignore storage/framework/sessions/.gitignore storage/framework/testing/.gitignore storage/framework/views/.gitignore storage/logs/.gitignore 2>/dev/null || true
-rm -f public/build/manifest.json public/build/assets/app-C8OVHuWe.css 2>/dev/null || true
+
+# Supprimer les fichiers localement (clé pour résoudre les conflits)
+rm -f public/build/manifest.json 2>/dev/null || true
+rm -f public/build/assets/*.css 2>/dev/null || true
+rm -f public/build/assets/*.js 2>/dev/null || true
 git clean -fd public/build/ 2>/dev/null || true
 
 # Pull
 if ! git pull origin main 2>/dev/null; then
     warning "Pull échoué, tentative de reset..."
     git reset --hard origin/main 2>/dev/null || error "Impossible de résoudre les conflits Git"
+    git pull origin main 2>/dev/null || error "Impossible de faire le pull"
 fi
 log "Git pull réussi"
 
