@@ -1,16 +1,15 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Web\LoginController;
 
 // Route principale - affiche l'application Vue.js
 Route::get('/', function () {
     return view('welcome');
 });
 
-// Routes pour l'application Vue.js (toutes redirigent vers la vue principale)
-Route::get('/login', function () {
-    return view('welcome');
-});
+// Route de login avec gestion du SSO force_token
+Route::get('/login', [LoginController::class, 'show']);
 
 Route::get('/register', function () {
     return view('welcome');
