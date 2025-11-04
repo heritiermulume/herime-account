@@ -318,9 +318,12 @@ class UserController extends Controller
             ], 400);
         }
 
-        // Delete avatar if exists
-        if ($user->avatar && Storage::exists($user->avatar)) {
-            Storage::delete($user->avatar);
+        // Delete avatar if exists (dans le dossier privé)
+        if ($user->avatar) {
+            $avatarPath = 'avatars/' . basename($user->avatar);
+            if (Storage::disk('private')->exists($avatarPath)) {
+                Storage::disk('private')->delete($avatarPath);
+            }
         }
 
         // Delete user and related data
