@@ -1,41 +1,4 @@
 {
-  "__plugin-vue_export-helper-2pmyU6hP.js": {
-    "file": "assets/_plugin-vue_export-helper-2pmyU6hP.js",
-    "name": "_plugin-vue_export-helper",
-    "imports": [
-      "_runtime-core.esm-bundler-D1ARzwY8.js",
-      "node_modules/pinia/dist/pinia.mjs",
-      "node_modules/axios/index.js"
-    ]
-  },
-  "_runtime-core.esm-bundler-D1ARzwY8.js": {
-    "file": "assets/runtime-core.esm-bundler-D1ARzwY8.js",
-    "name": "runtime-core.esm-bundler"
-  },
-  "node_modules/axios/index.js": {
-    "file": "assets/index-DH5hsvb4.js",
-    "name": "index",
-    "src": "node_modules/axios/index.js",
-    "isDynamicEntry": true
-  },
-  "node_modules/pinia/dist/pinia.mjs": {
-    "file": "assets/pinia-D036F5w6.js",
-    "name": "pinia",
-    "src": "node_modules/pinia/dist/pinia.mjs",
-    "isDynamicEntry": true,
-    "imports": [
-      "_runtime-core.esm-bundler-D1ARzwY8.js"
-    ]
-  },
-  "node_modules/vue/dist/vue.runtime.esm-bundler.js": {
-    "file": "assets/vue.runtime.esm-bundler-DsD8H2A-.js",
-    "name": "vue.runtime.esm-bundler",
-    "src": "node_modules/vue/dist/vue.runtime.esm-bundler.js",
-    "isDynamicEntry": true,
-    "imports": [
-      "_runtime-core.esm-bundler-D1ARzwY8.js"
-    ]
-  },
   "resources/css/app.css": {
     "file": "assets/app-DVlYVwTs.css",
     "src": "resources/css/app.css",
@@ -45,52 +8,9 @@
     ]
   },
   "resources/js/app.js": {
-    "file": "assets/app-D32TI4JA.js",
+    "file": "assets/app-udSiXqFf.js",
     "name": "app",
     "src": "resources/js/app.js",
-    "isEntry": true,
-    "dynamicImports": [
-      "resources/js/bootstrap.js",
-      "node_modules/vue/dist/vue.runtime.esm-bundler.js",
-      "node_modules/pinia/dist/pinia.mjs",
-      "resources/js/components/App.vue",
-      "resources/js/router/index.js",
-      "node_modules/axios/index.js"
-    ]
-  },
-  "resources/js/bootstrap.js": {
-    "file": "assets/bootstrap-DyvpkOXm.js",
-    "name": "bootstrap",
-    "src": "resources/js/bootstrap.js",
-    "isDynamicEntry": true,
-    "imports": [
-      "node_modules/axios/index.js"
-    ]
-  },
-  "resources/js/components/App.vue": {
-    "file": "assets/App-BpcHtnBy.js",
-    "name": "App",
-    "src": "resources/js/components/App.vue",
-    "isDynamicEntry": true,
-    "imports": [
-      "__plugin-vue_export-helper-2pmyU6hP.js",
-      "_runtime-core.esm-bundler-D1ARzwY8.js",
-      "node_modules/vue/dist/vue.runtime.esm-bundler.js",
-      "node_modules/pinia/dist/pinia.mjs",
-      "node_modules/axios/index.js"
-    ]
-  },
-  "resources/js/router/index.js": {
-    "file": "assets/index-DWhmH-Gj.js",
-    "name": "index",
-    "src": "resources/js/router/index.js",
-    "isDynamicEntry": true,
-    "imports": [
-      "__plugin-vue_export-helper-2pmyU6hP.js",
-      "node_modules/vue/dist/vue.runtime.esm-bundler.js",
-      "_runtime-core.esm-bundler-D1ARzwY8.js",
-      "node_modules/axios/index.js",
-      "node_modules/pinia/dist/pinia.mjs"
-    ]
+    "isEntry": true
   }
 }
