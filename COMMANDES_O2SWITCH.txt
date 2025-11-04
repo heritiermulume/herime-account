@@ -121,19 +121,14 @@ php artisan db:show
 
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🔧 CORRECTION AUTOMATIQUE
+🔧 CORRECTION AUTOMATIQUE - SCRIPT MASTER
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-# Script de pull et correction automatique (RECOMMANDÉ)
-# → Pull les modifications depuis GitHub et corrige automatiquement
-./pull-et-corriger-production.sh
-
-# Script de correction automatique complète
-# → Corrige automatiquement tous les problèmes courants en production
-./corriger-production-automatique.sh
-
-# Script de vérification (sans correction)
-./verifier-et-corriger-production.sh
+# Script master qui résout TOUS les problèmes automatiquement
+# → Résout les conflits Git, pull, migrations, Passport, caches, etc.
+git fetch origin main
+chmod +x fix-production.sh
+./fix-production.sh
 
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -142,20 +137,7 @@ php artisan db:show
 
 # Erreur "Vos modifications locales seraient écrasées par la fusion"
 # → Conflit Git lors du pull
-# → Solution automatique (RECOMMANDÉ) :
-#    git fetch origin main
-#    ./resoudre-conflit-pull.sh
-# → Solution manuelle rapide (si conflit avec public/build/) :
-#    git rm --cached public/build/assets/app-C8OVHuWe.css public/build/manifest.json
-#    rm -f public/build/manifest.json public/build/assets/app-C8OVHuWe.css
-#    git clean -fd public/build/
-#    git pull origin main
-#    chmod +x corriger-production-automatique.sh
-#    ./corriger-production-automatique.sh
-# → Solution alternative (forcer le pull, ATTENTION : supprime toutes les modifications locales) :
-#    git reset --hard origin/main
-#    git pull origin main
-#    ./corriger-production-automatique.sh
+# → Solution : ./fix-production.sh (résout automatiquement tous les conflits)
 
 # Erreur "Access denied" MySQL
 # → Vérifier le fichier .env (remplacer votre_db_user par les vraies valeurs)
