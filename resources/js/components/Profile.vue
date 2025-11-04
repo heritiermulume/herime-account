@@ -676,6 +676,9 @@ export default {
     })
 
     const confirmDeleteAccount = async () => {
+      // Réinitialiser l'erreur de mot de passe
+      passwordError.value = ''
+      
       if (!deleteReason.value || !deletePassword.value) {
         notify.error('Erreur', 'Veuillez remplir tous les champs')
         return
@@ -707,8 +710,10 @@ export default {
         // Vérifier le code de statut HTTP pour identifier le type d'erreur
         if (error.response?.status === 400) {
           // Erreur 400 = mot de passe incorrect
-          const errorMessage = error.response?.data?.message || 'Le mot de passe est incorrect'
-          notify.error('Mot de passe incorrect', errorMessage)
+          // Afficher le message d'erreur sous le champ de mot de passe
+          passwordError.value = error.response?.data?.message === 'Password is incorrect' 
+            ? 'Le mot de passe est incorrect' 
+            : (error.response?.data?.message || 'Le mot de passe est incorrect')
           // Réinitialiser le champ mot de passe pour permettre une nouvelle tentative
           deletePassword.value = ''
         } else if (error.response?.status === 422) {
