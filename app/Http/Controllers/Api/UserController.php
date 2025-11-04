@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\ImageService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Hash;
@@ -92,6 +93,9 @@ class UserController extends Controller
         // Handle avatar upload
         if ($request->hasFile('avatar')) {
             try {
+                $file = $request->file('avatar');
+                $originalSize = $file->getSize();
+                
                 // Delete old avatar if exists (dans le dossier privé)
                 if ($user->avatar) {
                     $oldAvatarPath = 'avatars/' . basename($user->avatar);
@@ -100,26 +104,26 @@ class UserController extends Controller
                     }
                 }
 
-                // Store avatar in private storage (sécurisé)
                 // Générer un nom unique pour éviter les collisions
-                $filename = time() . '_' . uniqid() . '.' . $request->file('avatar')->getClientOriginalExtension();
-                $avatarPath = $request->file('avatar')->storeAs('avatars', $filename, 'private');
+                $extension = $file->getClientOriginalExtension();
+                $filename = ImageService::generateUniqueFilename($extension);
+                $avatarPath = 'avatars/' . $filename;
+                
+                // Compresser l'image si elle dépasse 1Mo (1048576 bytes)
+                ImageService::compressAndSave($file, 'private', $avatarPath, 1048576, 85);
                 
                 // Stocker uniquement le nom du fichier dans la DB pour sécurité
                 $data['avatar'] = $filename;
                 
-                \Log::info('Avatar stored in private storage', [
+                $finalSize = Storage::disk('private')->size($avatarPath);
+                
+                \Log::info('Avatar stored in private storage (compressed)', [
                     'filename' => $filename,
                     'avatar_path' => $avatarPath,
-                    'full_path' => storage_path('app/private/' . $avatarPath),
-                    'exists' => Storage::disk('private')->exists($avatarPath)
-                ]);
-                
-                // Log pour debug
-                \Log::info('Avatar uploaded:', [
-                    'path' => $avatarPath,
-                    'size' => $request->file('avatar')->getSize(),
-                    'mime' => $request->file('avatar')->getMimeType()
+                    'original_size' => $originalSize,
+                    'final_size' => $finalSize,
+                    'compressed' => $originalSize > $finalSize,
+                    'mime' => $file->getMimeType()
                 ]);
             } catch (\Exception $e) {
                 \Log::error('Error uploading avatar:', [

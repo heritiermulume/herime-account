@@ -53,11 +53,12 @@
                 
                 <!-- User info -->
                 <div class="flex items-center space-x-3">
-                  <div v-if="user.avatar_url" class="h-8 w-8 rounded-full overflow-hidden">
+                  <div v-if="user.avatar_url && user.avatar_url !== ''" class="h-8 w-8 rounded-full overflow-hidden bg-gray-200">
                     <img
-                      :src="user.avatar_url"
+                      :src="getAvatarUrl()"
                       :alt="user.name"
                       class="h-full w-full object-cover"
+                      @error="handleImageError"
                     />
                   </div>
                   <div v-else class="h-8 w-8 rounded-full flex items-center justify-center" style="background-color: #ffcc33;">
@@ -89,8 +90,8 @@
       </div>
     </div>
 
-    <!-- Mobile Navigation - Hide on admin pages -->
-    <MobileNavigation v-if="user && !$route.path.startsWith('/admin')" />
+    <!-- Mobile Navigation -->
+    <MobileNavigation v-if="user" />
 
     <!-- Toast Container -->
     <ToastContainer ref="toastContainer" />

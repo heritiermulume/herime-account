@@ -15,11 +15,12 @@
       <div class="px-4 py-5 sm:p-6">
         <div class="flex items-center">
           <div class="flex-shrink-0">
-            <div v-if="user.avatar_url" class="h-16 w-16 rounded-full overflow-hidden">
+            <div v-if="user.avatar_url && user.avatar_url !== ''" class="h-16 w-16 rounded-full overflow-hidden bg-gray-200">
               <img
-                :src="user.avatar_url"
+                :src="getAvatarUrl()"
                 :alt="user.name"
                 class="h-full w-full object-cover"
+                @error="handleImageError"
               />
             </div>
             <div v-else class="h-16 w-16 rounded-full flex items-center justify-center" style="background-color: #ffcc33;">
@@ -261,6 +262,28 @@ export default {
       })
     }
 
+    const getAvatarUrl = () => {
+      if (!user.value?.avatar_url || user.value.avatar_url === '') {
+        return null
+      }
+      
+      // Si c'est déjà une URL complète (commence par http), la retourner telle quelle
+      if (user.value.avatar_url.startsWith('http')) {
+        return user.value.avatar_url
+      }
+      
+      // Construire l'URL vers l'API sécurisée
+      if (user.value?.id) {
+        return `/api/user/avatar/${user.value.id}`
+      }
+      
+      return user.value.avatar_url
+    }
+
+    const handleImageError = (event) => {
+      console.error('❌ Image load error in Dashboard:', event.target.src)
+    }
+
     const loadSessions = async () => {
       try {
         console.log('🔄 Loading sessions from API...')
@@ -312,7 +335,9 @@ export default {
       showProfileModal,
       showSessionsModal,
       showSecurityModal,
-      formatDate
+      formatDate,
+      getAvatarUrl,
+      handleImageError
     }
   }
 }

@@ -25,9 +25,9 @@
           <!-- Avatar Section -->
           <div class="flex items-center space-x-6">
             <div class="flex-shrink-0">
-              <div v-if="form.avatar_url" class="h-20 w-20 rounded-full overflow-hidden bg-gray-200">
+              <div v-if="form.avatar_url && form.avatar_url !== ''" class="h-20 w-20 rounded-full overflow-hidden bg-gray-200">
                 <img
-                  :src="form.avatar_url"
+                  :src="getAvatarUrl()"
                   :alt="form.name"
                   class="h-full w-full object-cover"
                   @error="handleImageError"
@@ -298,9 +298,9 @@ export default {
     const handleAvatarChange = (event) => {
       const file = event.target.files[0]
       if (file) {
-        // Vérifier la taille (max 2MB)
-        if (file.size > 2 * 1024 * 1024) {
-          notify.error('Erreur', 'La photo ne doit pas dépasser 2MB')
+        // Vérifier la taille (max 5MB avant compression - sera compressé à 1MB si nécessaire)
+        if (file.size > 5 * 1024 * 1024) {
+          notify.error('Erreur', 'La photo ne doit pas dépasser 5MB (elle sera compressée automatiquement)')
           return
         }
         // Vérifier le type
@@ -309,11 +309,17 @@ export default {
           return
         }
         form.avatar_file = file
+        // Afficher un aperçu immédiat (même si la compression sera faite côté serveur)
         const reader = new FileReader()
         reader.onload = (e) => {
           form.avatar_url = e.target.result
         }
         reader.readAsDataURL(file)
+        
+        // Afficher un message si le fichier est > 1MB
+        if (file.size > 1024 * 1024) {
+          notify.info('Information', 'La photo sera automatiquement compressée pour optimiser l\'espace')
+        }
       }
     }
 
@@ -325,11 +331,31 @@ export default {
       form.marketing_emails = !form.marketing_emails
     }
 
+    const getAvatarUrl = () => {
+      if (!form.avatar_url || form.avatar_url === '') {
+        return null
+      }
+      
+      // Si c'est déjà une URL complète (commence par http), la retourner telle quelle
+      if (form.avatar_url.startsWith('http')) {
+        return form.avatar_url
+      }
+      
+      // Sinon, construire l'URL vers l'API sécurisée
+      // L'URL devrait être de la forme /api/user/avatar/{userId}
+      // Mais on a besoin de l'ID de l'utilisateur
+      if (user.value?.id) {
+        return `/api/user/avatar/${user.value.id}`
+      }
+      
+      return form.avatar_url
+    }
+
     const handleImageError = (event) => {
       console.error('❌ Image load error:', event.target.src)
       console.error('   Form avatar_url:', form.avatar_url)
       console.error('   User avatar_url:', user.value?.avatar_url)
-      // Fallback vers l'avatar généré
+      // Fallback vers l'avatar généré - masquer l'image
       form.avatar_url = ''
     }
 
@@ -453,6 +479,7 @@ export default {
       handleAvatarChange,
       toggleEmailNotifications,
       toggleMarketingEmails,
+      getAvatarUrl,
       handleImageError,
       handleImageLoad,
       updateProfile

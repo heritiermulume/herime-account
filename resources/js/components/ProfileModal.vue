@@ -107,11 +107,12 @@
               Photo de profil
             </label>
             <div class="mt-1 flex items-center space-x-4">
-              <div v-if="previewUrl || user.avatar_url" class="h-16 w-16 rounded-full overflow-hidden">
+              <div v-if="(previewUrl || (user.avatar_url && user.avatar_url !== ''))" class="h-16 w-16 rounded-full overflow-hidden bg-gray-200">
                 <img
-                  :src="previewUrl || user.avatar_url"
+                  :src="previewUrl || getAvatarUrl()"
                   :alt="user.name"
                   class="h-full w-full object-cover"
+                  @error="handleImageError"
                 />
               </div>
               <div v-else class="h-16 w-16 rounded-full flex items-center justify-center" style="background-color: #ffcc33;">
@@ -266,6 +267,28 @@ export default {
       }
     }
 
+    const getAvatarUrl = () => {
+      if (!user.value?.avatar_url || user.value.avatar_url === '') {
+        return null
+      }
+      
+      // Si c'est déjà une URL complète (commence par http), la retourner telle quelle
+      if (user.value.avatar_url.startsWith('http')) {
+        return user.value.avatar_url
+      }
+      
+      // Construire l'URL vers l'API sécurisée
+      if (user.value?.id) {
+        return `/api/user/avatar/${user.value.id}`
+      }
+      
+      return user.value.avatar_url
+    }
+
+    const handleImageError = (event) => {
+      console.error('❌ Image load error in ProfileModal:', event.target.src)
+    }
+
     const close = () => {
       emit('close')
     }
@@ -278,6 +301,8 @@ export default {
       loading,
       previewUrl,
       handleAvatarChange,
+      getAvatarUrl,
+      handleImageError,
       updateProfile,
       close
     }
