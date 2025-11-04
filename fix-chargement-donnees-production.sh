@@ -41,16 +41,24 @@ fi
 # 3. Vérifier le client Passport
 echo ""
 log "3. Vérification du client Passport..."
-CLIENT_COUNT=$(php artisan tinker --execute='echo \Laravel\Passport\Client::where("personal_access_client", 1)->where("revoked", 0)->count();' 2>&1 | grep -v "Tinker" | tail -1 | grep -o '[0-9]\+' || echo "0")
-if [ -z "$CLIENT_COUNT" ] || [ "$CLIENT_COUNT" = "0" ]; then
-    warning "Client Passport manquant, création..."
-    php artisan passport:client --personal --name="Herime SSO Personal Access Client" --no-interaction 2>/dev/null || warning "Création du client échouée"
-    CLIENT_COUNT=$(php artisan tinker --execute='echo \Laravel\Passport\Client::where("personal_access_client", 1)->where("revoked", 0)->count();' 2>&1 | grep -v "Tinker" | tail -1 | grep -o '[0-9]\+' || echo "0")
+CLIENT_COUNT=$(php artisan tinker --execute='$count = \Laravel\Passport\Client::where("personal_access_client", 1)->where("revoked", 0)->count(); echo $count;' 2>&1 | grep -v "Tinker" | grep -E "^[0-9]+$" | tail -1)
+if [ -z "$CLIENT_COUNT" ]; then
+    CLIENT_COUNT="0"
 fi
-if [ -n "$CLIENT_COUNT" ] && [ "$CLIENT_COUNT" != "0" ]; then
+if [ "$CLIENT_COUNT" = "0" ]; then
+    warning "Client Passport manquant, création..."
+    php artisan passport:client --personal --name="Herime SSO Personal Access Client" --no-interaction 2>&1 | grep -v "Tinker" || warning "Création du client échouée"
+    # Attendre un peu pour que la création soit enregistrée
+    sleep 1
+    CLIENT_COUNT=$(php artisan tinker --execute='$count = \Laravel\Passport\Client::where("personal_access_client", 1)->where("revoked", 0)->count(); echo $count;' 2>&1 | grep -v "Tinker" | grep -E "^[0-9]+$" | tail -1)
+    if [ -z "$CLIENT_COUNT" ]; then
+        CLIENT_COUNT="0"
+    fi
+fi
+if [ "$CLIENT_COUNT" != "0" ]; then
     log "Client Passport présent ($CLIENT_COUNT client(s))"
 else
-    warning "Client Passport non trouvé après création"
+    warning "Client Passport non trouvé - vérifiez manuellement avec: php artisan passport:client --personal"
 fi
 
 # 4. Vider TOUS les caches

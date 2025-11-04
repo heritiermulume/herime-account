@@ -38,7 +38,15 @@ log "Token créé: ${TOKEN:0:20}..."
 # 2. Tester l'endpoint API
 echo ""
 log "2. Test de l'endpoint /api/sso/sessions..."
-RESPONSE=$(curl -s -w "\n%{http_code}" -H "Authorization: Bearer $TOKEN" -H "Accept: application/json" "http://localhost/api/sso/sessions" 2>&1 || echo "ERROR")
+# Utiliser le domaine de production si disponible, sinon localhost
+DOMAIN=$(grep "^APP_URL=" .env 2>/dev/null | cut -d'=' -f2 | sed 's|https\?://||' | sed 's|/$||' || echo "localhost")
+if [ "$DOMAIN" = "localhost" ]; then
+    API_URL="http://localhost/api/sso/sessions"
+else
+    API_URL="https://$DOMAIN/api/sso/sessions"
+fi
+log "URL testée: $API_URL"
+RESPONSE=$(curl -s -w "\n%{http_code}" -H "Authorization: Bearer $TOKEN" -H "Accept: application/json" "$API_URL" 2>&1 || echo "ERROR")
 
 HTTP_CODE=$(echo "$RESPONSE" | tail -1)
 BODY=$(echo "$RESPONSE" | head -n -1)
