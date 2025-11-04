@@ -168,14 +168,14 @@
                       :title="user.is_active ? 'Désactiver' : 'Activer'"
                       aria-label="Basculer le statut"
                     >
-                      <!-- Icône On/Off plus explicite -->
+                      <!-- Icône Power (clair et standard) -->
                       <svg v-if="user.is_active" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="h-5 w-5 text-blue-600 dark:text-blue-400">
-                        <path d="M11 2a1 1 0 012 0v10a1 1 0 11-2 0V2z" />
-                        <path d="M7.05 4.636a8 8 0 1110.9 0 1 1 0 01-1.414 1.414 6 6 0 10-8.072 0A1 1 0 017.05 4.636z" />
+                        <path d="M12 2a1 1 0 011 1v8a1 1 0 11-2 0V3a1 1 0 011-1z"/>
+                        <path d="M7.05 5.636a8 8 0 1010.9 0 1 1 0 011.414 1.414 10 10 0 11-13.728 0A1 1 0 117.05 5.636z"/>
                       </svg>
-                      <svg v-else xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="h-5 w-5 text-blue-600 dark:text-blue-400">
-                        <path d="M12 2a10 10 0 100 20 10 10 0 000-20z" fill-opacity=".1" />
-                        <path d="M11 6a1 1 0 012 0v4a1 1 0 11-2 0V6z" />
+                      <svg v-else xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" class="h-5 w-5 text-blue-600 dark:text-blue-400">
+                        <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/>
+                        <path d="M12 5v6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
                       </svg>
                     </button>
 
@@ -187,12 +187,14 @@
                       :title="user.role === 'admin' ? 'Retirer admin' : 'Nommer admin'"
                       aria-label="Basculer rôle admin"
                     >
-                      <!-- Icônes admin: étoile pleine pour admin, contour pour non-admin -->
+                      <!-- Icônes admin: bouclier avec check (admin) / bouclier avec plus (nommer) -->
                       <svg v-if="user.role === 'admin'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="h-5 w-5 text-yellow-600 dark:text-yellow-400">
-                        <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21 12 17.27z" />
+                        <path d="M12 2l7 3v6c0 5.25-3.438 9.75-7 11-3.562-1.25-7-5.75-7-11V5l7-3z"/>
+                        <path d="M10.5 12.5l1.5 1.5 3.5-3.5" stroke="#1f2937" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
                       </svg>
                       <svg v-else xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" class="h-5 w-5 text-yellow-600 dark:text-yellow-400">
-                        <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21 12 17.27z" stroke="currentColor" stroke-width="1.5" />
+                        <path d="M12 2l7 3v6c0 5.25-3.438 9.75-7 11-3.562-1.25-7-5.75-7-11V5l7-3z" stroke="currentColor" stroke-width="1.5"/>
+                        <path d="M12 9v6M9 12h6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
                       </svg>
                     </button>
 
