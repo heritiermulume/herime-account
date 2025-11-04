@@ -1,4 +1,9 @@
 <x-mail::message>
+<div style="text-align:center; margin-bottom:16px;">
+    <img src="{{ asset('logo.png') }}" alt="HERIME" style="height:48px; width:auto;" />
+    <div style="height:8px;"></div>
+    <strong style="font-size:14px; color:#003366;">Compte Herime</strong>
+</div>
 # Réinitialisation de votre mot de passe
 
 Bonjour,
