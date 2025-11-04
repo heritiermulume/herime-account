@@ -384,6 +384,10 @@ export default {
     const notify = inject('notify')
     const loading = ref(false)
     const avatarInput = ref(null)
+    const showDeleteModal = ref(false)
+    const deleteReason = ref('')
+    const deletePassword = ref('')
+    const deleteLoading = ref(false)
 
     const user = computed(() => authStore.user)
 
@@ -668,11 +672,53 @@ export default {
       }
     })
 
+    const confirmDeleteAccount = async () => {
+      if (!deleteReason.value || !deletePassword.value) {
+        notify.error('Erreur', 'Veuillez remplir tous les champs')
+        return
+      }
+      
+      deleteLoading.value = true
+      try {
+        const response = await axios.delete('/user/delete', {
+          data: {
+            password: deletePassword.value,
+            reason: deleteReason.value
+          }
+        })
+        
+        if (response.data.success) {
+          notify.success('Succès', response.data.message || 'Votre compte a été désactivé avec succès')
+          // Déconnexion après désactivation
+          await authStore.logout()
+          // Rediriger vers la page de login
+          setTimeout(() => {
+            window.location.href = '/login'
+          }, 2000)
+        } else {
+          throw new Error(response.data.message || 'Erreur lors de la suppression')
+        }
+      } catch (error) {
+        console.error('Error deleting account:', error)
+        if (error.response?.data?.message) {
+          notify.error('Erreur', error.response.data.message)
+        } else {
+          notify.error('Erreur', 'Erreur lors de la suppression du compte')
+        }
+      } finally {
+        deleteLoading.value = false
+      }
+    }
+
     return {
       user,
       form,
       loading,
       avatarInput,
+      showDeleteModal,
+      deleteReason,
+      deletePassword,
+      deleteLoading,
       triggerAvatarUpload,
       handleAvatarChange,
       toggleEmailNotifications,
@@ -680,7 +726,8 @@ export default {
       getAvatarUrl,
       handleImageError,
       handleImageLoad,
-      updateProfile
+      updateProfile,
+      confirmDeleteAccount
     }
   }
 }
