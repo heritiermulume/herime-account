@@ -446,12 +446,51 @@ export default {
       }
     }
 
-    const toggleEmailNotifications = () => {
-      form.email_notifications = !form.email_notifications
+    const updatePreferenceImmediate = async (key, value) => {
+      try {
+        // Charger préférences actuelles pour merge
+        let serverPrefs = {}
+        try {
+          const cur = await axios.get('/user/profile')
+          if (cur.data?.success && cur.data.data?.user?.preferences) {
+            serverPrefs = cur.data.data.user.preferences
+          }
+        } catch (e) {}
+
+        const preferences = { ...serverPrefs, [key]: value }
+
+        const res = await axios.put('/user/preferences', {
+          preferences
+        })
+
+        if (res.data?.success) {
+          // Mettre à jour le store et le form immédiatement
+          const updatedPrefs = res.data.data?.preferences || preferences
+          authStore.updateUser({ preferences: updatedPrefs })
+          form.email_notifications = updatedPrefs.email_notifications !== false
+          form.marketing_emails = updatedPrefs.marketing_emails === true
+        } else {
+          throw new Error(res.data?.message || 'Erreur de mise à jour des préférences')
+        }
+      } catch (e) {
+        // rollback visuel
+        if (key === 'email_notifications') {
+          form.email_notifications = !value
+        } else if (key === 'marketing_emails') {
+          form.marketing_emails = !value
+        }
+        notify.error('Erreur', e.message || 'Impossible de mettre à jour la préférence')
+      }
     }
 
-    const toggleMarketingEmails = () => {
+    const toggleEmailNotifications = async () => {
+      form.email_notifications = !form.email_notifications
+      await updatePreferenceImmediate('email_notifications', form.email_notifications)
+    }
+
+    const toggleMarketingEmails = async () => {
       form.marketing_emails = !form.marketing_emails
+      await updatePreferenceImmediate('marketing_emails', form.marketing_emails)
     }
 
     const getAvatarUrl = () => {
