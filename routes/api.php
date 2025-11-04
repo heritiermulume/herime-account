@@ -53,6 +53,12 @@ Route::group(['middleware' => 'auth:api'], function () {
     Route::post('user/deactivate', [UserController::class, 'deactivateAccount']);
     Route::delete('user/delete', [UserController::class, 'deleteAccount']);
 
+    // Two-Factor Authentication routes
+    Route::get('user/two-factor/status', [App\Http\Controllers\Api\TwoFactorController::class, 'status']);
+    Route::post('user/two-factor/generate', [App\Http\Controllers\Api\TwoFactorController::class, 'generate']);
+    Route::post('user/two-factor/confirm', [App\Http\Controllers\Api\TwoFactorController::class, 'confirm']);
+    Route::post('user/two-factor/disable', [App\Http\Controllers\Api\TwoFactorController::class, 'disable']);
+
     // SSO routes
     Route::post('sso/create-session', [SSOController::class, 'createSession']);
     Route::get('sso/sessions', [SSOController::class, 'getSessions']);

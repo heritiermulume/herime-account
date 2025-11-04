@@ -302,6 +302,138 @@
         </div>
       </transition>
     </teleport>
+
+    <!-- 2FA Setup Modal -->
+    <teleport to="body">
+      <transition enter-active-class="transition ease-out duration-200" enter-from-class="opacity-0" enter-to-class="opacity-100" leave-active-class="transition ease-in duration-150" leave-from-class="opacity-100" leave-to-class="opacity-0">
+        <div v-if="show2FASetup" class="fixed inset-0 z-50 flex items-center justify-center">
+          <div class="fixed inset-0 bg-black bg-opacity-50" @click="show2FASetup = false"></div>
+          <div class="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md mx-4 p-6 max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="text-lg font-medium text-gray-900 dark:text-white">Configurer l'authentification à deux facteurs</h3>
+              <button class="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700" @click="show2FASetup = false" aria-label="Fermer">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+              </button>
+            </div>
+            <div class="space-y-4">
+              <p class="text-sm text-gray-600 dark:text-gray-400">
+                Scannez ce QR code avec votre application d'authentification (Google Authenticator, Authy, etc.)
+              </p>
+              <div class="flex justify-center p-4 bg-gray-50 dark:bg-gray-700 rounded-lg" v-html="twoFactorQrCode"></div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Code de vérification (6 chiffres)
+                </label>
+                <input
+                  v-model="twoFactorCode"
+                  type="text"
+                  maxlength="6"
+                  placeholder="000000"
+                  class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  @input="twoFactorError = ''"
+                />
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Mot de passe actuel
+                </label>
+                <input
+                  v-model="twoFactorPassword"
+                  type="password"
+                  placeholder="Votre mot de passe"
+                  class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  @input="twoFactorError = ''"
+                />
+              </div>
+              <p v-if="twoFactorError" class="text-sm text-red-600 dark:text-red-400">{{ twoFactorError }}</p>
+              <div class="flex justify-end space-x-2 pt-2">
+                <button class="px-4 py-2 rounded bg-gray-200 dark:bg-gray-700 dark:text-white hover:bg-gray-300 dark:hover:bg-gray-600" @click="show2FASetup = false">Annuler</button>
+                <button :disabled="twoFactorLoading" class="px-4 py-2 rounded text-white hover:opacity-90 disabled:opacity-50" style="background-color: #003366;" @click="confirm2FA">
+                  <span v-if="twoFactorLoading">Activation...</span>
+                  <span v-else>Activer</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </transition>
+    </teleport>
+
+    <!-- 2FA Disable Modal -->
+    <teleport to="body">
+      <transition enter-active-class="transition ease-out duration-200" enter-from-class="opacity-0" enter-to-class="opacity-100" leave-active-class="transition ease-in duration-150" leave-from-class="opacity-100" leave-to-class="opacity-0">
+        <div v-if="show2FADisable" class="fixed inset-0 z-50 flex items-center justify-center">
+          <div class="fixed inset-0 bg-black bg-opacity-50" @click="show2FADisable = false"></div>
+          <div class="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md mx-4 p-6">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="text-lg font-medium text-gray-900 dark:text-white">Désactiver l'authentification à deux facteurs</h3>
+              <button class="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700" @click="show2FADisable = false" aria-label="Fermer">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+              </button>
+            </div>
+            <div class="space-y-4">
+              <p class="text-sm text-gray-600 dark:text-gray-400">
+                Pour désactiver l'authentification à deux facteurs, veuillez entrer votre mot de passe.
+              </p>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Mot de passe actuel
+                </label>
+                <input
+                  v-model="twoFactorPassword"
+                  type="password"
+                  placeholder="Votre mot de passe"
+                  class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  @input="twoFactorError = ''"
+                />
+              </div>
+              <p v-if="twoFactorError" class="text-sm text-red-600 dark:text-red-400">{{ twoFactorError }}</p>
+              <div class="flex justify-end space-x-2 pt-2">
+                <button class="px-4 py-2 rounded bg-gray-200 dark:bg-gray-700 dark:text-white hover:bg-gray-300 dark:hover:bg-gray-600" @click="show2FADisable = false">Annuler</button>
+                <button :disabled="twoFactorLoading" class="px-4 py-2 rounded bg-red-600 text-white hover:bg-red-700 disabled:opacity-50" @click="disable2FA">
+                  <span v-if="twoFactorLoading">Désactivation...</span>
+                  <span v-else>Désactiver</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </transition>
+    </teleport>
+
+    <!-- Recovery Codes Modal -->
+    <teleport to="body">
+      <transition enter-active-class="transition ease-out duration-200" enter-from-class="opacity-0" enter-to-class="opacity-100" leave-active-class="transition ease-in duration-150" leave-from-class="opacity-100" leave-to-class="opacity-0">
+        <div v-if="showRecoveryCodes" class="fixed inset-0 z-50 flex items-center justify-center">
+          <div class="fixed inset-0 bg-black bg-opacity-50" @click="showRecoveryCodes = false"></div>
+          <div class="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md mx-4 p-6">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="text-lg font-medium text-gray-900 dark:text-white">Codes de récupération</h3>
+              <button class="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700" @click="showRecoveryCodes = false" aria-label="Fermer">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+              </button>
+            </div>
+            <div class="space-y-4">
+              <p class="text-sm text-gray-600 dark:text-gray-400">
+                Conservez ces codes de récupération dans un endroit sûr. Vous pouvez les utiliser pour accéder à votre compte si vous perdez votre appareil d'authentification.
+              </p>
+              <div class="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
+                <div class="grid grid-cols-2 gap-2 font-mono text-sm">
+                  <div v-for="(code, index) in recoveryCodes" :key="index" class="text-gray-900 dark:text-gray-100">
+                    {{ code }}
+                  </div>
+                </div>
+              </div>
+              <div class="flex justify-end">
+                <button class="px-4 py-2 rounded text-white hover:opacity-90" style="background-color: #003366;" @click="showRecoveryCodes = false">
+                  J'ai sauvegardé les codes
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </transition>
+    </teleport>
   </div>
 </template>
 
@@ -381,15 +513,122 @@ export default {
       }
     }
 
-    const toggleTwoFactor = async () => {
+    // 2FA state
+    const show2FASetup = ref(false)
+    const show2FADisable = ref(false)
+    const twoFactorQrCode = ref('')
+    const twoFactorCode = ref('')
+    const twoFactorPassword = ref('')
+    const twoFactorLoading = ref(false)
+    const twoFactorError = ref('')
+    const recoveryCodes = ref([])
+    const showRecoveryCodes = ref(false)
+
+    const load2FAStatus = async () => {
       try {
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 500))
-        twoFactorEnabled.value = !twoFactorEnabled.value
-        notify.success('Succès', twoFactorEnabled.value ? '2FA activé!' : '2FA désactivé!')
+        const response = await axios.get('/user/two-factor/status')
+        if (response.data.success) {
+          twoFactorEnabled.value = response.data.data.enabled
+        }
       } catch (error) {
-        console.error('Error toggling 2FA:', error)
-        notify.error('Erreur', 'Erreur lors de la modification de la 2FA')
+        console.error('Error loading 2FA status:', error)
+      }
+    }
+
+    const toggleTwoFactor = async () => {
+      if (twoFactorEnabled.value) {
+        // Désactiver
+        show2FADisable.value = true
+        twoFactorPassword.value = ''
+        twoFactorError.value = ''
+      } else {
+        // Activer - générer QR code
+        try {
+          twoFactorLoading.value = true
+          twoFactorError.value = ''
+          const response = await axios.post('/user/two-factor/generate')
+          if (response.data.success) {
+            twoFactorQrCode.value = response.data.data.qr_code_svg
+            show2FASetup.value = true
+            twoFactorCode.value = ''
+            twoFactorPassword.value = ''
+          }
+        } catch (error) {
+          console.error('Error generating 2FA QR code:', error)
+          if (error.response?.data?.message) {
+            notify.error('Erreur', error.response.data.message)
+          } else {
+            notify.error('Erreur', 'Erreur lors de la génération du QR code')
+          }
+        } finally {
+          twoFactorLoading.value = false
+        }
+      }
+    }
+
+    const confirm2FA = async () => {
+      if (!twoFactorCode.value || twoFactorCode.value.length !== 6) {
+        twoFactorError.value = 'Veuillez entrer un code de 6 chiffres'
+        return
+      }
+      if (!twoFactorPassword.value) {
+        twoFactorError.value = 'Veuillez entrer votre mot de passe'
+        return
+      }
+
+      twoFactorLoading.value = true
+      twoFactorError.value = ''
+      try {
+        const response = await axios.post('/user/two-factor/confirm', {
+          code: twoFactorCode.value,
+          password: twoFactorPassword.value
+        })
+        if (response.data.success) {
+          recoveryCodes.value = response.data.data.recovery_codes || []
+          showRecoveryCodes.value = true
+          show2FASetup.value = false
+          twoFactorEnabled.value = true
+          notify.success('Succès', 'Authentification à deux facteurs activée avec succès!')
+        }
+      } catch (error) {
+        console.error('Error confirming 2FA:', error)
+        if (error.response?.data?.message) {
+          twoFactorError.value = error.response.data.message
+        } else {
+          twoFactorError.value = 'Erreur lors de la confirmation'
+        }
+      } finally {
+        twoFactorLoading.value = false
+      }
+    }
+
+    const disable2FA = async () => {
+      if (!twoFactorPassword.value) {
+        twoFactorError.value = 'Veuillez entrer votre mot de passe'
+        return
+      }
+
+      twoFactorLoading.value = true
+      twoFactorError.value = ''
+      try {
+        const response = await axios.post('/user/two-factor/disable', {
+          password: twoFactorPassword.value
+        })
+        if (response.data.success) {
+          twoFactorEnabled.value = false
+          show2FADisable.value = false
+          twoFactorPassword.value = ''
+          notify.success('Succès', 'Authentification à deux facteurs désactivée avec succès!')
+        }
+      } catch (error) {
+        console.error('Error disabling 2FA:', error)
+        if (error.response?.data?.message) {
+          twoFactorError.value = error.response.data.message
+        } else {
+          twoFactorError.value = 'Erreur lors de la désactivation'
+        }
+      } finally {
+        twoFactorLoading.value = false
       }
     }
 
@@ -501,6 +740,7 @@ export default {
     onMounted(() => {
       loadDevices()
       loadLoginHistory()
+      load2FAStatus()
     })
 
     return {
@@ -515,6 +755,17 @@ export default {
       paginatedLoginHistory,
       updatePassword,
       toggleTwoFactor,
+      show2FASetup,
+      show2FADisable,
+      twoFactorQrCode,
+      twoFactorCode,
+      twoFactorPassword,
+      twoFactorLoading,
+      twoFactorError,
+      recoveryCodes,
+      showRecoveryCodes,
+      confirm2FA,
+      disable2FA,
       openRevokeDevice,
       confirmRevokeDevice,
       showRevokeDevice,
