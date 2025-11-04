@@ -21,6 +21,19 @@
           </p>
         </div>
         
+        <!-- Back button -->
+        <div class="flex items-center">
+          <button
+            @click="goToLogin"
+            class="inline-flex items-center text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+          >
+            <svg class="h-5 w-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+            </svg>
+            Retour à la connexion
+          </button>
+        </div>
+        
         <form class="space-y-4" @submit.prevent="handleResetPassword">
           <div v-if="error" class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
             <div class="flex">
@@ -130,20 +143,29 @@
               </p>
             </div>
 
-            <button
-              type="submit"
-              :disabled="loading"
-              class="w-full mt-4 py-3 px-4 bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:ring-blue-200 text-white font-medium rounded-lg transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-              style="background-color: #003366;"
-              @mouseenter="$event.target.style.backgroundColor = '#ffcc33'"
-              @mouseleave="$event.target.style.backgroundColor = '#003366'"
-            >
-              <span v-if="loading" class="flex items-center justify-center">
-                <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                Réinitialisation...
-              </span>
-              <span v-else>Réinitialiser le mot de passe</span>
-            </button>
+            <div class="flex flex-col sm:flex-row gap-3 mt-4">
+              <button
+                type="button"
+                @click="goToLogin"
+                class="w-full sm:w-auto px-4 py-3 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-medium rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition duration-200"
+              >
+                Retour
+              </button>
+              <button
+                type="submit"
+                :disabled="loading"
+                class="w-full sm:flex-1 py-3 px-4 bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:ring-blue-200 text-white font-medium rounded-lg transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                style="background-color: #003366;"
+                @mouseenter="$event.target.style.backgroundColor = '#ffcc33'"
+                @mouseleave="$event.target.style.backgroundColor = '#003366'"
+              >
+                <span v-if="loading" class="flex items-center justify-center">
+                  <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                  Réinitialisation...
+                </span>
+                <span v-else>Réinitialiser le mot de passe</span>
+              </button>
+            </div>
           </div>
           
           <div v-else class="text-center">
