@@ -259,7 +259,7 @@
           © {{ currentYear }} HERIME. Tous droits réservés.
         </p>
         <p class="mt-2 text-xs text-gray-400 dark:text-gray-500">
-          Développé par l'équipe 
+          Développé par 
           <a 
             href="https://facebook.com/heritier.mulume.001" 
             target="_blank" 
