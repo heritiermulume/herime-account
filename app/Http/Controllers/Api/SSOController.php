@@ -209,20 +209,29 @@ class SSOController extends Controller
                 }
             }
 
-            \Log::info('Sessions loaded', [
+            \Log::info('Sessions loaded successfully', [
                 'user_id' => $user->id,
                 'user_email' => $user->email,
                 'sessions_count' => $sessions->count(),
                 'total_sessions_in_db' => UserSession::count(),
-                'sessions_with_user_id' => UserSession::where('user_id', $user->id)->count()
+                'sessions_with_user_id' => UserSession::where('user_id', $user->id)->count(),
+                'sessions_ids' => $sessions->pluck('id')->toArray()
             ]);
+
+            // Vérifier que nous avons bien des sessions à retourner
+            if ($sessions->isEmpty()) {
+                \Log::warning('No sessions found for user', [
+                    'user_id' => $user->id,
+                    'user_email' => $user->email
+                ]);
+            }
 
             return response()->json([
                 'success' => true,
                 'data' => [
-                    'sessions' => $sessions
+                    'sessions' => $sessions->values()->toArray()
                 ]
-            ]);
+            ], 200, [], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         } catch (\Exception $e) {
             \Log::error('Error loading sessions', [
                 'user_id' => $user->id,
