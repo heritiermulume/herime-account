@@ -27,13 +27,46 @@ export default {
     const isRedirecting = ref(false)
     const redirectPromise = ref(null)
 
+    // Protection contre les boucles de redirection
+    const checkForRedirectLoop = () => {
+      const redirectingKey = 'sso_redirecting'
+      const redirectingTimestamp = sessionStorage.getItem(redirectingKey)
+      
+      if (redirectingTimestamp) {
+        const now = Date.now()
+        const elapsed = now - parseInt(redirectingTimestamp, 10)
+        
+        // Si moins de 5 secondes se sont écoulées, on est probablement dans une boucle
+        if (elapsed < 5000) {
+          console.error('[Auth] ⚠️ BOUCLE DE REDIRECTION DÉTECTÉE!', {
+            elapsed,
+            timestamp: redirectingTimestamp
+          })
+          // Nettoyer et arrêter
+          sessionStorage.removeItem(redirectingKey)
+          return true
+        }
+        // Plus de 5 secondes, considérer que c'est une nouvelle tentative
+        sessionStorage.removeItem(redirectingKey)
+      }
+      
+      return false
+    }
+
     // Gérer la redirection SSO AVANT que le composant ne soit monté
     onBeforeMount(async () => {
       console.log('[Auth] onBeforeMount - Début', {
         path: route.path,
         query: route.query,
-        force_token: route.query.force_token
+        force_token: route.query.force_token,
+        referer: document.referer
       })
+      
+      // Vérifier si on est dans une boucle
+      if (checkForRedirectLoop()) {
+        console.error('[Auth] Boucle détectée, arrêt de la redirection SSO')
+        return
+      }
       
       // Vérifier immédiatement si on doit rediriger SSO
       const hasForceToken = route.query.force_token === '1' || 
@@ -50,6 +83,27 @@ export default {
       })
       
       if (hasForceToken) {
+        // Vérifier que le redirect ne pointe pas vers compte.herime.com (éviter boucle)
+        const redirectUrl = route.query.redirect
+        if (redirectUrl && typeof redirectUrl === 'string') {
+          try {
+            const redirectHost = new URL(redirectUrl).hostname
+            const currentHost = window.location.hostname
+            
+            if (redirectHost === currentHost || redirectHost === 'compte.herime.com') {
+              console.error('[Auth] ⚠️ Redirect pointe vers le même domaine, risque de boucle!', {
+                redirectHost,
+                currentHost,
+                redirectUrl
+              })
+              // Ne pas rediriger si ça pointe vers le même domaine
+              return
+            }
+          } catch (e) {
+            console.warn('[Auth] Impossible de parser redirect URL:', redirectUrl)
+          }
+        }
+        
         console.log('[Auth] force_token détecté dans onBeforeMount', {
           force_token: route.query.force_token,
           redirect: route.query.redirect,
@@ -80,6 +134,9 @@ export default {
           console.log('[Auth] Utilisateur authentifié, génération token SSO...')
           isRedirecting.value = true
           
+          // Marquer qu'on est en train de rediriger
+          sessionStorage.setItem('sso_redirecting', Date.now().toString())
+          
           // Créer une promesse de redirection pour éviter les redirections multiples
           if (!redirectPromise.value) {
             redirectPromise.value = (async () => {
@@ -89,17 +146,18 @@ export default {
                 
                 if (!redirect) {
                   console.error('[Auth] No redirect URL provided')
+                  sessionStorage.removeItem('sso_redirecting')
                   return false
                 }
                 
-                                 console.log('[Auth] Appel API /sso/generate-token...', {
-                   redirect: redirect,
-                   token_present: !!token
-                 })
-                 
-                 const response = await axios.post('/sso/generate-token', {
-                   redirect: redirect
-                 })
+                console.log('[Auth] Appel API /sso/generate-token...', {
+                  redirect: redirect,
+                  token_present: !!token
+                })
+                
+                const response = await axios.post('/sso/generate-token', {
+                  redirect: redirect
+                })
                 
                 console.log('[Auth] SSO token response reçue:', {
                   status: response.status,
@@ -112,15 +170,38 @@ export default {
                   const callbackUrl = response.data.data.callback_url
                   console.log('[Auth] Redirection vers:', callbackUrl)
                   
+                  // Vérifier une dernière fois que callbackUrl ne pointe pas vers le même domaine
+                  try {
+                    const callbackHost = new URL(callbackUrl).hostname
+                    const currentHost = window.location.hostname
+                    
+                    if (callbackHost === currentHost || callbackHost === 'compte.herime.com') {
+                      console.error('[Auth] ⚠️ Callback URL pointe vers le même domaine, ARRÊT!', {
+                        callbackHost,
+                        currentHost,
+                        callbackUrl
+                      })
+                      sessionStorage.removeItem('sso_redirecting')
+                      return false
+                    }
+                  } catch (e) {
+                    console.warn('[Auth] Impossible de parser callback URL:', callbackUrl)
+                  }
+                  
                   // Redirection immédiate et définitive - utiliser setTimeout pour être sûr que c'est après le rendu
                   setTimeout(() => {
                     console.log('[Auth] Exécution de window.location.replace...')
+                    // Nettoyer sessionStorage après un délai (si la redirection échoue)
+                    setTimeout(() => {
+                      sessionStorage.removeItem('sso_redirecting')
+                    }, 10000)
                     window.location.replace(callbackUrl)
-                  }, 0)
+                  }, 100) // Petit délai pour laisser les logs s'afficher
                   
                   return true
                 } else {
                   console.error('[Auth] Structure de réponse invalide:', response.data)
+                  sessionStorage.removeItem('sso_redirecting')
                   return false
                 }
               } catch (error) {
@@ -134,6 +215,7 @@ export default {
                     headers: error.config?.headers
                   }
                 })
+                sessionStorage.removeItem('sso_redirecting')
                 return false
               }
             })()
