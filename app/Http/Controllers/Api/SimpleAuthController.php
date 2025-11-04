@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Cache;
 use App\Services\NotificationService;
 use App\Mail\NewLoginMail;
 use Laravel\Fortify\Contracts\TwoFactorAuthenticationProvider;
@@ -152,20 +153,22 @@ class SimpleAuthController extends Controller
         
         if ($has2FAEnabled) {
             // La 2FA est activée, on doit demander le code
-            // Stocker temporairement l'ID de l'utilisateur en session pour la vérification 2FA
-            session(['2fa_login_user_id' => $user->id]);
-            
+            // Générer un jeton temporaire stocké côté serveur (stateless API)
+            $twoFactorToken = Str::random(60);
+            Cache::put('2fa:'.$twoFactorToken, $user->id, now()->addMinutes(5));
+
             // Déconnecter l'utilisateur jusqu'à ce que le code 2FA soit vérifié
             Auth::logout();
             
             \Log::info('Login - 2FA required', [
                 'user_id' => $user->id,
-                'session_stored' => session('2fa_login_user_id')
+                'two_factor_token' => $twoFactorToken
             ]);
             
             return response()->json([
                 'success' => false,
                 'requires_two_factor' => true,
+                'two_factor_token' => $twoFactorToken,
                 'message' => 'Veuillez entrer le code d\'authentification à deux facteurs.'
             ], 200);
         }
@@ -222,6 +225,7 @@ class SimpleAuthController extends Controller
         $validator = Validator::make($request->all(), [
             'email' => 'required|email',
             'code' => 'required|string|size:6',
+            'two_factor_token' => 'required|string'
         ]);
 
         if ($validator->fails()) {
@@ -232,20 +236,19 @@ class SimpleAuthController extends Controller
             ], 422);
         }
 
-        // Récupérer l'ID de l'utilisateur depuis la session
-        $userId = session('2fa_login_user_id');
+        // Récupérer l'ID de l'utilisateur depuis le cache via le jeton
+        $userId = Cache::pull('2fa:'.$request->two_factor_token);
         
         if (!$userId) {
             return response()->json([
                 'success' => false,
-                'message' => 'Session expirée. Veuillez vous reconnecter.'
+                'message' => 'Code expiré ou session expirée. Veuillez vous reconnecter.'
             ], 401);
         }
 
         $user = User::find($userId);
 
         if (!$user || $user->email !== $request->email) {
-            session()->forget('2fa_login_user_id');
             return response()->json([
                 'success' => false,
                 'message' => 'Utilisateur non trouvé ou email incorrect.'
@@ -253,7 +256,6 @@ class SimpleAuthController extends Controller
         }
 
         if (!$user->isActive()) {
-            session()->forget('2fa_login_user_id');
             return response()->json([
                 'success' => false,
                 'message' => 'Votre compte a été désactivé. Veuillez contacter l\'administrateur.'
@@ -262,7 +264,6 @@ class SimpleAuthController extends Controller
 
         // Vérifier le code 2FA
         if (!$user->two_factor_secret) {
-            session()->forget('2fa_login_user_id');
             return response()->json([
                 'success' => false,
                 'message' => 'Aucun secret 2FA trouvé.'
@@ -297,7 +298,6 @@ class SimpleAuthController extends Controller
         }
 
         // Code valide, finaliser la connexion
-        session()->forget('2fa_login_user_id');
         Auth::login($user);
 
         // Update last login info

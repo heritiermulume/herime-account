@@ -6,7 +6,8 @@ export const useAuthStore = defineStore('auth', {
     user: JSON.parse(localStorage.getItem('user')) || null,
     authenticated: localStorage.getItem('authenticated') === 'true',
     loading: false,
-    error: null
+    error: null,
+    twoFactorToken: null
   }),
 
   getters: {
@@ -51,6 +52,8 @@ export const useAuthStore = defineStore('auth', {
         // Vérifier si la 2FA est requise AVANT de vérifier le success
         if (response.data.requires_two_factor === true) {
           console.log('AuthStore: 2FA required detected in response')
+          // Stocker le jeton temporaire pour la vérification
+          this.twoFactorToken = response.data.two_factor_token || null
           const customError = new Error(response.data.message || 'Code 2FA requis')
           customError.requiresTwoFactor = true
           customError.response = { data: response.data }
@@ -96,6 +99,7 @@ export const useAuthStore = defineStore('auth', {
         // Vérifier aussi dans response.data direct (cas où success: false mais status 200)
         if (error.response?.data?.requires_two_factor === true) {
           console.log('AuthStore: 2FA required detected')
+          this.twoFactorToken = error.response.data.two_factor_token || null
           const customError = new Error(error.response.data.message || 'Code 2FA requis')
           customError.requiresTwoFactor = true
           throw customError
@@ -129,7 +133,8 @@ export const useAuthStore = defineStore('auth', {
       try {
         const response = await axios.post('/login/verify-2fa', {
           email,
-          code
+          code,
+          two_factor_token: this.twoFactorToken
         })
         
         if (response.data.success) {
@@ -141,6 +146,7 @@ export const useAuthStore = defineStore('auth', {
           localStorage.setItem('authenticated', 'true')
           const token = response.data.data.access_token
           localStorage.setItem('access_token', token)
+          this.twoFactorToken = null
           
           console.log('AuthStore: 2FA verification successful, user:', this.user)
           return response.data
@@ -154,7 +160,7 @@ export const useAuthStore = defineStore('auth', {
         } else if (error.response?.status === 422) {
           this.error = 'Code de vérification invalide.'
         } else if (error.response?.status === 401) {
-          this.error = 'Session expirée. Veuillez vous reconnecter.'
+          this.error = 'Code expiré. Veuillez vous reconnecter.'
         } else {
           this.error = error.message || 'Une erreur est survenue lors de la vérification du code.'
         }
