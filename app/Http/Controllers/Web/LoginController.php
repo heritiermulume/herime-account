@@ -35,10 +35,18 @@ class LoginController extends Controller
             // Si une URL de redirection a été détectée, rediriger vers le domaine externe
             if ($redirectUrl) {
                 $callbackUrl = $redirectUrl . (strpos($redirectUrl, '?') !== false ? '&' : '?') . 'token=' . $token;
+                \Log::info('SSO Redirect with token', [
+                    'redirect_url' => $callbackUrl,
+                    'user_id' => $user->id
+                ]);
                 return redirect($callbackUrl);
             }
 
             // Sinon, rediriger vers le dashboard local (cas où l'utilisateur se connecte directement)
+            \Log::warning('SSO force_token requested but no redirect URL found', [
+                'user_id' => $user->id,
+                'query_params' => $request->all()
+            ]);
             return redirect('/dashboard');
         }
 
@@ -71,8 +79,17 @@ class LoginController extends Controller
         // 1. Priorité : paramètre 'redirect' explicite dans la requête
         if ($request->has('redirect') || $request->query('redirect')) {
             $redirect = $request->input('redirect') ?: $request->query('redirect');
-            if ($redirect && filter_var($redirect, FILTER_VALIDATE_URL)) {
-                return $redirect;
+            // Laravel décode automatiquement les paramètres d'URL une fois
+            // Si le paramètre est doublement encodé (comme dans certains cas), on le décode une fois de plus
+            $decodedRedirect = urldecode($redirect);
+            // Utiliser la version décodée si elle est différente et valide
+            $finalRedirect = ($decodedRedirect !== $redirect && filter_var($decodedRedirect, FILTER_VALIDATE_URL)) 
+                ? $decodedRedirect 
+                : $redirect;
+            
+            if ($finalRedirect && filter_var($finalRedirect, FILTER_VALIDATE_URL)) {
+                \Log::info('SSO Redirect detected', ['redirect_url' => $finalRedirect, 'original' => $redirect]);
+                return $finalRedirect;
             }
         }
 

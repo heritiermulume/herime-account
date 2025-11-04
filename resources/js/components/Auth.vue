@@ -35,7 +35,12 @@ export default {
       // Check if user is already authenticated
       const isAuthenticated = await authStore.checkAuth()
       if (isAuthenticated) {
-        router.push('/dashboard')
+        // Si force_token est présent dans l'URL, ne pas rediriger
+        // Le contrôleur backend gérera la redirection vers le domaine externe
+        if (!route.query.force_token) {
+          router.push('/dashboard')
+        }
+        // Si force_token est présent, laisser le backend gérer via LoginController
       }
     })
 
