@@ -48,6 +48,15 @@ export const useAuthStore = defineStore('auth', {
         console.log('Response data success === true:', response.data.success === true)
         console.log('Response data success == true:', response.data.success == true)
         
+        // Vérifier si la 2FA est requise AVANT de vérifier le success
+        if (response.data.requires_two_factor === true) {
+          console.log('AuthStore: 2FA required detected in response')
+          const customError = new Error(response.data.message || 'Code 2FA requis')
+          customError.requiresTwoFactor = true
+          customError.response = { data: response.data }
+          throw customError
+        }
+        
         // Vérifier success avec différentes méthodes
         const isSuccess = response.data.success === true || 
                          response.data.success === 'true' || 
@@ -84,7 +93,9 @@ export const useAuthStore = defineStore('auth', {
         console.error('AuthStore: Error data:', error.response?.data)
         
         // Si la 2FA est requise, retourner une erreur spéciale
-        if (error.response?.data?.requires_two_factor) {
+        // Vérifier aussi dans response.data direct (cas où success: false mais status 200)
+        if (error.response?.data?.requires_two_factor === true) {
+          console.log('AuthStore: 2FA required detected')
           const customError = new Error(error.response.data.message || 'Code 2FA requis')
           customError.requiresTwoFactor = true
           throw customError

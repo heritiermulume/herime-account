@@ -137,6 +137,14 @@ class SimpleAuthController extends Controller
 
         // Vérifier si la 2FA est activée
         $user->refresh();
+        
+        \Log::info('Login - 2FA check', [
+            'user_id' => $user->id,
+            'two_factor_confirmed_at' => $user->two_factor_confirmed_at,
+            'is_null' => is_null($user->two_factor_confirmed_at),
+            'has_enabled_2fa' => $user->two_factor_confirmed_at !== null
+        ]);
+        
         if ($user->two_factor_confirmed_at !== null) {
             // La 2FA est activée, on doit demander le code
             // Stocker temporairement l'ID de l'utilisateur en session pour la vérification 2FA
@@ -144,6 +152,11 @@ class SimpleAuthController extends Controller
             
             // Déconnecter l'utilisateur jusqu'à ce que le code 2FA soit vérifié
             Auth::logout();
+            
+            \Log::info('Login - 2FA required', [
+                'user_id' => $user->id,
+                'session_stored' => session('2fa_login_user_id')
+            ]);
             
             return response()->json([
                 'success' => false,
