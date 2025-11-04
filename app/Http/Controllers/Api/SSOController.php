@@ -162,36 +162,50 @@ class SSOController extends Controller
             
             $sessions = $sessionsRaw->map(function ($session) {
                 try {
+                    // Convertir les dates en format ISO 8601 de manière sécurisée
                     $lastActivity = null;
                     if ($session->last_activity) {
-                        $lastActivity = $session->last_activity->toIso8601String();
+                        try {
+                            $lastActivity = $session->last_activity->format('c'); // ISO 8601 format
+                        } catch (\Exception $e) {
+                            $lastActivity = $session->last_activity ? (string)$session->last_activity : null;
+                        }
                     } elseif ($session->created_at) {
-                        $lastActivity = $session->created_at->toIso8601String();
+                        try {
+                            $lastActivity = $session->created_at->format('c');
+                        } catch (\Exception $e) {
+                            $lastActivity = $session->created_at ? (string)$session->created_at : null;
+                        }
                     }
                     
                     $createdAt = null;
                     if ($session->created_at) {
-                        $createdAt = $session->created_at->toIso8601String();
+                        try {
+                            $createdAt = $session->created_at->format('c');
+                        } catch (\Exception $e) {
+                            $createdAt = $session->created_at ? (string)$session->created_at : null;
+                        }
                     }
                     
                     return [
-                        'id' => $session->id,
+                        'id' => $session->id ?? null,
                         'device_name' => $session->device_name ?? 'Unknown Device',
                         'platform' => $session->platform ?? 'Unknown',
                         'browser' => $session->browser ?? 'Unknown',
                         'ip_address' => $session->ip_address ?? 'Unknown',
-                        'is_current' => $session->is_current ?? false,
+                        'is_current' => (bool)($session->is_current ?? false),
                         'last_activity' => $lastActivity,
                         'created_at' => $createdAt,
                     ];
                 } catch (\Exception $e) {
                     \Log::error('Error mapping session', [
-                        'session_id' => $session->id,
-                        'error' => $e->getMessage()
+                        'session_id' => $session->id ?? 'unknown',
+                        'error' => $e->getMessage(),
+                        'trace' => $e->getTraceAsString()
                     ]);
                     return null;
                 }
-            })->filter(); // Retirer les valeurs null
+            })->filter()->values(); // Retirer les valeurs null et réindexer
 
             \Log::info('Sessions loaded', [
                 'user_id' => $user->id,

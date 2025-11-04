@@ -367,9 +367,9 @@ export default {
         const response = await axios.get('/sso/sessions')
         console.log('✅ Login history API response:', response.status, response.data)
         
-        if (response.data.success && response.data.data && response.data.data.sessions) {
+        if (response.data && response.data.success && response.data.data && Array.isArray(response.data.data.sessions)) {
           loginHistory.value = response.data.data.sessions.map(session => {
-            // S'assurer que toutes les propriétés nécessaires existent
+            // S'assurer que toutes les propriétés nécessaires existent avec des valeurs par défaut
             return {
               id: session.id || null,
               device_name: session.device_name || 'Unknown Device',
@@ -378,23 +378,34 @@ export default {
               ip_address: session.ip_address || 'Unknown',
               success: true, // All sessions are successful by definition
               created_at: session.created_at || session.last_activity || null,
-              last_activity: session.last_activity || null
+              last_activity: session.last_activity || session.created_at || null
             }
-          })
+          }).filter(session => session.id !== null) // Filtrer les sessions invalides
           console.log('📊 Login history loaded:', loginHistory.value.length, 'entries')
         } else {
           console.warn('⚠️ Login history response not successful or missing data:', response.data)
           loginHistory.value = []
+          // Ne pas afficher d'erreur si c'est juste qu'il n'y a pas de sessions
+          if (response.data && response.data.success && (!response.data.data || !response.data.data.sessions || response.data.data.sessions.length === 0)) {
+            console.log('   No sessions available (normal for new users)')
+          } else {
+            notify.warning('Avertissement', 'Impossible de charger l\'historique de connexion')
+          }
         }
       } catch (error) {
         console.error('❌ Error loading login history:', error)
         console.error('   Status:', error.response?.status)
         console.error('   Message:', error.response?.data?.message || error.message)
         console.error('   Data:', error.response?.data)
+        console.error('   Error details:', error)
         
-        // Ne pas afficher l'erreur si c'est juste qu'il n'y a pas de sessions
+        // Ne pas afficher l'erreur si c'est juste qu'il n'y a pas de sessions ou si l'utilisateur n'est pas autorisé
         if (error.response?.status === 404 || error.response?.status === 401) {
           console.warn('   No sessions found or unauthorized')
+          loginHistory.value = []
+        } else if (error.response?.status === 500) {
+          console.error('   Server error - check logs')
+          notify.error('Erreur serveur', 'Erreur lors du chargement de l\'historique de connexion. Veuillez réessayer.')
           loginHistory.value = []
         } else {
           notify.error('Erreur', 'Erreur lors du chargement de l\'historique de connexion')
