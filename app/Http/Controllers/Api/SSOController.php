@@ -128,10 +128,12 @@ class SSOController extends Controller
      */
     public function getSessions(Request $request): JsonResponse
     {
-        \Log::info('getSessions called', [
-            'has_token' => $request->bearerToken() ? 'yes' : 'no',
-            'user_authenticated' => $request->user() ? 'yes' : 'no'
-        ]);
+        if (config('app.debug')) {
+            \Log::debug('getSessions called', [
+                'has_token' => $request->bearerToken() ? 'yes' : 'no',
+                'user_authenticated' => $request->user() ? 'yes' : 'no'
+            ]);
+        }
         
         $user = $request->user();
         
@@ -145,10 +147,11 @@ class SSOController extends Controller
             ], 401);
         }
         
-        \Log::info('getSessions: User authenticated', [
-            'user_id' => $user->id,
-            'user_email' => $user->email
-        ]);
+        if (config('app.debug')) {
+            \Log::debug('getSessions: User authenticated', [
+                'user_id' => $user->id,
+            ]);
+        }
         
         try {
             // Vérifier que l'utilisateur a bien un ID
@@ -167,11 +170,12 @@ class SSOController extends Controller
             
             $sessionsRaw = $sessionsQuery->get();
             
-            \Log::info('Raw sessions query result', [
-                'user_id' => $user->id,
-                'sessions_found' => $sessionsRaw->count(),
-                'first_session_id' => $sessionsRaw->first()?->id
-            ]);
+            if (config('app.debug')) {
+                \Log::debug('Raw sessions query result', [
+                    'user_id' => $user->id,
+                    'sessions_found' => $sessionsRaw->count()
+                ]);
+            }
             
             $sessions = collect([]);
             
@@ -222,21 +226,20 @@ class SSOController extends Controller
                 }
             }
 
-            \Log::info('Sessions loaded successfully', [
-                'user_id' => $user->id,
-                'user_email' => $user->email,
-                'sessions_count' => $sessions->count(),
-                'total_sessions_in_db' => \App\Models\UserSession::count(),
-                'sessions_with_user_id' => \App\Models\UserSession::where('user_id', $user->id)->count(),
-                'sessions_ids' => $sessions->pluck('id')->toArray()
-            ]);
+            if (config('app.debug')) {
+                \Log::debug('Sessions loaded successfully', [
+                    'user_id' => $user->id,
+                    'sessions_count' => $sessions->count()
+                ]);
+            }
 
             // Vérifier que nous avons bien des sessions à retourner
             if ($sessions->isEmpty()) {
-                \Log::warning('No sessions found for user', [
-                    'user_id' => $user->id,
-                    'user_email' => $user->email
-                ]);
+                if (config('app.debug')) {
+                    \Log::debug('No sessions found for user', [
+                        'user_id' => $user->id,
+                    ]);
+                }
             }
 
             // Convertir la collection en tableau simple
@@ -254,11 +257,9 @@ class SSOController extends Controller
         } catch (\Exception $e) {
             \Log::error('Error loading sessions', [
                 'user_id' => $user->id ?? 'unknown',
-                'user_email' => $user->email ?? 'unknown',
                 'error' => $e->getMessage(),
                 'file' => $e->getFile(),
-                'line' => $e->getLine(),
-                'trace' => substr($e->getTraceAsString(), 0, 1000)
+                'line' => $e->getLine()
             ]);
 
             // En production, ne pas exposer le message d'erreur complet

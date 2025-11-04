@@ -24,19 +24,16 @@ export const useAuthStore = defineStore('auth', {
 
   actions: {
     async login(credentials) {
-      console.log('=== AUTH STORE LOGIN START ===')
-      console.log('Credentials:', credentials)
-      console.log('Base URL:', axios.defaults.baseURL)
+      if (import.meta.env.DEV) console.log('=== AUTH STORE LOGIN START ===')
+      if (import.meta.env.DEV) console.log('Base URL:', axios.defaults.baseURL)
       
       this.loading = true
       this.error = null
 
       try {
-        console.log('Making login request...')
+        if (import.meta.env.DEV) console.log('Making login request...')
         const response = await axios.post('/login', credentials)
-        console.log('Response received:', response.status)
-        console.log('Response data type:', typeof response.data)
-        console.log('Response data keys:', Object.keys(response.data || {}))
+        if (import.meta.env.DEV) console.log('Response received:', response.status)
         
         // Vérifier si la réponse est valide
         if (!response.data) {
@@ -44,14 +41,11 @@ export const useAuthStore = defineStore('auth', {
           throw new Error('No data received from server')
         }
         
-        console.log('Response data success value:', response.data.success)
-        console.log('Response data success type:', typeof response.data.success)
-        console.log('Response data success === true:', response.data.success === true)
-        console.log('Response data success == true:', response.data.success == true)
+        if (import.meta.env.DEV) console.log('Response data success value:', response.data.success)
         
         // Vérifier si la 2FA est requise AVANT de vérifier le success
         if (response.data.requires_two_factor === true) {
-          console.log('AuthStore: 2FA required detected in response')
+          if (import.meta.env.DEV) console.log('AuthStore: 2FA required detected in response')
           // Stocker le jeton temporaire pour la vérification
           this.twoFactorToken = response.data.two_factor_token || null
           const customError = new Error(response.data.message || 'Code 2FA requis')
@@ -65,10 +59,10 @@ export const useAuthStore = defineStore('auth', {
                          response.data.success === 'true' || 
                          response.data.success === 1
         
-        console.log('Is success (all methods):', isSuccess)
+        if (import.meta.env.DEV) console.log('Is success (all methods):', isSuccess)
         
         if (isSuccess) {
-          console.log('Login successful, processing user data...')
+          if (import.meta.env.DEV) console.log('Login successful, processing user data...')
           this.user = response.data.data.user
           this.authenticated = true
           
@@ -78,27 +72,22 @@ export const useAuthStore = defineStore('auth', {
           const token = response.data.data.access_token
           localStorage.setItem('access_token', token)
           
-          console.log('AuthStore: Login successful, user:', this.user)
-          console.log('AuthStore: Token stored:', token ? token.substring(0, 50) + '...' : 'NO TOKEN')
+          if (import.meta.env.DEV) console.log('AuthStore: Login successful')
           return response.data
         } else {
-          console.log('Login failed - success check failed')
-          console.log('Success value:', response.data.success)
-          console.log('Success type:', typeof response.data.success)
+          if (import.meta.env.DEV) console.log('Login failed - success check failed')
           throw new Error(response.data.message || 'Login failed')
         }
       } catch (error) {
-        console.error('=== AUTH STORE LOGIN ERROR ===')
-        console.error('AuthStore: Login error:', error)
-        console.error('AuthStore: Error message:', error.message)
-        console.error('AuthStore: Error response:', error.response)
-        console.error('AuthStore: Error status:', error.response?.status)
-        console.error('AuthStore: Error data:', error.response?.data)
+        if (import.meta.env.DEV) console.error('=== AUTH STORE LOGIN ERROR ===')
+        if (import.meta.env.DEV) console.error('AuthStore: Login error:', error)
+        if (import.meta.env.DEV) console.error('AuthStore: Error message:', error.message)
+        if (import.meta.env.DEV) console.error('AuthStore: Error status:', error.response?.status)
         
         // Si la 2FA est requise, retourner une erreur spéciale
         // Vérifier aussi dans response.data direct (cas où success: false mais status 200)
         if (error.response?.data?.requires_two_factor === true) {
-          console.log('AuthStore: 2FA required detected')
+          if (import.meta.env.DEV) console.log('AuthStore: 2FA required detected')
           this.twoFactorToken = error.response.data.two_factor_token || null
           const customError = new Error(error.response.data.message || 'Code 2FA requis')
           customError.requiresTwoFactor = true
@@ -122,7 +111,7 @@ export const useAuthStore = defineStore('auth', {
         throw error
       } finally {
         this.loading = false
-        console.log('=== AUTH STORE LOGIN END ===')
+        if (import.meta.env.DEV) console.log('=== AUTH STORE LOGIN END ===')
       }
     },
 
@@ -148,13 +137,13 @@ export const useAuthStore = defineStore('auth', {
           localStorage.setItem('access_token', token)
           this.twoFactorToken = null
           
-          console.log('AuthStore: 2FA verification successful, user:', this.user)
+          if (import.meta.env.DEV) console.log('AuthStore: 2FA verification successful')
           return response.data
         } else {
           throw new Error(response.data.message || '2FA verification failed')
         }
       } catch (error) {
-        console.error('AuthStore: 2FA verification error:', error)
+        if (import.meta.env.DEV) console.error('AuthStore: 2FA verification error:', error)
         if (error.response?.data?.message) {
           this.error = error.response.data.message
         } else if (error.response?.status === 422) {
@@ -215,7 +204,7 @@ export const useAuthStore = defineStore('auth', {
       try {
         await axios.post('/logout')
       } catch (error) {
-        console.error('Logout error:', error)
+        if (import.meta.env.DEV) console.error('Logout error:', error)
       } finally {
         // Clear state regardless of API call success
         this.user = null
@@ -253,7 +242,7 @@ export const useAuthStore = defineStore('auth', {
             return true
           }
         } catch (error) {
-          console.error('Auth check failed:', error)
+          if (import.meta.env.DEV) console.error('Auth check failed:', error)
           // Si l'erreur est 401 (unauthorized), le token est invalide
           if (error.response?.status === 401) {
             this.logout()
@@ -279,7 +268,7 @@ export const useAuthStore = defineStore('auth', {
           return false
         }
       } catch (error) {
-        console.error('Auth check failed:', error)
+        if (import.meta.env.DEV) console.error('Auth check failed:', error)
         // Si 401, le token est invalide, déconnecter
         if (error.response?.status === 401) {
           this.logout()
@@ -296,11 +285,11 @@ export const useAuthStore = defineStore('auth', {
 
 
     updateUser(userData) {
-      console.log('🔄 updateUser called with:', userData)
-      console.log('   avatar_url in userData:', userData?.avatar_url)
-      console.log('   avatar in userData:', userData?.avatar)
-      console.log('   Current user avatar_url:', this.user?.avatar_url)
-      console.log('   Current user avatar:', this.user?.avatar)
+      if (import.meta.env.DEV) console.log('🔄 updateUser called')
+      if (import.meta.env.DEV) console.log('   avatar_url in userData:', userData?.avatar_url)
+      if (import.meta.env.DEV) console.log('   avatar in userData:', userData?.avatar)
+      if (import.meta.env.DEV) console.log('   Current user avatar_url:', this.user?.avatar_url)
+      if (import.meta.env.DEV) console.log('   Current user avatar:', this.user?.avatar)
       
       // Mettre à jour l'utilisateur
       this.user = { ...this.user, ...userData }
@@ -321,12 +310,11 @@ export const useAuthStore = defineStore('auth', {
         this.user.avatar_url = this.user.avatar_url + separator + 't=' + Date.now()
       }
       
-      console.log('   Updated user avatar_url:', this.user?.avatar_url)
-      console.log('   Updated user avatar:', this.user?.avatar)
+      if (import.meta.env.DEV) console.log('User avatar updated')
       
       localStorage.setItem('user', JSON.stringify(this.user))
       
-      console.log('✅ User updated in store and localStorage')
+      if (import.meta.env.DEV) console.log('✅ User updated in store and localStorage')
     },
 
     clearError() {

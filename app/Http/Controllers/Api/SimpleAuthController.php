@@ -142,14 +142,12 @@ class SimpleAuthController extends Controller
         // Utiliser la méthode Fortify pour vérifier si la 2FA est activée
         $has2FAEnabled = $user->hasEnabledTwoFactorAuthentication();
         
-        \Log::info('Login - 2FA check', [
-            'user_id' => $user->id,
-            'two_factor_confirmed_at' => $user->two_factor_confirmed_at,
-            'two_factor_secret' => $user->two_factor_secret ? 'present' : 'null',
-            'is_null' => is_null($user->two_factor_confirmed_at),
-            'has_enabled_2fa' => $has2FAEnabled,
-            'hasEnabledTwoFactorAuthentication' => $has2FAEnabled
-        ]);
+        if (config('app.debug')) {
+            \Log::debug('Login - 2FA check', [
+                'user_id' => $user->id,
+                'has_enabled_2fa' => $has2FAEnabled,
+            ]);
+        }
         
         if ($has2FAEnabled) {
             // La 2FA est activée, on doit demander le code
@@ -160,10 +158,11 @@ class SimpleAuthController extends Controller
             // Déconnecter l'utilisateur jusqu'à ce que le code 2FA soit vérifié
             Auth::logout();
             
-            \Log::info('Login - 2FA required', [
-                'user_id' => $user->id,
-                'two_factor_token' => $twoFactorToken
-            ]);
+            if (config('app.debug')) {
+                \Log::debug('Login - 2FA required', [
+                    'user_id' => $user->id,
+                ]);
+            }
             
             return response()->json([
                 'success' => false,
@@ -199,11 +198,12 @@ class SimpleAuthController extends Controller
             $userData['last_login_at'] = $user->last_login_at ? $user->last_login_at->toISOString() : null;
         }
         
-        \Log::info('Login response', [
-            'user_id' => $user->id,
-            'last_login_at' => $user->last_login_at,
-            'last_login_at_in_array' => $userData['last_login_at'] ?? 'not set'
-        ]);
+        if (config('app.debug')) {
+            \Log::debug('Login response', [
+                'user_id' => $user->id,
+                'has_last_login_at' => !empty($userData['last_login_at'])
+            ]);
+        }
         
         return response()->json([
             'success' => true,
