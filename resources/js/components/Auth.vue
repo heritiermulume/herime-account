@@ -32,6 +32,28 @@ export default {
       const redirectingKey = 'sso_redirecting'
       const redirectingTimestamp = sessionStorage.getItem(redirectingKey)
       
+      // Vérifier si on vient d'un autre domaine (academie.herime.com)
+      // Si oui, nettoyer sessionStorage car c'est une nouvelle session
+      const referer = document.referer
+      if (referer) {
+        try {
+          const refererHost = new URL(referer).hostname
+          const currentHost = window.location.hostname
+          
+          // Si on vient d'un autre domaine, c'est normal, nettoyer
+          if (refererHost !== currentHost && refererHost !== 'compte.herime.com') {
+            console.log('[Auth] Vient d\'un autre domaine, nettoyage sessionStorage', {
+              refererHost,
+              currentHost
+            })
+            sessionStorage.removeItem(redirectingKey)
+            return false
+          }
+        } catch (e) {
+          // Ignorer les erreurs de parsing
+        }
+      }
+      
       if (redirectingTimestamp) {
         const now = Date.now()
         const elapsed = now - parseInt(redirectingTimestamp, 10)
@@ -40,10 +62,16 @@ export default {
         if (elapsed < 5000) {
           console.error('[Auth] ⚠️ BOUCLE DE REDIRECTION DÉTECTÉE!', {
             elapsed,
-            timestamp: redirectingTimestamp
+            timestamp: redirectingTimestamp,
+            referer: document.referer,
+            currentUrl: window.location.href
           })
           // Nettoyer et arrêter
           sessionStorage.removeItem(redirectingKey)
+          
+          // Rediriger vers dashboard pour arrêter la boucle
+          console.log('[Auth] Redirection vers dashboard pour arrêter la boucle')
+          router.push('/dashboard')
           return true
         }
         // Plus de 5 secondes, considérer que c'est une nouvelle tentative
@@ -62,9 +90,9 @@ export default {
         referer: document.referer
       })
       
-      // Vérifier si on est dans une boucle
+      // Vérifier si on est dans une boucle (AVANT toute autre vérification)
       if (checkForRedirectLoop()) {
-        console.error('[Auth] Boucle détectée, arrêt de la redirection SSO')
+        console.error('[Auth] Boucle détectée, arrêt de la redirection SSO et redirection vers dashboard')
         return
       }
       
