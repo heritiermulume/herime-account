@@ -124,6 +124,10 @@ php artisan db:show
 🔧 CORRECTION AUTOMATIQUE
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+# Script de pull et correction automatique (RECOMMANDÉ)
+# → Pull les modifications depuis GitHub et corrige automatiquement
+./pull-et-corriger-production.sh
+
 # Script de correction automatique complète
 # → Corrige automatiquement tous les problèmes courants en production
 ./corriger-production-automatique.sh
