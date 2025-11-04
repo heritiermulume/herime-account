@@ -101,6 +101,34 @@
             />
           </div>
 
+          <!-- Company -->
+          <div>
+            <label for="company" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              Entreprise
+            </label>
+            <input
+              id="company"
+              v-model="form.company"
+              type="text"
+              class="mt-1 block w-full h-10 px-3 border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm sm:text-sm"
+              style="focus:ring-color: #003366; focus:border-color: #003366;"
+            />
+          </div>
+
+          <!-- Position -->
+          <div>
+            <label for="position" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              Poste
+            </label>
+            <input
+              id="position"
+              v-model="form.position"
+              type="text"
+              class="mt-1 block w-full h-10 px-3 border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm sm:text-sm"
+              style="focus:ring-color: #003366; focus:border-color: #003366;"
+            />
+          </div>
+
           <!-- Bio -->
           <div>
             <label for="bio" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -234,6 +262,7 @@
 <script>
 import { ref, reactive, computed, onMounted, inject } from 'vue'
 import { useAuthStore } from '../stores/auth'
+import axios from 'axios'
 
 export default {
   name: 'Profile',
@@ -249,10 +278,13 @@ export default {
       name: '',
       email: '',
       phone: '',
+      company: '',
+      position: '',
       bio: '',
       location: '',
       website: '',
       avatar_url: '',
+      avatar_file: null,
       email_notifications: true,
       marketing_emails: false
     })
@@ -264,6 +296,17 @@ export default {
     const handleAvatarChange = (event) => {
       const file = event.target.files[0]
       if (file) {
+        // Vérifier la taille (max 2MB)
+        if (file.size > 2 * 1024 * 1024) {
+          notify.error('Erreur', 'La photo ne doit pas dépasser 2MB')
+          return
+        }
+        // Vérifier le type
+        if (!file.type.startsWith('image/')) {
+          notify.error('Erreur', 'Le fichier doit être une image')
+          return
+        }
+        form.avatar_file = file
         const reader = new FileReader()
         reader.onload = (e) => {
           form.avatar_url = e.target.result
@@ -285,27 +328,56 @@ export default {
       try {
         console.log('🔄 Updating profile with data:', form)
         
-        // Préparer les données à envoyer (uniquement les champs remplis)
-        const dataToSend = {}
-        if (form.name) dataToSend.name = form.name
-        if (form.phone !== undefined) dataToSend.phone = form.phone || null
-        if (form.company !== undefined) dataToSend.company = form.company || null
-        if (form.position !== undefined) dataToSend.position = form.position || null
+        // Préparer FormData pour envoyer tous les champs, y compris l'avatar
+        const formData = new FormData()
         
-        console.log('📤 Sending data:', dataToSend)
+        // Ajouter tous les champs texte (même s'ils sont vides pour permettre de les effacer)
+        formData.append('name', form.name || '')
+        formData.append('phone', form.phone || '')
+        formData.append('company', form.company || '')
+        formData.append('position', form.position || '')
+        formData.append('bio', form.bio || '')
+        formData.append('location', form.location || '')
+        formData.append('website', form.website || '')
         
-        const response = await axios.post('/user/profile', dataToSend)
+        // Ajouter l'avatar si un fichier a été sélectionné
+        if (form.avatar_file) {
+          formData.append('avatar', form.avatar_file)
+        }
         
-        console.log('✅ Profile update response:', response.data)
+        // Mettre à jour les préférences
+        const preferences = {
+          email_notifications: form.email_notifications,
+          marketing_emails: form.marketing_emails
+        }
         
-        if (response.data.success) {
+        console.log('📤 Sending profile data')
+        console.log('📤 Sending preferences:', preferences)
+        
+        // Envoyer les données du profil
+        const profileResponse = await axios.post('/user/profile', formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data'
+          }
+        })
+        
+        console.log('✅ Profile update response:', profileResponse.data)
+        
+        // Envoyer les préférences
+        const preferencesResponse = await axios.post('/user/preferences', {
+          preferences: preferences
+        })
+        
+        console.log('✅ Preferences update response:', preferencesResponse.data)
+        
+        if (profileResponse.data.success && preferencesResponse.data.success) {
           // Update user in store
-          authStore.updateUser(response.data.data.user)
+          authStore.updateUser(profileResponse.data.data.user)
           
           // Show success message
           notify.success('Succès', 'Profil mis à jour avec succès!')
         } else {
-          throw new Error(response.data.message || 'Update failed')
+          throw new Error(profileResponse.data.message || 'Update failed')
         }
       } catch (error) {
         console.error('❌ Error updating profile:', error)
@@ -327,12 +399,14 @@ export default {
           name: user.value.name || '',
           email: user.value.email || '',
           phone: user.value.phone || '',
+          company: user.value.company || '',
+          position: user.value.position || '',
           bio: user.value.bio || '',
           location: user.value.location || '',
           website: user.value.website || '',
           avatar_url: user.value.avatar_url || '',
-          email_notifications: user.value.email_notifications !== false,
-          marketing_emails: user.value.marketing_emails === true
+          email_notifications: user.value.preferences?.email_notifications !== false,
+          marketing_emails: user.value.preferences?.marketing_emails === true
         })
       }
     })

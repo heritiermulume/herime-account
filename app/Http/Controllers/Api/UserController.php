@@ -39,7 +39,10 @@ class UserController extends Controller
             'phone' => 'sometimes|nullable|string|max:20',
             'company' => 'sometimes|nullable|string|max:255',
             'position' => 'sometimes|nullable|string|max:255',
-            'avatar' => 'sometimes|nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'bio' => 'sometimes|nullable|string|max:1000',
+            'location' => 'sometimes|nullable|string|max:255',
+            'website' => 'sometimes|nullable|url|max:255',
+            'avatar' => 'sometimes|nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
         ]);
 
         if ($validator->fails()) {
@@ -51,7 +54,7 @@ class UserController extends Controller
         }
 
         // Récupérer tous les champs fillable disponibles
-        $fillableFields = ['name', 'phone', 'company', 'position'];
+        $fillableFields = ['name', 'phone', 'company', 'position', 'bio', 'location', 'website'];
         $data = [];
         
         // Récupérer tous les champs fournis dans la requête
@@ -60,11 +63,12 @@ class UserController extends Controller
             if ($request->exists($field)) {
                 $value = $request->input($field);
                 // Convertir les chaînes vides en null pour les champs nullable
-                if (in_array($field, ['phone', 'company', 'position'])) {
-                    $data[$field] = ($value === '' || $value === null) ? null : $value;
-                } else {
-                    // Pour 'name', garder la valeur telle quelle
+                if ($field === 'name') {
+                    // Pour 'name', garder la valeur telle quelle (obligatoire)
                     $data[$field] = $value;
+                } else {
+                    // Pour les autres champs nullable, convertir les chaînes vides en null
+                    $data[$field] = ($value === '' || $value === null) ? null : $value;
                 }
             }
         }
@@ -74,17 +78,31 @@ class UserController extends Controller
 
         // Handle avatar upload
         if ($request->hasFile('avatar')) {
-            // Delete old avatar if exists
-            if ($user->avatar && Storage::disk('public')->exists($user->avatar)) {
-                Storage::disk('public')->delete($user->avatar);
-            }
+            try {
+                // Delete old avatar if exists
+                if ($user->avatar && Storage::disk('public')->exists($user->avatar)) {
+                    Storage::disk('public')->delete($user->avatar);
+                }
 
-            // Store avatar in public storage
-            $avatarPath = $request->file('avatar')->store('avatars', 'public');
-            $data['avatar'] = $avatarPath;
-            
-            // Log pour debug
-            \Log::info('Avatar uploaded:', ['path' => $avatarPath]);
+                // Store avatar in public storage
+                // Générer un nom unique pour éviter les collisions
+                $filename = time() . '_' . uniqid() . '.' . $request->file('avatar')->getClientOriginalExtension();
+                $avatarPath = $request->file('avatar')->storeAs('avatars', $filename, 'public');
+                $data['avatar'] = $avatarPath;
+                
+                // Log pour debug
+                \Log::info('Avatar uploaded:', [
+                    'path' => $avatarPath,
+                    'size' => $request->file('avatar')->getSize(),
+                    'mime' => $request->file('avatar')->getMimeType()
+                ]);
+            } catch (\Exception $e) {
+                \Log::error('Error uploading avatar:', [
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString()
+                ]);
+                // Ne pas échouer la mise à jour du profil si l'avatar échoue
+            }
         }
 
         // Mettre à jour uniquement les champs fournis
