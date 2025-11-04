@@ -136,11 +136,67 @@ class SSOController extends Controller
             ], 422);
         }
 
+        // Vérifier que le redirect URL ne pointe pas vers le même domaine (éviter boucles)
+        try {
+            $redirectHost = parse_url($redirectUrl, PHP_URL_HOST);
+            $currentHost = $request->getHost();
+            
+            // Normaliser les hostnames (enlever www. si présent)
+            $redirectHost = preg_replace('/^www\./', '', $redirectHost);
+            $currentHost = preg_replace('/^www\./', '', $currentHost);
+            
+            if ($redirectHost === $currentHost || $redirectHost === 'compte.herime.com') {
+                \Log::warning('SSO redirect blocked: same domain', [
+                    'redirect_host' => $redirectHost,
+                    'current_host' => $currentHost,
+                    'redirect_url' => $redirectUrl
+                ]);
+                
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Redirect URL cannot point to the same domain (would cause redirect loop)',
+                    'redirect_host' => $redirectHost,
+                    'current_host' => $currentHost
+                ], 422);
+            }
+        } catch (\Exception $e) {
+            \Log::warning('Error parsing redirect URL host', [
+                'error' => $e->getMessage(),
+                'redirect_url' => $redirectUrl
+            ]);
+        }
+
         // Create SSO token
         $token = $user->createToken('SSO Token', ['profile'])->accessToken;
         
         // Build callback URL with token
         $callbackUrl = $redirectUrl . (strpos($redirectUrl, '?') !== false ? '&' : '?') . 'token=' . urlencode($token);
+        
+        // Vérifier une dernière fois que callback_url ne pointe pas vers le même domaine
+        try {
+            $callbackHost = parse_url($callbackUrl, PHP_URL_HOST);
+            $callbackHost = preg_replace('/^www\./', '', $callbackHost);
+            
+            if ($callbackHost === $currentHost || $callbackHost === 'compte.herime.com') {
+                \Log::error('SSO callback URL points to same domain after construction', [
+                    'callback_host' => $callbackHost,
+                    'current_host' => $currentHost,
+                    'callback_url' => $callbackUrl
+                ]);
+                
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Generated callback URL points to the same domain (would cause redirect loop)',
+                    'callback_host' => $callbackHost,
+                    'current_host' => $currentHost
+                ], 500);
+            }
+        } catch (\Exception $e) {
+            \Log::warning('Error parsing callback URL host', [
+                'error' => $e->getMessage(),
+                'callback_url' => $callbackUrl
+            ]);
+        }
 
         \Log::info('SSO Token generated via API', [
             'user_id' => $user->id,
