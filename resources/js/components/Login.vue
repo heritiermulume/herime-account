@@ -76,11 +76,14 @@
           <div v-if="requiresTwoFactor" class="space-y-4">
             <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
               <div class="flex">
-                <svg class="h-5 w-5 text-blue-400 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                <svg class="h-5 w-5 text-blue-400 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                   <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
                 </svg>
                 <div class="ml-3">
-                  <p class="text-sm text-blue-800 dark:text-blue-200">
+                  <p class="text-sm font-medium text-blue-800 dark:text-blue-200 mb-1">
+                    Authentification à deux facteurs requise
+                  </p>
+                  <p class="text-sm text-blue-700 dark:text-blue-300">
                     Veuillez entrer le code à 6 chiffres de votre application d'authentification.
                   </p>
                 </div>
@@ -95,18 +98,21 @@
                 id="two_factor_code"
                 v-model="twoFactorCode"
                 type="text"
+                inputmode="numeric"
+                pattern="[0-9]*"
                 maxlength="6"
                 required
                 placeholder="000000"
-                class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200 dark:bg-gray-700 dark:text-white text-center text-2xl tracking-widest"
+                autofocus
+                class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200 dark:bg-gray-700 dark:text-white text-center text-2xl tracking-widest font-mono"
                 :class="{ 'border-red-500 focus:ring-red-500': errors.two_factor_code }"
-                @input="errors.two_factor_code = null"
+                @input="errors.two_factor_code = null; twoFactorCode = twoFactorCode.replace(/[^0-9]/g, '')"
               />
               <p v-if="errors.two_factor_code" class="mt-1 text-sm text-red-600 dark:text-red-400">
                 {{ errors.two_factor_code[0] || errors.two_factor_code }}
               </p>
               <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                Vous pouvez également utiliser un code de récupération.
+                Vous pouvez également utiliser un code de récupération à la place.
               </p>
             </div>
           </div>
@@ -137,7 +143,7 @@
             </div>
           </div>
 
-        <div v-if="error" class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+        <div v-if="error && !requiresTwoFactor" class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
           <div class="flex">
             <svg class="h-5 w-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
               <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path>
@@ -146,6 +152,11 @@
               <p class="text-sm text-red-800 dark:text-red-200">{{ error }}</p>
             </div>
           </div>
+        </div>
+        
+        <!-- Debug info (à supprimer en production) -->
+        <div v-if="requiresTwoFactor" class="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-2 mb-4">
+          <p class="text-xs text-yellow-800 dark:text-yellow-200">DEBUG: requiresTwoFactor = {{ requiresTwoFactor }}</p>
         </div>
 
           <button
@@ -377,6 +388,7 @@ export default {
       loading.value = true
       errors.value = {}
       error.value = ''
+      requiresTwoFactor.value = false // Reset au début
 
       try {
         console.log('Calling authStore.login...')
@@ -386,11 +398,24 @@ export default {
         router.push('/dashboard')
       } catch (err) {
         console.error('Login error:', err)
+        console.log('Error requiresTwoFactor:', err.requiresTwoFactor)
+        console.log('Error response data:', err.response?.data)
+        console.log('Error response requires_two_factor:', err.response?.data?.requires_two_factor)
         
-        // Vérifier si la 2FA est requise
-        if (err.requiresTwoFactor || err.response?.data?.requires_two_factor) {
+        // Vérifier si la 2FA est requise - vérifier plusieurs endroits
+        const needs2FA = err.requiresTwoFactor === true || 
+                        err.response?.data?.requires_two_factor === true ||
+                        (err.response?.status === 200 && err.response?.data?.requires_two_factor)
+        
+        console.log('Needs 2FA:', needs2FA)
+        
+        if (needs2FA) {
+          console.log('Setting requiresTwoFactor to true')
           requiresTwoFactor.value = true
-          error.value = err.response?.data?.message || 'Veuillez entrer le code d\'authentification à deux facteurs.'
+          error.value = err.response?.data?.message || err.message || 'Veuillez entrer le code d\'authentification à deux facteurs.'
+          console.log('requiresTwoFactor.value after setting:', requiresTwoFactor.value)
+          console.log('Error message set:', error.value)
+          loading.value = false
           return
         }
         
