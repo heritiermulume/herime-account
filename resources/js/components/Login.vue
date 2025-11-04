@@ -1,6 +1,6 @@
 <template>
   <div class="h-screen overflow-hidden flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-gray-50 dark:bg-gray-900">
-    <div class="max-w-md w-full">
+    <div class="max-w-lg w-full">
       <!-- Logo -->
       <div class="text-center mb-8">
         <img 
@@ -111,9 +111,17 @@
               <p v-if="errors.two_factor_code" class="mt-1 text-sm text-red-600 dark:text-red-400">
                 {{ errors.two_factor_code[0] || errors.two_factor_code }}
               </p>
+              <p v-if="error" class="mt-1 text-sm text-red-600 dark:text-red-400">
+                {{ error }}
+              </p>
               <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
                 Vous pouvez également utiliser un code de récupération à la place.
               </p>
+            </div>
+            <div class="flex items-center justify-between pt-2">
+              <button type="button" class="text-sm text-gray-600 dark:text-gray-300 hover:underline" @click="requiresTwoFactor = false; twoFactorCode = ''; error = ''; errors = {}">
+                ← Retour à la connexion
+              </button>
             </div>
           </div>
 
@@ -154,11 +162,6 @@
           </div>
         </div>
         
-        <!-- Debug info (à supprimer en production) -->
-        <div v-if="requiresTwoFactor" class="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-2 mb-4">
-          <p class="text-xs text-yellow-800 dark:text-yellow-200">DEBUG: requiresTwoFactor = {{ requiresTwoFactor }}</p>
-        </div>
-
           <button
             type="submit"
             :disabled="loading"
