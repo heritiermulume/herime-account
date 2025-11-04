@@ -172,6 +172,16 @@ php artisan db:show
 # → Format O2Switch : Vérifier dans votre panneau O2Switch (peut être persil.o2switch.fr ou autre)
 # → Consultez RESOUDRE_ERREUR_VITE_MANIFEST.md et FORMAT_HOSTNAME_O2SWITCH.md
 
+# Erreur "Server Error" lors de la connexion
+# → Erreur serveur lors de la tentative de connexion
+# → Diagnostic immédiat :
+#    1. Voir les logs : tail -n 100 storage/logs/laravel.log | grep -A 20 "ERROR"
+#    2. Vérifier Passport : php artisan passport:keys --force
+#    3. Vérifier la DB : php artisan migrate:status
+#    4. Vider les caches : php artisan config:clear && php artisan cache:clear
+# → Causes courantes : Clés Passport manquantes, DB inaccessible, caches corrompus
+# → Consultez RESOUDRE_ERREUR_CONNEXION.md pour le guide complet
+
 # Voir les logs
 tail -f storage/logs/laravel.log
 
