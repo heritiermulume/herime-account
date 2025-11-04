@@ -236,11 +236,15 @@ export default {
           formData.append('avatar', avatarFile.value)
         }
 
-        const response = await axios.put('/api/user/profile', formData, {
+        console.log('🔄 Updating profile with FormData')
+        
+        const response = await axios.post('/api/user/profile', formData, {
           headers: {
             'Content-Type': 'multipart/form-data'
           }
         })
+        
+        console.log('✅ Profile update response:', response.data)
 
         if (response.data.success) {
           // Update user in store

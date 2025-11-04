@@ -54,16 +54,23 @@ class UserController extends Controller
         $fillableFields = ['name', 'phone', 'company', 'position'];
         $data = [];
         
-        // Récupérer uniquement les champs fournis dans la requête
+        // Récupérer tous les champs fournis dans la requête
         foreach ($fillableFields as $field) {
-            if ($request->has($field)) {
+            // Vérifier si le champ est présent dans la requête (même si vide)
+            if ($request->exists($field)) {
                 $value = $request->input($field);
-                // Permettre les chaînes vides et null pour les champs nullable
-                if ($value !== null || in_array($field, ['phone', 'company', 'position'])) {
-                    $data[$field] = $value === '' ? null : $value;
+                // Convertir les chaînes vides en null pour les champs nullable
+                if (in_array($field, ['phone', 'company', 'position'])) {
+                    $data[$field] = ($value === '' || $value === null) ? null : $value;
+                } else {
+                    // Pour 'name', garder la valeur telle quelle
+                    $data[$field] = $value;
                 }
             }
         }
+        
+        // Log pour debug
+        \Log::info('Profile update data:', $data);
 
         // Handle avatar upload
         if ($request->hasFile('avatar')) {
