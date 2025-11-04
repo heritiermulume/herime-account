@@ -92,14 +92,14 @@ export default {
                   return false
                 }
                 
-                console.log('[Auth] Appel API /api/sso/generate-token...', {
-                  redirect: redirect,
-                  token_present: !!token
-                })
-                
-                const response = await axios.post('/api/sso/generate-token', {
-                  redirect: redirect
-                })
+                                 console.log('[Auth] Appel API /sso/generate-token...', {
+                   redirect: redirect,
+                   token_present: !!token
+                 })
+                 
+                 const response = await axios.post('/sso/generate-token', {
+                   redirect: redirect
+                 })
                 
                 console.log('[Auth] SSO token response reçue:', {
                   status: response.status,
