@@ -191,7 +191,7 @@ class AdminController extends Controller
     /**
      * Update user status
      */
-    public function updateUserStatus(Request $request, $id): JsonResponse
+public function updateUserStatus(Request $request, $id): JsonResponse
     {
         $user = User::find($id);
         
@@ -214,11 +214,32 @@ class AdminController extends Controller
             ], 422);
         }
         
+        $isDeactivating = !$request->is_active && $user->is_active;
+        
         $user->update(['is_active' => $request->is_active]);
+        
+        // Si on désactive l'utilisateur, révoquer tous ses tokens et sessions immédiatement
+        if ($isDeactivating) {
+            // Révoquer tous les tokens Passport
+            $user->tokens()->delete();
+            
+            // Marquer toutes les sessions comme inactives
+            UserSession::where('user_id', $user->id)
+                ->update(['is_current' => false]);
+            
+            \Log::info('User deactivated and logged out everywhere', [
+                'user_id' => $user->id,
+                'user_email' => $user->email,
+                'tokens_revoked' => true,
+                'sessions_closed' => true
+            ]);
+        }
         
         return response()->json([
             'success' => true,
-            'message' => 'Statut utilisateur mis à jour avec succès',
+            'message' => $isDeactivating 
+                ? 'Statut utilisateur mis à jour avec succès. L\'utilisateur a été déconnecté de tous ses appareils.' 
+                : 'Statut utilisateur mis à jour avec succès',
             'data' => $user->fresh()
         ]);
     }
@@ -245,11 +266,28 @@ class AdminController extends Controller
             ], 403);
         }
         
+        $userId = $user->id;
+        $userEmail = $user->email;
+        
+        // Révoquer tous les tokens Passport avant suppression
+        $user->tokens()->delete();
+        
+        // Fermer toutes les sessions avant suppression
+        UserSession::where('user_id', $userId)->delete();
+        
+        // Supprimer l'utilisateur
         $user->delete();
+        
+        \Log::info('User deleted and logged out everywhere', [
+            'user_id' => $userId,
+            'user_email' => $userEmail,
+            'tokens_revoked' => true,
+            'sessions_deleted' => true
+        ]);
         
         return response()->json([
             'success' => true,
-            'message' => 'Utilisateur supprimé avec succès'
+            'message' => 'Utilisateur supprimé avec succès. Toutes ses sessions ont été fermées.'
         ]);
     }
 
