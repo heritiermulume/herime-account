@@ -22,8 +22,13 @@ npm run build
 ls -la public/build/
 
 # 3. Transférer le dossier build vers O2Switch
-# Format O2Switch : votre-identifiant@ssh.o2switch.net
-scp -r public/build/ muhe3594@ssh.o2switch.net:/home/muhe3594/herime-account/public/
+# Format O2Switch : Vérifier dans votre panneau O2Switch le format exact
+# Options possibles :
+#   - muhe3594@persil.o2switch.fr
+#   - muhe3594@ssh.o2switch.net
+#   - muhe3594@IP_DU_SERVEUR
+#   - Ou utiliser FileZilla/Cyberduck (FTP/SFTP)
+scp -r public/build/ muhe3594@persil.o2switch.fr:/home/muhe3594/herime-account/public/
 ```
 
 ### Sur O2Switch, vérifier :

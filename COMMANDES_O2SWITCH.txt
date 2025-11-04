@@ -166,10 +166,11 @@ php artisan db:show
 # → Les assets frontend n'ont pas été compilés/transférés
 # → Solution rapide :
 #    Sur votre machine : npm run build
-#    Puis : scp -r public/build/ muhe3594@ssh.o2switch.net:/home/muhe3594/herime-account/public/
+#    Puis : scp -r public/build/ muhe3594@persil.o2switch.fr:/home/muhe3594/herime-account/public/
+#    OU utiliser FileZilla/Cyberduck pour transférer public/build/ via FTP/SFTP
 #    Sur O2Switch : php artisan view:clear
-# → Format O2Switch : identifiant@ssh.o2switch.net (pas o2switch.fr)
-# → Consultez RESOUDRE_ERREUR_VITE_MANIFEST.md pour plus de détails
+# → Format O2Switch : Vérifier dans votre panneau O2Switch (peut être persil.o2switch.fr ou autre)
+# → Consultez RESOUDRE_ERREUR_VITE_MANIFEST.md et FORMAT_HOSTNAME_O2SWITCH.md
 
 # Voir les logs
 tail -f storage/logs/laravel.log
