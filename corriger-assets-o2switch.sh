@@ -5,7 +5,7 @@ set -e
 echo "🔧 Correction des assets sur O2Switch"
 echo "========================================"
 
-# 1. Pull
+# 1. Pull et récupération des fichiers
 echo ""
 echo "1. Pull des dernières modifications..."
 git pull origin main
@@ -21,6 +21,11 @@ if [ "$GIT_FILES" -eq 0 ]; then
     echo "   Les assets doivent être ajoutés avec: git add -f public/build/"
     exit 1
 fi
+
+# Forcer la récupération des fichiers depuis Git
+echo ""
+echo "   Récupération des fichiers assets depuis Git..."
+git checkout HEAD -- public/build/ 2>/dev/null || echo "   (Fichiers déjà à jour ou erreur mineure)"
 
 # 2. Vérifier les assets
 echo ""
