@@ -353,29 +353,26 @@ export default {
       }
       
       // Si on a un avatar_url qui est une URL complète (commence par http), la retourner
-      if (form.avatar_url && form.avatar_url.startsWith('http')) {
-        return form.avatar_url
+      // Si elle contient déjà un timestamp, la retourner telle quelle
+      if (form.avatar_url && (form.avatar_url.startsWith('http') || form.avatar_url.startsWith('/api/'))) {
+        // Si elle contient déjà un timestamp, la retourner
+        if (form.avatar_url.includes('?t=')) {
+          return form.avatar_url
+        }
+        // Sinon, ajouter un timestamp pour éviter le cache
+        const separator = form.avatar_url.includes('?') ? '&' : '?'
+        return form.avatar_url + separator + 't=' + Date.now()
       }
       
-      // Sinon, construire l'URL vers l'API sécurisée
+      // Sinon, construire l'URL vers l'API sécurisée avec timestamp pour éviter le cache
       if (user.value?.id && user.value?.avatar) {
-        // Pour les images <img src="">, on ne peut pas envoyer de headers Authorization
-        // On doit utiliser une URL complète ou ajouter le token dans l'URL
-        const token = localStorage.getItem('access_token')
         const baseURL = (typeof window !== 'undefined' && window.axios?.defaults?.baseURL) 
           ? window.axios.defaults.baseURL 
           : '/api'
         
-        // Option 1: URL avec token (si nécessaire)
-        // const url = `${baseURL}/user/avatar/${user.value.id}?token=${token}`
+        const url = `${baseURL}/user/avatar/${user.value.id}?t=` + Date.now()
         
-        // Option 2: URL simple (le contrôleur doit gérer l'auth différemment)
-        const url = `${baseURL}/user/avatar/${user.value.id}`
-        
-        console.log('🔗 Constructed avatar URL:', url, 'from user avatar:', user.value.avatar)
-        console.log('   Base URL:', baseURL)
-        console.log('   User ID:', user.value.id)
-        console.log('   Has token:', token ? 'YES' : 'NO')
+        console.log('🔗 Constructed avatar URL with timestamp:', url, 'from user avatar:', user.value.avatar)
         return url
       }
       
@@ -383,6 +380,10 @@ export default {
       if (form.avatar_url && (form.avatar_url.startsWith('/api/') || form.avatar_url.includes('/api/user/avatar/'))) {
         // Si c'est une URL relative, s'assurer qu'elle commence par /api
         if (form.avatar_url.startsWith('/api/')) {
+          // Ajouter un timestamp si pas déjà présent
+          if (!form.avatar_url.includes('?t=')) {
+            return form.avatar_url + '?t=' + Date.now()
+          }
           return form.avatar_url
         }
         // Si c'est une URL complète (http), la retourner telle quelle
@@ -489,21 +490,26 @@ export default {
           form.avatar_file = null
           
           // Mettre à jour avec la nouvelle URL de l'API
+          // Forcer la mise à jour avec un nouveau timestamp pour éviter le cache
           if (profileResponse.data.data.user?.avatar_url) {
-            form.avatar_url = profileResponse.data.data.user.avatar_url
-            console.log('✅ form.avatar_url updated from API response:', form.avatar_url)
+            // Retirer le timestamp existant s'il y en a un
+            const urlWithoutTimestamp = profileResponse.data.data.user.avatar_url.split('?t=')[0]
+            form.avatar_url = urlWithoutTimestamp + '?t=' + Date.now()
+            console.log('✅ form.avatar_url updated from API response with timestamp:', form.avatar_url)
           } else if (profileResponse.data.data.user?.avatar && authStore.user?.id) {
             // Si avatar_url n'est pas dans la réponse mais avatar existe, construire l'URL
-            form.avatar_url = `/api/user/avatar/${authStore.user.id}`
-            console.log('✅ form.avatar_url constructed from avatar field:', form.avatar_url)
-          }
-          
-          // Forcer un re-render en ajoutant un timestamp à l'URL pour éviter le cache
-          if (form.avatar_url && (form.avatar_url.startsWith('/api/') || form.avatar_url.includes('/api/user/avatar/'))) {
-            // Retirer le timestamp existant s'il y en a un
-            const urlWithoutTimestamp = form.avatar_url.split('?t=')[0]
-            form.avatar_url = urlWithoutTimestamp + '?t=' + Date.now()
-            console.log('✅ form.avatar_url with timestamp:', form.avatar_url)
+            const baseURL = (typeof window !== 'undefined' && window.axios?.defaults?.baseURL) 
+              ? window.axios.defaults.baseURL 
+              : '/api'
+            form.avatar_url = `${baseURL}/user/avatar/${authStore.user.id}?t=` + Date.now()
+            console.log('✅ form.avatar_url constructed from avatar field with timestamp:', form.avatar_url)
+          } else if (authStore.user?.id) {
+            // Si rien n'est disponible, construire l'URL avec timestamp
+            const baseURL = (typeof window !== 'undefined' && window.axios?.defaults?.baseURL) 
+              ? window.axios.defaults.baseURL 
+              : '/api'
+            form.avatar_url = `${baseURL}/user/avatar/${authStore.user.id}?t=` + Date.now()
+            console.log('✅ form.avatar_url constructed with timestamp:', form.avatar_url)
           }
           
           // Show success message

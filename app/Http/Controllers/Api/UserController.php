@@ -152,15 +152,23 @@ class UserController extends Controller
         $user->refresh();
         
         // S'assurer que avatar_url est inclus dans la réponse
-        $user->makeVisible(['avatar', 'avatar_url']);
+        $user->makeVisible(['avatar', 'avatar_url', 'avatar_filename']);
         
         // Forcer le calcul de avatar_url en l'ajoutant explicitement
         $userData = $user->load('currentSession')->toArray();
         $userData['avatar_url'] = $user->avatar_url;
         
+        // S'assurer que l'URL contient bien un timestamp pour éviter le cache
+        // Le frontend ajoutera le timestamp, mais on peut aussi le faire ici
+        if (isset($userData['avatar_url']) && strpos($userData['avatar_url'], '/api/user/avatar/') !== false) {
+            // L'URL est déjà correcte, le frontend ajoutera le timestamp
+            // Mais on peut aussi l'ajouter ici si nécessaire
+        }
+        
         \Log::info('Profile update API response', [
             'user_id' => $user->id,
             'avatar' => $user->avatar,
+            'avatar_filename' => $user->avatar_filename,
             'avatar_url' => $userData['avatar_url']
         ]);
 

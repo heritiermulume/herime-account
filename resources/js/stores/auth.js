@@ -229,8 +229,11 @@ export const useAuthStore = defineStore('auth', {
     updateUser(userData) {
       console.log('🔄 updateUser called with:', userData)
       console.log('   avatar_url in userData:', userData?.avatar_url)
+      console.log('   avatar in userData:', userData?.avatar)
       console.log('   Current user avatar_url:', this.user?.avatar_url)
+      console.log('   Current user avatar:', this.user?.avatar)
       
+      // Mettre à jour l'utilisateur
       this.user = { ...this.user, ...userData }
       
       // S'assurer que avatar_url est bien inclus
@@ -238,7 +241,19 @@ export const useAuthStore = defineStore('auth', {
         this.user.avatar_url = userData.avatar_url
       }
       
+      // S'assurer que avatar est aussi mis à jour (contient l'URL complète)
+      if (userData?.avatar) {
+        this.user.avatar = userData.avatar
+      }
+      
+      // Forcer le rechargement de l'URL avec un timestamp pour éviter le cache
+      if (this.user?.avatar_url && !this.user.avatar_url.includes('?t=')) {
+        const separator = this.user.avatar_url.includes('?') ? '&' : '?'
+        this.user.avatar_url = this.user.avatar_url + separator + 't=' + Date.now()
+      }
+      
       console.log('   Updated user avatar_url:', this.user?.avatar_url)
+      console.log('   Updated user avatar:', this.user?.avatar)
       
       localStorage.setItem('user', JSON.stringify(this.user))
       
