@@ -140,6 +140,18 @@ php artisan db:show
 # → Commandes : rm database/migrations/2025_11_03_*oauth*.php
 # → Consultez CORRIGER_MIGRATIONS_PASSPORT.md pour plus de détails
 
+# Erreur "Table already exists" en production (oauth_*)
+# → Les tables OAuth existent mais Passport essaie de les recréer
+# → Solution : Marquer les migrations OAuth comme exécutées dans la table migrations
+# → Commandes : 
+#    mysql -u votre_user_mysql -p herime_account -e "INSERT IGNORE INTO migrations (migration, batch) VALUES ('2016_06_01_000001_create_oauth_auth_codes_table', 1), ('2016_06_01_000002_create_oauth_access_tokens_table', 1), ('2016_06_01_000003_create_oauth_refresh_tokens_table', 1), ('2016_06_01_000004_create_oauth_clients_table', 1), ('2024_06_01_000001_create_oauth_device_codes_table', 1);"
+# → Consultez RESOUDRE_ERREUR_TABLE_EXISTS_PRODUCTION.md pour plus de détails
+
+# Erreur "Call to undefined function fake()" dans UserFactory
+# → La fonction fake() n'est pas disponible dans les factories
+# → Solution : Utiliser $this->faker au lieu de fake()
+# → Fichier corrigé : database/factories/UserFactory.php
+
 # Voir les logs
 tail -f storage/logs/laravel.log
 
