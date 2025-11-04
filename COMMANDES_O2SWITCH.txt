@@ -152,6 +152,16 @@ php artisan db:show
 # → Solution : Utiliser $this->faker au lieu de fake()
 # → Fichier corrigé : database/factories/UserFactory.php
 
+# Erreur 500 en production
+# → Erreur serveur générique, vérifier les logs en premier
+# → Commandes de diagnostic :
+#    1. Voir les logs : tail -n 100 storage/logs/laravel.log
+#    2. Vérifier les permissions : ls -la storage bootstrap/cache
+#    3. Vérifier .env : cat .env | grep -E "APP_ENV|APP_DEBUG|APP_KEY"
+#    4. Vider les caches : php artisan config:clear && php artisan cache:clear
+#    5. Vérifier la DB : php artisan migrate:status
+# → Consultez RESOUDRE_ERREUR_500_PRODUCTION.md pour plus de détails
+
 # Voir les logs
 tail -f storage/logs/laravel.log
 
