@@ -24,6 +24,8 @@ class ImageService
         
         // Si le fichier est déjà sous la limite, le sauvegarder tel quel
         if ($originalSize <= $maxSizeBytes) {
+            // S'assurer que le dossier existe
+            Storage::disk($disk)->makeDirectory(dirname($path));
             return $file->storeAs(dirname($path), basename($path), $disk);
         }
         
@@ -101,9 +103,10 @@ class ImageService
                 }
                 
                 // Sauvegarder l'image compressée
-                $fullPath = Storage::disk($disk)->path($path);
+                // S'assurer que le dossier existe
                 Storage::disk($disk)->makeDirectory(dirname($path));
-                file_put_contents($fullPath, $compressedData);
+                // Utiliser Storage::put au lieu de file_put_contents pour plus de fiabilité
+                Storage::disk($disk)->put($path, $compressedData);
                 
                 imagedestroy($image);
                 

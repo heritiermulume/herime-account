@@ -266,6 +266,11 @@ import { ref, reactive, computed, onMounted, inject } from 'vue'
 import { useAuthStore } from '../stores/auth'
 import axios from 'axios'
 
+// S'assurer que axios est disponible globalement aussi
+const getAxios = () => {
+  return window.axios || axios
+}
+
 export default {
   name: 'Profile',
   setup() {
@@ -354,13 +359,27 @@ export default {
       
       // Sinon, construire l'URL vers l'API sécurisée
       if (user.value?.id && user.value?.avatar) {
-        const url = `/api/user/avatar/${user.value.id}`
+        // Utiliser window.location.origin pour construire l'URL absolue
+        const baseURL = (typeof window !== 'undefined' && window.axios?.defaults?.baseURL) 
+          ? window.axios.defaults.baseURL 
+          : '/api'
+        const url = `${baseURL}/user/avatar/${user.value.id}`
         console.log('🔗 Constructed avatar URL:', url, 'from user avatar:', user.value.avatar)
+        console.log('   Base URL:', baseURL)
+        console.log('   User ID:', user.value.id)
         return url
       }
       
       // Si on a un avatar_url depuis la réponse API, l'utiliser
-      if (form.avatar_url && form.avatar_url.startsWith('/api/')) {
+      if (form.avatar_url && (form.avatar_url.startsWith('/api/') || form.avatar_url.includes('/api/user/avatar/'))) {
+        // Si c'est une URL relative, s'assurer qu'elle commence par /api
+        if (form.avatar_url.startsWith('/api/')) {
+          return form.avatar_url
+        }
+        // Si c'est une URL complète (http), la retourner telle quelle
+        if (form.avatar_url.startsWith('http')) {
+          return form.avatar_url
+        }
         return form.avatar_url
       }
       
