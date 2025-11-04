@@ -138,6 +138,15 @@ class SSOController extends Controller
         }
         
         try {
+            // Vérifier que l'utilisateur a bien un ID
+            if (!$user->id) {
+                \Log::error('User has no ID', ['user' => $user]);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Invalid user'
+                ], 401);
+            }
+
             $sessions = $user->sessions()
                 ->orderBy('last_activity', 'desc')
                 ->orderBy('created_at', 'desc')
@@ -157,7 +166,10 @@ class SSOController extends Controller
 
             \Log::info('Sessions loaded', [
                 'user_id' => $user->id,
-                'sessions_count' => $sessions->count()
+                'user_email' => $user->email,
+                'sessions_count' => $sessions->count(),
+                'total_sessions_in_db' => UserSession::count(),
+                'sessions_with_user_id' => UserSession::where('user_id', $user->id)->count()
             ]);
 
             return response()->json([
