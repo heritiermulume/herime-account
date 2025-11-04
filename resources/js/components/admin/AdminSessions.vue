@@ -93,7 +93,7 @@
                     {{ formatDate(session.created_at) }}
                   </span>
                   <button
-                    @click="revokeSession(session.id)"
+                    @click="openRevoke(session)"
                     class="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded-md text-xs font-medium"
                   >
                     Révoquer
@@ -106,6 +106,46 @@
             <Pagination :page="page" :perPage="15" :total="sessions.length" @update:page="val => page = val" />
           </div>
         </div>
+
+        <!-- Revoke Session Modal -->
+        <teleport to="body">
+          <transition enter-active-class="transition ease-out duration-200" enter-from-class="opacity-0" enter-to-class="opacity-100" leave-active-class="transition ease-in duration-150" leave-from-class="opacity-100" leave-to-class="opacity-0">
+            <div v-if="showRevoke" class="fixed inset-0 z-50 flex items-center justify-center">
+              <div class="fixed inset-0 bg-black bg-opacity-50" @click="showRevoke = false"></div>
+              <div class="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md mx-4 p-6">
+                <div class="flex items-center justify-between mb-3">
+                  <h3 class="text-lg font-medium text-gray-900 dark:text-white">Confirmer la révocation</h3>
+                  <button class="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700" @click="showRevoke = false" aria-label="Fermer">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+                  </button>
+                </div>
+                <div class="flex items-start space-x-3">
+                  <div class="flex-shrink-0">
+                    <div class="h-10 w-10 rounded-full bg-red-100 dark:bg-red-900 flex items-center justify-center">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-600 dark:text-red-300" viewBox="0 0 24 24" fill="currentColor"><path d="M12 9v4m0 4h.01M12 2a10 10 0 100 20 10 10 0 000-20z"/></svg>
+                    </div>
+                  </div>
+                  <div>
+                    <p class="text-sm text-gray-700 dark:text-gray-200">Voulez-vous vraiment révoquer cette session ?</p>
+                    <div v-if="revokeTarget" class="mt-2 text-sm text-gray-600 dark:text-gray-300 space-y-1">
+                      <div><span class="text-gray-500">Utilisateur:</span> {{ revokeTarget.user?.name || 'Inconnu' }}</div>
+                      <div><span class="text-gray-500">Appareil:</span> {{ revokeTarget.device_name }} - {{ revokeTarget.platform }} - {{ revokeTarget.browser }}</div>
+                      <div><span class="text-gray-500">IP:</span> {{ revokeTarget.ip_address }}</div>
+                    </div>
+                    <p v-if="revokeError" class="mt-2 text-sm text-red-600 dark:text-red-400">{{ revokeError }}</p>
+                  </div>
+                </div>
+                <div class="mt-6 flex justify-end space-x-2">
+                  <button class="px-4 py-2 rounded bg-gray-200 dark:bg-gray-700 dark:text-white hover:bg-gray-300 dark:hover:bg-gray-600" @click="showRevoke = false">Annuler</button>
+                  <button :disabled="revokeLoading" class="px-4 py-2 rounded bg-red-600 text-white hover:bg-red-700 disabled:opacity-50" @click="confirmRevoke">
+                    <span v-if="revokeLoading">Révocation...</span>
+                    <span v-else>Révoquer</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </transition>
+        </teleport>
   </div>
 </template>
 
@@ -135,6 +175,12 @@ export default {
     
     const user = computed(() => authStore.user)
 
+    // Revoke modal state
+    const showRevoke = ref(false)
+    const revokeTarget = ref(null)
+    const revokeLoading = ref(false)
+    const revokeError = ref('')
+
     const fetchSessions = async () => {
       try {
         loading.value = true
@@ -151,20 +197,30 @@ export default {
       }
     }
 
-    const revokeSession = async (id) => {
-      if (!confirm('Êtes-vous sûr de vouloir révoquer cette session ?')) {
-        return
-      }
-      
+    const openRevoke = (session) => {
+      revokeTarget.value = session
+      revokeError.value = ''
+      showRevoke.value = true
+    }
+
+    const confirmRevoke = async () => {
+      if (!revokeTarget.value) return
+      revokeLoading.value = true
+      revokeError.value = ''
       try {
-        const response = await axios.delete(`/admin/sessions/${id}`)
-        
+        const response = await axios.delete(`/admin/sessions/${revokeTarget.value.id}`)
         if (response.data.success) {
+          showRevoke.value = false
+          revokeTarget.value = null
           await fetchSessions()
+        } else {
+          revokeError.value = response.data.message || 'Révocation échouée'
         }
       } catch (err) {
         console.error('Error revoking session:', err)
-        error.value = 'Erreur lors de la révocation de la session'
+        revokeError.value = 'Erreur lors de la révocation de la session'
+      } finally {
+        revokeLoading.value = false
       }
     }
 
@@ -191,7 +247,12 @@ export default {
       paginatedSessions,
       user,
       fetchSessions,
-      revokeSession,
+      openRevoke,
+      confirmRevoke,
+      showRevoke,
+      revokeTarget,
+      revokeLoading,
+      revokeError,
       formatDate
     }
   }
