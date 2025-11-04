@@ -143,7 +143,7 @@
               </p>
             </div>
 
-            <div class="flex flex-col sm:flex-row gap-3 mt-4">
+            <div class="flex flex-col sm:flex-row-reverse gap-3 mt-4">
               <button
                 type="button"
                 @click="goToLogin"
