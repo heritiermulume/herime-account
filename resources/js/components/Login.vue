@@ -1,5 +1,5 @@
 <template>
-  <div :class="['h-screen flex justify-center py-12 px-4 sm:px-6 lg:px-8 bg-gray-50 dark:bg-gray-900', requiresTwoFactor ? 'overflow-auto items-start' : 'overflow-hidden items-center']">
+  <div class="h-screen overflow-hidden flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-gray-50 dark:bg-gray-900">
     <div class="max-w-lg w-full">
       <!-- Logo -->
       <div class="text-center mb-8">
@@ -11,7 +11,7 @@
       </div>
       
       <!-- Card -->
-      <div :class="['bg-white dark:bg-gray-800 rounded-xl shadow-2xl p-8 space-y-6', requiresTwoFactor ? 'max-h-[calc(100vh-8rem)] overflow-auto' : '']">
+      <div :class="['bg-white dark:bg-gray-800 rounded-xl shadow-2xl p-8 space-y-6', requiresTwoFactor ? 'max-h-[calc(100vh-8rem)] overflow-y-auto' : '']">
         <div class="text-center">
           <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">
             Bienvenue
