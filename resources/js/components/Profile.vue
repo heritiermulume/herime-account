@@ -283,7 +283,20 @@ export default {
     const updateProfile = async () => {
       loading.value = true
       try {
-        const response = await axios.post('/user/profile', form)
+        console.log('🔄 Updating profile with data:', form)
+        
+        // Préparer les données à envoyer (uniquement les champs remplis)
+        const dataToSend = {}
+        if (form.name) dataToSend.name = form.name
+        if (form.phone !== undefined) dataToSend.phone = form.phone || null
+        if (form.company !== undefined) dataToSend.company = form.company || null
+        if (form.position !== undefined) dataToSend.position = form.position || null
+        
+        console.log('📤 Sending data:', dataToSend)
+        
+        const response = await axios.post('/api/user/profile', dataToSend)
+        
+        console.log('✅ Profile update response:', response.data)
         
         if (response.data.success) {
           // Update user in store
@@ -291,9 +304,13 @@ export default {
           
           // Show success message
           notify.success('Succès', 'Profil mis à jour avec succès!')
+        } else {
+          throw new Error(response.data.message || 'Update failed')
         }
       } catch (error) {
-        console.error('Error updating profile:', error)
+        console.error('❌ Error updating profile:', error)
+        console.error('   Status:', error.response?.status)
+        console.error('   Data:', error.response?.data)
         if (error.response?.data?.message) {
           notify.error('Erreur', error.response.data.message)
         } else {

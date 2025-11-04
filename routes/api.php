@@ -33,6 +33,7 @@ Route::group(['middleware' => 'auth:api'], function () {
     // User routes
     Route::get('user/profile', [UserController::class, 'profile']);
     Route::post('user/profile', [UserController::class, 'updateProfile']);
+    Route::put('user/profile', [UserController::class, 'updateProfile']);
     Route::put('user/password', [UserController::class, 'changePassword']);
     Route::put('user/preferences', [UserController::class, 'updatePreferences']);
     Route::post('user/deactivate', [UserController::class, 'deactivateAccount']);

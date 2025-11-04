@@ -50,7 +50,20 @@ class UserController extends Controller
             ], 422);
         }
 
-        $data = $request->only(['name', 'phone', 'company', 'position']);
+        // Récupérer tous les champs fillable disponibles
+        $fillableFields = ['name', 'phone', 'company', 'position'];
+        $data = [];
+        
+        // Récupérer uniquement les champs fournis dans la requête
+        foreach ($fillableFields as $field) {
+            if ($request->has($field)) {
+                $value = $request->input($field);
+                // Permettre les chaînes vides et null pour les champs nullable
+                if ($value !== null || in_array($field, ['phone', 'company', 'position'])) {
+                    $data[$field] = $value === '' ? null : $value;
+                }
+            }
+        }
 
         // Handle avatar upload
         if ($request->hasFile('avatar')) {
@@ -63,13 +76,19 @@ class UserController extends Controller
             $data['avatar'] = $avatarPath;
         }
 
-        $user->update($data);
+        // Mettre à jour uniquement les champs fournis
+        if (!empty($data)) {
+            $user->update($data);
+        }
+
+        // Recharger l'utilisateur avec toutes les relations
+        $user->refresh();
 
         return response()->json([
             'success' => true,
             'message' => 'Profile updated successfully',
             'data' => [
-                'user' => $user->fresh()
+                'user' => $user->load('currentSession')
             ]
         ]);
     }
