@@ -241,9 +241,9 @@
             </li>
           </ul>
 
-          <!-- Pagination -->
-          <div v-if="pagination && pagination.last_page > 1" class="bg-white dark:bg-gray-800 px-4 py-3 border-t border-gray-200 dark:border-gray-700 sm:px-6">
-            <Pagination :page="pagination.current_page" :perPage="15" :total="pagination.total" @update:page="changePage" />
+          <!-- Pagination (alignée comme la liste des sessions) -->
+          <div class="px-4 py-3 border-t border-gray-200 dark:border-gray-700">
+            <Pagination :page="pagination?.current_page || 1" :perPage="15" :total="pagination?.total || 0" @update:page="changePage" />
           </div>
         </div>
 
