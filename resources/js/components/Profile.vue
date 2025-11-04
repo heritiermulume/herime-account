@@ -266,7 +266,7 @@
             La suppression de votre compte désactivera votre compte. Seul un administrateur peut définitivement supprimer un compte.
           </p>
           <button
-            @click="showDeleteModal = true"
+            @click="showDeleteModal = true; passwordError = ''; deletePassword = ''; deleteReason = ''"
             class="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-md text-sm transition-colors duration-200"
           >
             Supprimer le compte
