@@ -24,7 +24,7 @@ class DatabaseSeeder extends Seeder
             [
                 'name' => 'Test User',
                 'email' => 'test@example.com',
-                'password' => Hash::make('password'),
+                'password' => Hash::make('Herime2024!'),
                 'email_verified_at' => now(),
             ]
         );
@@ -35,7 +35,7 @@ class DatabaseSeeder extends Seeder
             [
                 'name' => 'Administrateur',
                 'email' => 'admin@example.com',
-                'password' => Hash::make('password'),
+                'password' => Hash::make('Herime2024!'),
                 'role' => 'super_user',
                 'is_active' => true,
                 'email_verified_at' => now(),
@@ -44,7 +44,7 @@ class DatabaseSeeder extends Seeder
 
         $this->command->info('Super utilisateur créé avec succès !');
         $this->command->info('Email: admin@example.com');
-        $this->command->info('Mot de passe: password');
+        $this->command->info('Mot de passe: Herime2024!');
 
         // Seed les administrateurs
         $this->call(AdminSeeder::class);

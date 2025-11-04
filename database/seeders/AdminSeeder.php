@@ -22,7 +22,7 @@ class AdminSeeder extends Seeder
             [
                 'name' => 'Administrateur',
                 'email' => 'admin@example.com',
-                'password' => Hash::make('password'),
+                'password' => Hash::make('Herime2024!'),
                 'role' => 'super_admin',
                 'is_active' => true,
                 'email_verified_at' => now(),
@@ -31,7 +31,7 @@ class AdminSeeder extends Seeder
 
         $this->command->info('Admin créé avec succès !');
         $this->command->info('Email: admin@example.com');
-        $this->command->info('Mot de passe: password');
+        $this->command->info('Mot de passe: Herime2024!');
     }
 }
 

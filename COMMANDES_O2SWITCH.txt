@@ -257,7 +257,7 @@ MAIL_PORT=587
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 Email: admin@example.com
-Mot de passe: password
+Mot de passe: Herime2024!
 
 ⚠️  Changez-les immédiatement après le premier login !
 
