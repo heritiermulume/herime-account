@@ -194,10 +194,10 @@
           Sessions récentes
         </h3>
         <div class="flow-root">
-          <ul class="-mb-8">
-            <li v-for="(session, index) in sessions.slice(0, 5)" :key="session.id">
+                 <ul class="-mb-8">
+                   <li v-for="(session, index) in paginatedSessions" :key="session.id">
               <div class="relative pb-8">
-                <div v-if="index !== sessions.length - 1" class="absolute top-4 left-4 -ml-px h-full w-0.5 bg-gray-200 dark:bg-gray-600"></div>
+                       <div v-if="index !== paginatedSessions.length - 1" class="absolute top-4 left-4 -ml-px h-full w-0.5 bg-gray-200 dark:bg-gray-600"></div>
                 <div class="relative flex space-x-3">
                   <div>
                     <span class="h-8 w-8 rounded-full flex items-center justify-center ring-8 ring-white dark:ring-gray-800" style="background-color: #003366;">
@@ -224,7 +224,10 @@
                 </div>
               </div>
             </li>
-          </ul>
+                 </ul>
+                 <div class="mt-4">
+                   <Pagination :page="page" :perPage="perPage" :total="totalSessions" @update:page="val => page = val" />
+                 </div>
         </div>
       </div>
     </div>
@@ -243,13 +246,15 @@ import axios from 'axios'
 import ProfileModal from './ProfileModal.vue'
 import SessionsModal from './SessionsModal.vue'
 import SecurityModal from './SecurityModal.vue'
+import Pagination from './Pagination.vue'
 
 export default {
   name: 'Dashboard',
   components: {
     ProfileModal,
     SessionsModal,
-    SecurityModal
+    SecurityModal,
+    Pagination
   },
   setup() {
     const authStore = useAuthStore()
@@ -257,7 +262,14 @@ export default {
     const showProfileModal = ref(false)
     const showSessionsModal = ref(false)
     const showSecurityModal = ref(false)
-    const sessions = ref([])
+  const sessions = ref([])
+  const page = ref(1)
+  const perPage = ref(15)
+  const totalSessions = computed(() => sessions.value.length)
+  const paginatedSessions = computed(() => {
+    const start = (page.value - 1) * perPage.value
+    return sessions.value.slice(start, start + perPage.value)
+  })
 
     const user = computed(() => authStore.user)
 
@@ -359,9 +371,13 @@ export default {
       loadSessions()
     })
 
-    return {
-      user,
-      sessions,
+  return {
+    user,
+    sessions,
+    page,
+    perPage,
+    totalSessions,
+    paginatedSessions,
       showProfileModal,
       showSessionsModal,
       showSecurityModal,
