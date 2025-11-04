@@ -166,8 +166,9 @@ php artisan db:show
 # → Les assets frontend n'ont pas été compilés/transférés
 # → Solution rapide :
 #    Sur votre machine : npm run build
-#    Puis : scp -r public/build/ utilisateur@o2switch.fr:/home/muhe3594/herime-account/public/
+#    Puis : scp -r public/build/ muhe3594@ssh.o2switch.net:/home/muhe3594/herime-account/public/
 #    Sur O2Switch : php artisan view:clear
+# → Format O2Switch : identifiant@ssh.o2switch.net (pas o2switch.fr)
 # → Consultez RESOUDRE_ERREUR_VITE_MANIFEST.md pour plus de détails
 
 # Voir les logs

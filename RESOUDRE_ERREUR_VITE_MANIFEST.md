@@ -22,7 +22,8 @@ npm run build
 ls -la public/build/
 
 # 3. Transférer le dossier build vers O2Switch
-scp -r public/build/ votre-identifiant@o2switch.fr:/home/muhe3594/herime-account/public/
+# Format O2Switch : votre-identifiant@ssh.o2switch.net
+scp -r public/build/ muhe3594@ssh.o2switch.net:/home/muhe3594/herime-account/public/
 ```
 
 ### Sur O2Switch, vérifier :
@@ -75,8 +76,8 @@ cd /path/to/account
 # Compiler les assets
 npm run build
 
-# Transférer vers O2Switch
-scp -r public/build/ votre-identifiant@o2switch.fr:/home/muhe3594/herime-account/public/
+# Transférer vers O2Switch (format: identifiant@ssh.o2switch.net)
+scp -r public/build/ muhe3594@ssh.o2switch.net:/home/muhe3594/herime-account/public/
 
 # Sur O2Switch, vérifier
 ssh votre-identifiant@o2switch.fr
@@ -117,8 +118,8 @@ php artisan config:clear
 # Compiler localement
 npm run build
 
-# Transférer le dossier build
-scp -r public/build/ utilisateur@o2switch.fr:/home/muhe3594/herime-account/public/
+# Transférer le dossier build (format: identifiant@ssh.o2switch.net)
+scp -r public/build/ muhe3594@ssh.o2switch.net:/home/muhe3594/herime-account/public/
 
 # Sur O2Switch, vérifier et vider le cache
 ssh utilisateur@o2switch.fr
