@@ -25,21 +25,32 @@ log "2. Vérification des clés Passport..."
 if [ -f "storage/oauth-private.key" ] && [ -f "storage/oauth-public.key" ]; then
     log "Clés Passport présentes"
     chmod 600 storage/oauth-private.key 2>/dev/null || true
-    chmod 644 storage/oauth-public.key 2>/dev/null || true
+    chmod 600 storage/oauth-public.key 2>/dev/null || true
+    log "Permissions des clés corrigées (600)"
 else
     warning "Clés Passport manquantes, génération..."
     php artisan passport:keys --force 2>/dev/null || warning "Génération des clés échouée"
+    if [ -f "storage/oauth-private.key" ]; then
+        chmod 600 storage/oauth-private.key 2>/dev/null || true
+    fi
+    if [ -f "storage/oauth-public.key" ]; then
+        chmod 600 storage/oauth-public.key 2>/dev/null || true
+    fi
 fi
 
 # 3. Vérifier le client Passport
 echo ""
 log "3. Vérification du client Passport..."
-CLIENT_COUNT=$(php artisan tinker --execute='echo \Laravel\Passport\Client::where("personal_access_client", 1)->where("revoked", 0)->count();' 2>&1 | grep -v "Tinker" | tail -1)
-if [ "$CLIENT_COUNT" -eq 0 ]; then
+CLIENT_COUNT=$(php artisan tinker --execute='echo \Laravel\Passport\Client::where("personal_access_client", 1)->where("revoked", 0)->count();' 2>&1 | grep -v "Tinker" | tail -1 | grep -o '[0-9]\+' || echo "0")
+if [ -z "$CLIENT_COUNT" ] || [ "$CLIENT_COUNT" = "0" ]; then
     warning "Client Passport manquant, création..."
     php artisan passport:client --personal --name="Herime SSO Personal Access Client" --no-interaction 2>/dev/null || warning "Création du client échouée"
-else
+    CLIENT_COUNT=$(php artisan tinker --execute='echo \Laravel\Passport\Client::where("personal_access_client", 1)->where("revoked", 0)->count();' 2>&1 | grep -v "Tinker" | tail -1 | grep -o '[0-9]\+' || echo "0")
+fi
+if [ -n "$CLIENT_COUNT" ] && [ "$CLIENT_COUNT" != "0" ]; then
     log "Client Passport présent ($CLIENT_COUNT client(s))"
+else
+    warning "Client Passport non trouvé après création"
 fi
 
 # 4. Vider TOUS les caches
