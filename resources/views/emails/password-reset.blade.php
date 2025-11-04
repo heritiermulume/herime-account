@@ -6,9 +6,9 @@
 </div>
 # Réinitialisation de votre mot de passe
 
-Bonjour,
+Bonjour {{ $userName ?? 'Utilisateur' }},
 
-Vous avez demandé à réinitialiser votre mot de passe pour votre compte {{ config('app.name') }}.
+Vous avez demandé à réinitialiser votre mot de passe pour votre compte Herime.
 
 Cliquez sur le bouton ci-dessous pour réinitialiser votre mot de passe :
 
@@ -24,5 +24,5 @@ Si vous n'avez pas demandé cette réinitialisation, vous pouvez ignorer cet ema
 {{ $resetUrl }}
 
 Cordialement,<br>
-L'équipe {{ config('app.name') }}
+L'équipe Herime
 </x-mail::message>

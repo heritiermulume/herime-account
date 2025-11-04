@@ -82,7 +82,7 @@ class PasswordResetController extends Controller
 
         // Envoyer l'email avec le lien de réinitialisation
         try {
-            Mail::to($request->email)->send(new PasswordResetMail($resetUrl));
+            Mail::to($request->email)->send(new PasswordResetMail($resetUrl, $user->name ?? null));
             \Log::info('Password reset email sent successfully', [
                 'email' => $request->email
             ]);

@@ -21,11 +21,19 @@ class PasswordResetMail extends Mailable
     public $resetUrl;
 
     /**
+     * The recipient user name (for greeting).
+     *
+     * @var string|null
+     */
+    public $userName;
+
+    /**
      * Create a new message instance.
      */
-    public function __construct(string $resetUrl)
+    public function __construct(string $resetUrl, ?string $userName = null)
     {
         $this->resetUrl = $resetUrl;
+        $this->userName = $userName;
     }
 
     /**
