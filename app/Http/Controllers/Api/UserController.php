@@ -22,10 +22,20 @@ class UserController extends Controller
         // S'assurer que avatar_url est inclus dans la réponse
         $user->makeVisible(['avatar', 'avatar_url']);
         
+        // Forcer le calcul de avatar_url en l'ajoutant explicitement
+        $userData = $user->load('currentSession')->toArray();
+        $userData['avatar_url'] = $user->avatar_url;
+        
+        \Log::info('Profile API response', [
+            'user_id' => $user->id,
+            'avatar' => $user->avatar,
+            'avatar_url' => $userData['avatar_url']
+        ]);
+        
         return response()->json([
             'success' => true,
             'data' => [
-                'user' => $user->load('currentSession')
+                'user' => $userData
             ]
         ]);
     }
@@ -126,12 +136,22 @@ class UserController extends Controller
         
         // S'assurer que avatar_url est inclus dans la réponse
         $user->makeVisible(['avatar', 'avatar_url']);
+        
+        // Forcer le calcul de avatar_url en l'ajoutant explicitement
+        $userData = $user->load('currentSession')->toArray();
+        $userData['avatar_url'] = $user->avatar_url;
+        
+        \Log::info('Profile update API response', [
+            'user_id' => $user->id,
+            'avatar' => $user->avatar,
+            'avatar_url' => $userData['avatar_url']
+        ]);
 
         return response()->json([
             'success' => true,
             'message' => 'Profile updated successfully',
             'data' => [
-                'user' => $user->load('currentSession')
+                'user' => $userData
             ]
         ]);
     }

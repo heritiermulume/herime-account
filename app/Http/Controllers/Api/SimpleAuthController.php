@@ -54,11 +54,16 @@ class SimpleAuthController extends Controller
         // Create access token for API authentication
         $token = $user->createToken('API Token')->accessToken;
 
+        // Forcer l'inclusion de avatar_url
+        $user->makeVisible(['avatar', 'avatar_url']);
+        $userData = $user->load('currentSession')->toArray();
+        $userData['avatar_url'] = $user->avatar_url;
+        
         return response()->json([
             'success' => true,
             'message' => 'Compte créé avec succès',
             'data' => [
-                'user' => $user->load('currentSession'),
+                'user' => $userData,
                 'authenticated' => true,
                 'access_token' => $token,
                 'token_type' => 'Bearer'
@@ -115,11 +120,16 @@ class SimpleAuthController extends Controller
         // Create access token for API authentication
         $token = $user->createToken('API Token')->accessToken;
 
+        // Forcer l'inclusion de avatar_url
+        $user->makeVisible(['avatar', 'avatar_url']);
+        $userData = $user->load('currentSession')->toArray();
+        $userData['avatar_url'] = $user->avatar_url;
+        
         return response()->json([
             'success' => true,
             'message' => 'Login successful',
             'data' => [
-                'user' => $user->load('currentSession'),
+                'user' => $userData,
                 'authenticated' => true,
                 'access_token' => $token,
                 'token_type' => 'Bearer'
@@ -152,10 +162,22 @@ class SimpleAuthController extends Controller
     {
         $user = Auth::user();
         
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'User not authenticated'
+            ], 401);
+        }
+        
+        // Forcer l'inclusion de avatar_url
+        $user->makeVisible(['avatar', 'avatar_url']);
+        $userData = $user->load('currentSession')->toArray();
+        $userData['avatar_url'] = $user->avatar_url;
+        
         return response()->json([
             'success' => true,
             'data' => [
-                'user' => $user ? $user->load('currentSession') : null
+                'user' => $userData
             ]
         ]);
     }

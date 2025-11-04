@@ -25,11 +25,13 @@
           <!-- Avatar Section -->
           <div class="flex items-center space-x-6">
             <div class="flex-shrink-0">
-              <div v-if="form.avatar_url" class="h-20 w-20 rounded-full overflow-hidden">
+              <div v-if="form.avatar_url" class="h-20 w-20 rounded-full overflow-hidden bg-gray-200">
                 <img
                   :src="form.avatar_url"
                   :alt="form.name"
                   class="h-full w-full object-cover"
+                  @error="handleImageError"
+                  @load="handleImageLoad"
                 />
               </div>
               <div v-else class="h-20 w-20 rounded-full flex items-center justify-center" style="background-color: #ffcc33;">
@@ -323,6 +325,18 @@ export default {
       form.marketing_emails = !form.marketing_emails
     }
 
+    const handleImageError = (event) => {
+      console.error('❌ Image load error:', event.target.src)
+      console.error('   Form avatar_url:', form.avatar_url)
+      console.error('   User avatar_url:', user.value?.avatar_url)
+      // Fallback vers l'avatar généré
+      form.avatar_url = ''
+    }
+
+    const handleImageLoad = () => {
+      console.log('✅ Image loaded successfully:', form.avatar_url)
+    }
+
     const updateProfile = async () => {
       loading.value = true
       try {
@@ -439,6 +453,8 @@ export default {
       handleAvatarChange,
       toggleEmailNotifications,
       toggleMarketingEmails,
+      handleImageError,
+      handleImageLoad,
       updateProfile
     }
   }
