@@ -178,53 +178,8 @@
           </ul>
 
           <!-- Pagination -->
-          <div v-if="pagination && pagination.last_page > 1" class="bg-white dark:bg-gray-800 px-4 py-3 flex items-center justify-between border-t border-gray-200 dark:border-gray-700 sm:px-6">
-            <div class="flex-1 flex justify-between sm:hidden">
-              <button
-                @click="changePage(pagination.current_page - 1)"
-                :disabled="!pagination.prev_page_url"
-                class="relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Précédent
-              </button>
-              <button
-                @click="changePage(pagination.current_page + 1)"
-                :disabled="!pagination.next_page_url"
-                class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Suivant
-              </button>
-            </div>
-            <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-              <div>
-                <p class="text-sm text-gray-700 dark:text-gray-300">
-                  Affichage de
-                  <span class="font-medium">{{ pagination.from }}</span>
-                  à
-                  <span class="font-medium">{{ pagination.to }}</span>
-                  sur
-                  <span class="font-medium">{{ pagination.total }}</span>
-                  résultats
-                </p>
-              </div>
-              <div>
-                <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
-                  <button
-                    v-for="page in visiblePages"
-                    :key="page"
-                    @click="changePage(page)"
-                    :class="[
-                      'relative inline-flex items-center px-4 py-2 border text-sm font-medium',
-                      page === pagination.current_page
-                        ? 'z-10 bg-yellow-50 border-yellow-500 text-yellow-600 dark:bg-yellow-900 dark:border-yellow-400 dark:text-yellow-200'
-                        : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-700'
-                    ]"
-                  >
-                    {{ page }}
-                  </button>
-                </nav>
-              </div>
-            </div>
+          <div v-if="pagination && pagination.last_page > 1" class="bg-white dark:bg-gray-800 px-4 py-3 border-t border-gray-200 dark:border-gray-700 sm:px-6">
+            <Pagination :page="pagination.current_page" :perPage="15" :total="pagination.total" @update:page="changePage" />
           </div>
         </div>
   </div>
@@ -232,12 +187,14 @@
 
 <script>
 import { ref, reactive, onMounted, computed } from 'vue'
+import Pagination from '../Pagination.vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../../stores/auth'
 import axios from 'axios'
 
 export default {
   name: 'AdminUsers',
+  components: { Pagination },
   setup() {
     const router = useRouter()
     const authStore = useAuthStore()

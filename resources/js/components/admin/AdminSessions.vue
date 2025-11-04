@@ -67,7 +67,7 @@
           </div>
 
           <ul v-else class="divide-y divide-gray-200 dark:divide-gray-700">
-            <li v-for="session in sessions" :key="session.id" class="px-4 py-4 sm:px-6">
+            <li v-for="session in paginatedSessions" :key="session.id" class="px-4 py-4 sm:px-6">
               <div class="flex items-center justify-between">
                 <div class="flex items-center">
                   <div class="ml-4">
@@ -102,6 +102,9 @@
               </div>
             </li>
           </ul>
+          <div class="px-4 py-3 border-t border-gray-200 dark:border-gray-700">
+            <Pagination :page="page" :perPage="15" :total="sessions.length" @update:page="val => page = val" />
+          </div>
         </div>
   </div>
 </template>
@@ -111,9 +114,11 @@ import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../../stores/auth'
 import axios from 'axios'
+import Pagination from '../Pagination.vue'
 
 export default {
   name: 'AdminSessions',
+  components: { Pagination },
   setup() {
     const router = useRouter()
     const authStore = useAuthStore()
@@ -121,6 +126,12 @@ export default {
     const loading = ref(true)
     const sessions = ref([])
     const error = ref('')
+    const page = ref(1)
+    const perPage = ref(15)
+    const paginatedSessions = computed(() => {
+      const start = (page.value - 1) * perPage.value
+      return sessions.value.slice(start, start + perPage.value)
+    })
     
     const user = computed(() => authStore.user)
 
@@ -175,6 +186,9 @@ export default {
       loading,
       sessions,
       error,
+      page,
+      perPage,
+      paginatedSessions,
       user,
       fetchSessions,
       revokeSession,
