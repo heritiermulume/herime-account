@@ -263,19 +263,23 @@ export default {
     }
 
     const getAvatarUrl = () => {
-      // Si on a un avatar_url qui est une URL complète (commence par http), la retourner
+      // Si on a un avatar_url qui est une URL complète (commence par http), la retourner avec timestamp
       if (user.value?.avatar_url && user.value.avatar_url.startsWith('http')) {
-        return user.value.avatar_url
+        const separator = user.value.avatar_url.includes('?') ? '&' : '?'
+        return user.value.avatar_url.includes('?t=') ? user.value.avatar_url : user.value.avatar_url + separator + 't=' + Date.now()
       }
       
-      // Si on a un avatar mais pas d'avatar_url, construire l'URL
+      // Si on a un avatar mais pas d'avatar_url, construire l'URL avec timestamp
       if (user.value?.avatar && user.value?.id) {
-        return `/api/user/avatar/${user.value.id}`
+        const baseURL = (typeof window !== 'undefined' && window.axios?.defaults?.baseURL) 
+          ? window.axios.defaults.baseURL 
+          : '/api'
+        return `${baseURL}/user/avatar/${user.value.id}?t=` + Date.now()
       }
       
-      // Si on a un avatar_url qui commence par /api, le retourner
+      // Si on a un avatar_url qui commence par /api, le retourner avec timestamp
       if (user.value?.avatar_url && user.value.avatar_url.startsWith('/api')) {
-        return user.value.avatar_url
+        return user.value.avatar_url.includes('?t=') ? user.value.avatar_url : user.value.avatar_url + '?t=' + Date.now()
       }
       
       // Sinon, pas d'avatar
