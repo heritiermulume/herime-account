@@ -46,6 +46,9 @@ Route::group(['middleware' => 'auth:api'], function () {
     // Auth routes
     Route::post('logout', [SimpleAuthController::class, 'logout']);
     Route::get('me', [SimpleAuthController::class, 'me']);
+    
+    // SSO token generation (requires API auth)
+    Route::post('sso/generate-token', [SSOController::class, 'generateSSOToken']);
 
     // User routes
     Route::get('user/profile', [UserController::class, 'profile']);

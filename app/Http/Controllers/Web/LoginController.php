@@ -25,17 +25,50 @@ class LoginController extends Controller
                        || $request->boolean('force_token', false);
         }
 
+        // Vérifier l'authentification: d'abord session web, puis token API
+        $isAuthenticated = Auth::check();
+        $user = null;
+        
+        if ($isAuthenticated) {
+            $user = Auth::user();
+        } else {
+            // Essayer avec le token API si présent dans le header Authorization
+            $authHeader = $request->header('Authorization');
+            if ($authHeader && str_starts_with($authHeader, 'Bearer ')) {
+                $token = substr($authHeader, 7);
+                try {
+                    // Vérifier le token via Passport
+                    $accessToken = \Laravel\Passport\Token::where('id', hash('sha256', $token))
+                        ->where('revoked', false)
+                        ->first();
+                    
+                    if ($accessToken && $accessToken->expires_at && !$accessToken->expires_at->isPast()) {
+                        $user = $accessToken->user;
+                        if ($user && $user->isActive()) {
+                            // Connecter l'utilisateur via session web pour la suite
+                            Auth::login($user);
+                            $isAuthenticated = true;
+                        }
+                    }
+                } catch (\Exception $e) {
+                    \Log::warning('Error checking API token in LoginController', ['error' => $e->getMessage()]);
+                }
+            }
+        }
+
         \Log::info('LoginController@show', [
-            'auth_check' => Auth::check(),
+            'auth_check' => $isAuthenticated,
+            'auth_check_web' => Auth::check(),
+            'user_id' => $user?->id,
             'force_token' => $forceToken,
             'redirect_url' => $redirectUrl,
             'query_params' => $request->all()
         ]);
 
         // Si l'utilisateur est déjà connecté ET force_token est présent
-        if (Auth::check() && $forceToken) {
+        if ($isAuthenticated && $user && $forceToken) {
             // Générer un token SSO et rediriger immédiatement
-            $user = Auth::user();
+            // $user est déjà récupéré ci-dessus
 
             if (!$user->isActive()) {
                 // Si le compte est désactivé, rediriger vers la page de login avec erreur
@@ -68,7 +101,7 @@ class LoginController extends Controller
         }
 
         // Si l'utilisateur est déjà connecté SANS force_token, rediriger vers le dashboard
-        if (Auth::check() && !$forceToken) {
+        if ($isAuthenticated && $user && !$forceToken) {
             // Si une URL de redirection externe est présente, mais sans force_token, rediriger vers le dashboard local
             return redirect('/dashboard');
         }
