@@ -331,8 +331,11 @@ class UserController extends Controller
         }
 
         // Delete avatar if exists (dans le dossier privé)
-        if ($user->avatar) {
-            $avatarPath = 'avatars/' . basename($user->avatar);
+        // Utiliser avatar_filename si disponible, sinon avatar (ancien format)
+        $avatarToDelete = $user->avatar_filename ?? ($user->avatar && strpos($user->avatar, '/api/user/avatar/') === false ? $user->avatar : null);
+        
+        if ($avatarToDelete) {
+            $avatarPath = 'avatars/' . basename($avatarToDelete);
             if (Storage::disk('private')->exists($avatarPath)) {
                 Storage::disk('private')->delete($avatarPath);
             }
