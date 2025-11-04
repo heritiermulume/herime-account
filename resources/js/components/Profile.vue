@@ -280,7 +280,7 @@
       <Transition name="modal">
         <div v-if="showDeleteModal" class="fixed z-50 inset-0 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
           <!-- Backdrop -->
-          <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" @click="showDeleteModal = false"></div>
+          <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" @click="showDeleteModal = false; passwordError = ''; deletePassword = ''; deleteReason = ''"></div>
           
           <!-- Modal container -->
           <div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
@@ -325,9 +325,18 @@
                           v-model="deletePassword"
                           type="password"
                           required
-                          class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 sm:text-sm"
+                          :class="[
+                            'mt-1 block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 sm:text-sm',
+                            passwordError 
+                              ? 'border-red-500 dark:border-red-500 focus:ring-red-500 focus:border-red-500 dark:bg-gray-700 dark:text-white' 
+                              : 'border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-red-500 focus:border-red-500'
+                          ]"
                           placeholder="Votre mot de passe"
+                          @input="passwordError = ''"
                         />
+                        <p v-if="passwordError" class="mt-1 text-sm text-red-600 dark:text-red-400">
+                          {{ passwordError }}
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -345,7 +354,7 @@
                 </button>
                 <button
                   type="button"
-                  @click="showDeleteModal = false"
+                  @click="showDeleteModal = false; passwordError = ''; deletePassword = ''; deleteReason = ''"
                   :disabled="deleteLoading"
                   class="mt-3 inline-flex w-full justify-center rounded-md bg-white dark:bg-gray-800 px-3 py-2 text-sm font-semibold text-gray-900 dark:text-gray-300 shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 sm:mt-0 sm:w-auto disabled:opacity-50"
                 >
@@ -381,6 +390,7 @@ export default {
     const deleteReason = ref('')
     const deletePassword = ref('')
     const deleteLoading = ref(false)
+    const passwordError = ref('')
 
     const user = computed(() => authStore.user)
 
