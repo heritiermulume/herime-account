@@ -130,19 +130,26 @@ class SSOController extends Controller
     {
         $user = $request->user();
         
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'User not authenticated'
+            ], 401);
+        }
+        
         $sessions = $user->sessions()
             ->orderBy('last_activity', 'desc')
             ->get()
             ->map(function ($session) {
                 return [
                     'id' => $session->id,
-                    'device_name' => $session->device_name,
-                    'platform' => $session->platform,
-                    'browser' => $session->browser,
+                    'device_name' => $session->device_name ?? 'Unknown Device',
+                    'platform' => $session->platform ?? 'Unknown',
+                    'browser' => $session->browser ?? 'Unknown',
                     'ip_address' => $session->ip_address,
-                    'is_current' => $session->is_current,
-                    'last_activity' => $session->last_activity,
-                    'created_at' => $session->created_at,
+                    'is_current' => $session->is_current ?? false,
+                    'last_activity' => $session->last_activity ? $session->last_activity->toISOString() : null,
+                    'created_at' => $session->created_at ? $session->created_at->toISOString() : null,
                 ];
             });
 

@@ -20,8 +20,8 @@ else
 fi
 
 if [ -f "storage/oauth-public.key" ]; then
-    chmod 644 storage/oauth-public.key
-    log "Permissions oauth-public.key corrigées (644)"
+    chmod 600 storage/oauth-public.key
+    log "Permissions oauth-public.key corrigées (600)"
 else
     error "oauth-public.key introuvable"
 fi
