@@ -167,7 +167,7 @@
         </h3>
         
         <div class="space-y-4">
-          <div v-for="device in devices" :key="device.id" class="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-600 rounded-lg">
+          <div v-for="device in paginatedDevices" :key="device.id" class="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-600 rounded-lg">
             <div class="flex items-center space-x-4">
               <div class="flex-shrink-0">
                 <svg class="h-8 w-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -200,6 +200,11 @@
             </div>
           </div>
         </div>
+        
+        <!-- Pagination for devices -->
+        <div v-if="Math.ceil(devices.length / 15) > 1" class="mt-4 border-t border-gray-200 dark:border-gray-700 pt-4">
+          <Pagination :page="devicesPage" :perPage="15" :total="devices.length" @update:page="devicesPage = $event" />
+        </div>
       </div>
     </div>
 
@@ -212,9 +217,9 @@
         
         <div class="flow-root">
           <ul class="-mb-8">
-            <li v-for="(login, index) in loginHistory" :key="login.id">
+            <li v-for="(login, index) in paginatedLoginHistory" :key="login.id">
               <div class="relative pb-8">
-                <div v-if="index !== loginHistory.length - 1" class="absolute top-4 left-4 -ml-px h-full w-0.5 bg-gray-200 dark:bg-gray-600"></div>
+                <div v-if="index !== paginatedLoginHistory.length - 1" class="absolute top-4 left-4 -ml-px h-full w-0.5 bg-gray-200 dark:bg-gray-600"></div>
                 <div class="relative flex space-x-3">
                   <div>
                     <span :class="[
@@ -249,17 +254,25 @@
             </li>
           </ul>
         </div>
+        
+        <!-- Pagination for login history -->
+        <div v-if="Math.ceil(loginHistory.length / 15) > 1" class="mt-4 border-t border-gray-200 dark:border-gray-700 pt-4">
+          <Pagination :page="loginHistoryPage" :perPage="15" :total="loginHistory.length" @update:page="loginHistoryPage = $event" />
+        </div>
       </div>
     </div>
   </div>
 </template>
 
 <script>
-import { ref, reactive, onMounted, inject } from 'vue'
+import { ref, reactive, onMounted, inject, computed } from 'vue'
 import { useAuthStore } from '../stores/auth'
+import axios from 'axios'
+import Pagination from './Pagination.vue'
 
 export default {
   name: 'Security',
+  components: { Pagination },
   setup() {
     const authStore = useAuthStore()
     const notify = inject('notify')
@@ -267,6 +280,19 @@ export default {
     const twoFactorEnabled = ref(false)
     const devices = ref([])
     const loginHistory = ref([])
+    const devicesPage = ref(1)
+    const loginHistoryPage = ref(1)
+    
+    // Paginated computed properties
+    const paginatedDevices = computed(() => {
+      const start = (devicesPage.value - 1) * 15
+      return devices.value.slice(start, start + 15)
+    })
+    
+    const paginatedLoginHistory = computed(() => {
+      const start = (loginHistoryPage.value - 1) * 15
+      return loginHistory.value.slice(start, start + 15)
+    })
 
     const passwordForm = reactive({
       current_password: '',
@@ -425,6 +451,10 @@ export default {
       twoFactorEnabled,
       devices,
       loginHistory,
+      devicesPage,
+      loginHistoryPage,
+      paginatedDevices,
+      paginatedLoginHistory,
       updatePassword,
       toggleTwoFactor,
       revokeDevice,
