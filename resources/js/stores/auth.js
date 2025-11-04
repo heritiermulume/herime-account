@@ -227,8 +227,22 @@ export const useAuthStore = defineStore('auth', {
 
 
     updateUser(userData) {
+      console.log('🔄 updateUser called with:', userData)
+      console.log('   avatar_url in userData:', userData?.avatar_url)
+      console.log('   Current user avatar_url:', this.user?.avatar_url)
+      
       this.user = { ...this.user, ...userData }
+      
+      // S'assurer que avatar_url est bien inclus
+      if (userData?.avatar_url) {
+        this.user.avatar_url = userData.avatar_url
+      }
+      
+      console.log('   Updated user avatar_url:', this.user?.avatar_url)
+      
       localStorage.setItem('user', JSON.stringify(this.user))
+      
+      console.log('✅ User updated in store and localStorage')
     },
 
     clearError() {

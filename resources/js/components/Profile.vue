@@ -371,8 +371,22 @@ export default {
         console.log('✅ Preferences update response:', preferencesResponse.data)
         
         if (profileResponse.data.success && preferencesResponse.data.success) {
+          // Log pour debug
+          console.log('🔄 Updating user in store with:', profileResponse.data.data.user)
+          console.log('   avatar_url:', profileResponse.data.data.user?.avatar_url)
+          
           // Update user in store
           authStore.updateUser(profileResponse.data.data.user)
+          
+          // Vérifier que avatar_url est bien mis à jour
+          console.log('✅ User updated in store')
+          console.log('   New avatar_url:', authStore.user?.avatar_url)
+          
+          // Mettre à jour form.avatar_url pour refléter le changement
+          if (profileResponse.data.data.user?.avatar_url) {
+            form.avatar_url = profileResponse.data.data.user.avatar_url
+            console.log('✅ form.avatar_url updated to:', form.avatar_url)
+          }
           
           // Show success message
           notify.success('Succès', 'Profil mis à jour avec succès!')
@@ -395,6 +409,9 @@ export default {
 
     onMounted(() => {
       if (user.value) {
+        console.log('📋 Loading user data into form:', user.value)
+        console.log('   avatar_url from user:', user.value.avatar_url)
+        
         Object.assign(form, {
           name: user.value.name || '',
           email: user.value.email || '',
@@ -408,6 +425,8 @@ export default {
           email_notifications: user.value.preferences?.email_notifications !== false,
           marketing_emails: user.value.preferences?.marketing_emails === true
         })
+        
+        console.log('✅ Form initialized, avatar_url:', form.avatar_url)
       }
     })
 
