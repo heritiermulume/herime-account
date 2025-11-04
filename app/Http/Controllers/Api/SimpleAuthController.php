@@ -117,13 +117,27 @@ class SimpleAuthController extends Controller
         // Create user session
         $this->createUserSession($user, $request);
 
+        // Recharger l'utilisateur pour s'assurer d'avoir les dernières données
+        $user->refresh();
+        
         // Create access token for API authentication
         $token = $user->createToken('API Token')->accessToken;
 
-        // Forcer l'inclusion de avatar_url
-        $user->makeVisible(['avatar', 'avatar_url']);
+        // Forcer l'inclusion de avatar_url et last_login_at
+        $user->makeVisible(['avatar', 'avatar_url', 'last_login_at', 'is_active']);
         $userData = $user->load('currentSession')->toArray();
         $userData['avatar_url'] = $user->avatar_url;
+        
+        // S'assurer que last_login_at est bien inclus
+        if (!isset($userData['last_login_at'])) {
+            $userData['last_login_at'] = $user->last_login_at ? $user->last_login_at->toISOString() : null;
+        }
+        
+        \Log::info('Login response', [
+            'user_id' => $user->id,
+            'last_login_at' => $user->last_login_at,
+            'last_login_at_in_array' => $userData['last_login_at'] ?? 'not set'
+        ]);
         
         return response()->json([
             'success' => true,

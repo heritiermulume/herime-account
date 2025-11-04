@@ -20,17 +20,25 @@ class UserController extends Controller
     {
         $user = $request->user();
         
-        // S'assurer que avatar_url est inclus dans la réponse
-        $user->makeVisible(['avatar', 'avatar_url']);
+        // S'assurer que avatar_url et last_login_at sont inclus dans la réponse
+        $user->makeVisible(['avatar', 'avatar_url', 'last_login_at', 'is_active']);
         
         // Forcer le calcul de avatar_url en l'ajoutant explicitement
         $userData = $user->load('currentSession')->toArray();
         $userData['avatar_url'] = $user->avatar_url;
         
+        // S'assurer que last_login_at est bien formaté
+        if ($user->last_login_at) {
+            $userData['last_login_at'] = $user->last_login_at->toISOString();
+        } else {
+            $userData['last_login_at'] = null;
+        }
+        
         \Log::info('Profile API response', [
             'user_id' => $user->id,
             'avatar' => $user->avatar,
-            'avatar_url' => $userData['avatar_url']
+            'avatar_url' => $userData['avatar_url'],
+            'last_login_at' => $userData['last_login_at']
         ]);
         
         return response()->json([
