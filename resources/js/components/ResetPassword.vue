@@ -133,7 +133,7 @@
             <button
               type="submit"
               :disabled="loading"
-              class="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:ring-blue-200 text-white font-medium rounded-lg transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              class="w-full mt-4 py-3 px-4 bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:ring-blue-200 text-white font-medium rounded-lg transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               style="background-color: #003366;"
               @mouseenter="$event.target.style.backgroundColor = '#ffcc33'"
               @mouseleave="$event.target.style.backgroundColor = '#003366'"
