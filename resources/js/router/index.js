@@ -107,11 +107,39 @@ const router = createRouter({
 
 // Navigation guards
 router.beforeEach(async (to, from, next) => {
-  console.log('Router guard: navigating to', to.path)
+  console.log('[Router] Guard: navigating to', to.path, 'query:', to.query)
   
   const authStore = useAuthStore()
   
-  // Vérifier l'authentification
+  // VÉRIFIER FORCE_TOKEN EN PREMIER (avant même de vérifier l'authentification)
+  const hasForceToken = to.query.force_token === '1' || 
+                       to.query.force_token === 1 || 
+                       to.query.force_token === true || 
+                       to.query.force_token === 'true' ||
+                       to.query.force_token === 'yes' ||
+                       to.query.force_token === 'on'
+  
+  if (hasForceToken && to.path === '/login') {
+    console.log('[Router] force_token détecté sur /login, vérification auth...')
+    
+    // Vérifier l'authentification
+    await authStore.checkAuth()
+    const isAuthenticated = authStore.authenticated
+    
+    if (isAuthenticated) {
+      console.log('[Router] User authenticated with force_token, allowing access - Auth.vue gérera la redirection')
+      // Permettre l'accès, Auth.vue gérera la redirection SSO
+      next()
+      return
+    } else {
+      console.log('[Router] User NOT authenticated with force_token, showing login form')
+      // Utilisateur pas authentifié, afficher le formulaire de login
+      next()
+      return
+    }
+  }
+  
+  // Vérifier l'authentification pour les autres cas
   await authStore.checkAuth()
   
   const isAuthenticated = authStore.authenticated
@@ -130,14 +158,14 @@ router.beforeEach(async (to, from, next) => {
   // Vérifier les routes qui nécessitent une authentification
   if (to.meta.requiresAuth) {
     if (!isAuthenticated) {
-      console.log('User not authenticated, redirecting to login')
+      console.log('[Router] User not authenticated, redirecting to login')
       next('/login')
       return
     }
     
     // Vérifier les routes qui nécessitent un super utilisateur
     if (to.meta.requiresSuperUser && user?.role !== 'super_user') {
-      console.log('User is not a super user, redirecting to dashboard')
+      console.log('[Router] User is not a super user, redirecting to dashboard')
       next('/dashboard')
       return
     }
@@ -145,19 +173,9 @@ router.beforeEach(async (to, from, next) => {
   
   // Vérifier les routes qui nécessitent d'être un invité (non authentifié)
   if (to.meta.requiresGuest && isAuthenticated) {
-    // Si force_token est présent, permettre l'accès à la page de login
-    // Le composant Auth.vue gérera la redirection SSO AVANT le montage
-    const hasForceToken = to.query.force_token === '1' || 
-                         to.query.force_token === 1 || 
-                         to.query.force_token === true || 
-                         to.query.force_token === 'true'
-    
-    if (hasForceToken) {
-      console.log('[Router] User authenticated with force_token, allowing access for SSO redirect')
-      next()
-      return
-    }
-    console.log('[Router] User authenticated without force_token, redirecting to dashboard')
+    // Si on arrive ici et que l'utilisateur est authentifié, mais pas de force_token
+    // C'est une visite normale sur /login ou /register, rediriger vers dashboard
+    console.log('[Router] User authenticated on guest route without force_token, redirecting to dashboard')
     next('/dashboard')
     return
   }
