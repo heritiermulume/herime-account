@@ -272,6 +272,96 @@
             </button>
           </div>
         </div>
+        
+        <!-- Danger Zone -->
+        <div class="mt-8 pt-8 border-t border-gray-200 dark:border-gray-700">
+          <h4 class="text-lg font-medium text-red-600 dark:text-red-400 mb-4">
+            Zone dangereuse
+          </h4>
+          <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">
+            La suppression de votre compte désactivera votre compte. Seul un administrateur peut définitivement supprimer un compte.
+          </p>
+          <button
+            @click="showDeleteModal = true"
+            class="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-md text-sm transition-colors duration-200"
+          >
+            Supprimer le compte
+          </button>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Delete Account Modal -->
+    <div v-if="showDeleteModal" class="fixed z-50 inset-0 overflow-y-auto" @click.self="showDeleteModal = false">
+      <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" @click="showDeleteModal = false"></div>
+        
+        <div class="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+          <div class="bg-white dark:bg-gray-800 px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+            <div class="sm:flex sm:items-start">
+              <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 dark:bg-red-900 sm:mx-0 sm:h-10 sm:w-10">
+                <svg class="h-6 w-6 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                </svg>
+              </div>
+              <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left flex-1">
+                <h3 class="text-lg leading-6 font-medium text-gray-900 dark:text-white">
+                  Supprimer le compte
+                </h3>
+                <div class="mt-4">
+                  <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                    Cette action désactivera votre compte. Vous ne pourrez plus vous connecter. Seul un administrateur peut définitivement supprimer un compte.
+                  </p>
+                  
+                  <div class="mb-4">
+                    <label for="delete-reason" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Raison de la suppression <span class="text-red-600">*</span>
+                    </label>
+                    <textarea
+                      id="delete-reason"
+                      v-model="deleteReason"
+                      rows="4"
+                      required
+                      class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm sm:text-sm"
+                      placeholder="Expliquez pourquoi vous souhaitez supprimer votre compte..."
+                    ></textarea>
+                  </div>
+                  
+                  <div class="mb-4">
+                    <label for="delete-password" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Confirmez votre mot de passe <span class="text-red-600">*</span>
+                    </label>
+                    <input
+                      id="delete-password"
+                      v-model="deletePassword"
+                      type="password"
+                      required
+                      class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm sm:text-sm"
+                      placeholder="Votre mot de passe"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="bg-gray-50 dark:bg-gray-700 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+            <button
+              @click="confirmDeleteAccount"
+              :disabled="!deleteReason || !deletePassword || deleteLoading"
+              class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <span v-if="deleteLoading">Suppression...</span>
+              <span v-else>Confirmer la suppression</span>
+            </button>
+            <button
+              @click="showDeleteModal = false"
+              :disabled="deleteLoading"
+              class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-600 shadow-sm px-4 py-2 bg-white dark:bg-gray-800 text-base font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-herime-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50"
+            >
+              Annuler
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
