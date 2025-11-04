@@ -127,6 +127,8 @@ class ImageService
         
         // Si on n'a pas réussi à compresser suffisamment, sauvegarder quand même
         imagedestroy($image);
+        // S'assurer que le dossier existe
+        Storage::disk($disk)->makeDirectory(dirname($path));
         return $file->storeAs(dirname($path), basename($path), $disk);
     }
     
