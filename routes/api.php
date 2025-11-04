@@ -21,6 +21,10 @@ use App\Http\Controllers\Api\SSOController;
 Route::post('register', [SimpleAuthController::class, 'register']);
 Route::post('login', [SimpleAuthController::class, 'login']);
 
+// Password reset routes
+Route::post('password/forgot', [App\Http\Controllers\Api\PasswordResetController::class, 'sendResetLink']);
+Route::post('password/reset', [App\Http\Controllers\Api\PasswordResetController::class, 'reset']);
+
 // SSO public routes
 Route::post('sso/validate-token', [SSOController::class, 'validateToken']);
 

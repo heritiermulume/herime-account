@@ -88,9 +88,14 @@
             </div>
 
             <div class="text-sm">
-              <a href="#" class="font-medium hover:opacity-80" style="color: #ffcc33;">
+              <button 
+                type="button"
+                @click="showForgotPassword = true"
+                class="font-medium hover:opacity-80" 
+                style="color: #ffcc33;"
+              >
                 Mot de passe oublié ?
-              </a>
+              </button>
             </div>
           </div>
 
@@ -136,13 +141,110 @@
         </div>
       </div>
     </div>
+    
+    <!-- Forgot Password Modal -->
+    <Teleport to="body">
+      <Transition name="modal">
+        <div v-if="showForgotPassword" class="fixed z-50 inset-0 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+          <!-- Backdrop -->
+          <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" @click="showForgotPassword = false"></div>
+          
+          <!-- Modal container -->
+          <div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
+            <!-- Modal panel -->
+            <div class="relative transform overflow-hidden rounded-lg bg-white dark:bg-gray-800 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg" @click.stop>
+              <div class="bg-white dark:bg-gray-800 px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                <div class="sm:flex sm:items-start">
+                  <div class="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900 sm:mx-0 sm:h-10 sm:w-10" style="background-color: #e0f2fe;">
+                    <svg class="h-6 w-6" style="color: #003366;" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z" />
+                    </svg>
+                  </div>
+                  <div class="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left flex-1">
+                    <h3 class="text-base font-semibold leading-6 text-gray-900 dark:text-white" id="modal-title">
+                      Mot de passe oublié
+                    </h3>
+                    <div class="mt-2">
+                      <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                        Entrez votre adresse email et nous vous enverrons un lien pour réinitialiser votre mot de passe.
+                      </p>
+                      
+                      <form @submit.prevent="handleForgotPassword" class="space-y-4">
+                        <div>
+                          <label for="forgot-email" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Adresse email
+                          </label>
+                          <input
+                            id="forgot-email"
+                            v-model="forgotEmail"
+                            type="email"
+                            required
+                            class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200 dark:bg-gray-700 dark:text-white"
+                            :class="{ 'border-red-500 focus:ring-red-500': forgotPasswordError }"
+                            placeholder="votre@email.com"
+                          />
+                          <p v-if="forgotPasswordError" class="mt-1 text-sm text-red-600 dark:text-red-400">
+                            {{ forgotPasswordError }}
+                          </p>
+                        </div>
+                        
+                        <div v-if="forgotPasswordSuccess" class="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
+                          <div class="flex">
+                            <svg class="h-5 w-5 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+                              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                            </svg>
+                            <div class="ml-3">
+                              <p class="text-sm text-green-800 dark:text-green-200">{{ forgotPasswordSuccess }}</p>
+                              <p v-if="resetUrl" class="mt-2 text-xs text-green-700 dark:text-green-300">
+                                <strong>Lien de réinitialisation (dev uniquement):</strong><br>
+                                <a :href="resetUrl" target="_blank" class="underline break-all">{{ resetUrl }}</a>
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div class="mt-5 sm:mt-6 sm:flex sm:flex-row-reverse sm:gap-3">
+                          <button
+                            type="submit"
+                            :disabled="forgotPasswordLoading"
+                            class="inline-flex w-full justify-center rounded-md px-3 py-2 text-sm font-semibold text-white shadow-sm disabled:opacity-50 disabled:cursor-not-allowed sm:w-auto"
+                            style="background-color: #003366;"
+                            @mouseenter="$event.target.style.backgroundColor = '#ffcc33'"
+                            @mouseleave="$event.target.style.backgroundColor = '#003366'"
+                          >
+                            <span v-if="forgotPasswordLoading" class="flex items-center">
+                              <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                              Envoi...
+                            </span>
+                            <span v-else>Envoyer le lien</span>
+                          </button>
+                          <button
+                            type="button"
+                            @click="showForgotPassword = false; forgotEmail = ''; forgotPasswordError = ''; forgotPasswordSuccess = ''; resetUrl = ''"
+                            :disabled="forgotPasswordLoading"
+                            class="mt-3 inline-flex w-full justify-center rounded-md bg-white dark:bg-gray-700 px-3 py-2 text-sm font-semibold text-gray-900 dark:text-gray-300 shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 sm:mt-0 sm:w-auto disabled:opacity-50"
+                          >
+                            Annuler
+                          </button>
+                        </div>
+                      </form>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
   </div>
 </template>
 
 <script>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, inject, Teleport, Transition } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import axios from 'axios'
 
 export default {
   name: 'Login',
@@ -175,6 +277,20 @@ export default {
     const error = ref('')
     const loading = ref(false)
     const showPassword = ref(false)
+    
+    // Forgot password
+    const showForgotPassword = ref(false)
+    const forgotEmail = ref('')
+    const forgotPasswordError = ref('')
+    const forgotPasswordSuccess = ref('')
+    const forgotPasswordLoading = ref(false)
+    const resetUrl = ref('')
+    
+    const notify = inject('notify', {
+      success: () => {},
+      error: () => {},
+      info: () => {}
+    })
 
     const handleLogin = async () => {
       console.log('Login attempt started', form)
@@ -208,6 +324,56 @@ export default {
         loading.value = false
       }
     }
+    
+    const handleForgotPassword = async () => {
+      forgotPasswordError.value = ''
+      forgotPasswordSuccess.value = ''
+      resetUrl.value = ''
+      forgotPasswordLoading.value = true
+      
+      try {
+        const response = await axios.post('/password/forgot', {
+          email: forgotEmail.value
+        })
+        
+        if (response.data.success) {
+          forgotPasswordSuccess.value = response.data.message || 'Un lien de réinitialisation a été envoyé à votre adresse email.'
+          
+          // En développement, afficher l'URL de réinitialisation
+          if (response.data.data?.reset_url) {
+            resetUrl.value = response.data.data.reset_url
+          }
+          
+          notify.success('Succès', forgotPasswordSuccess.value)
+          
+          // Fermer la modal après 3 secondes
+          setTimeout(() => {
+            showForgotPassword.value = false
+            forgotEmail.value = ''
+            forgotPasswordSuccess.value = ''
+            resetUrl.value = ''
+          }, 3000)
+        } else {
+          throw new Error(response.data.message || 'Erreur lors de l\'envoi du lien')
+        }
+      } catch (err) {
+        console.error('Forgot password error:', err)
+        if (err.response?.data?.errors?.email) {
+          forgotPasswordError.value = err.response.data.errors.email[0]
+        } else if (err.response?.data?.message) {
+          forgotPasswordError.value = err.response.data.message
+        } else if (err.response?.status === 404) {
+          forgotPasswordError.value = 'Cette adresse email n\'existe pas dans notre système.'
+        } else if (err.response?.status === 403) {
+          forgotPasswordError.value = 'Votre compte est désactivé. Veuillez contacter l\'administrateur.'
+        } else {
+          forgotPasswordError.value = err.message || 'Une erreur est survenue. Veuillez réessayer.'
+        }
+        notify.error('Erreur', forgotPasswordError.value)
+      } finally {
+        forgotPasswordLoading.value = false
+      }
+    }
 
     return {
       form,
@@ -215,8 +381,39 @@ export default {
       error,
       loading,
       showPassword,
-      handleLogin
+      handleLogin,
+      showForgotPassword,
+      forgotEmail,
+      forgotPasswordError,
+      forgotPasswordSuccess,
+      forgotPasswordLoading,
+      resetUrl,
+      handleForgotPassword
     }
   }
 }
 </script>
+
+<style scoped>
+/* Modal transitions */
+.modal-enter-active,
+.modal-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.modal-enter-from,
+.modal-leave-to {
+  opacity: 0;
+}
+
+.modal-enter-active :deep(.relative),
+.modal-leave-active :deep(.relative) {
+  transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+.modal-enter-from :deep(.relative),
+.modal-leave-to :deep(.relative) {
+  opacity: 0;
+  transform: scale(0.95);
+}
+</style>

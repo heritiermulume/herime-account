@@ -6,6 +6,7 @@ import Profile from '../components/Profile.vue'
 import Security from '../components/Security.vue'
 import Notifications from '../components/Notifications.vue'
 import About from '../components/About.vue'
+import ResetPassword from '../components/ResetPassword.vue'
 import AdminLogin from '../components/admin/AdminLogin.vue'
 import AdminDashboard from '../components/admin/AdminDashboard.vue'
 import AdminUsers from '../components/admin/AdminUsers.vue'
@@ -59,6 +60,12 @@ const routes = [
     name: 'About',
     component: About,
     meta: { requiresAuth: true }
+  },
+  {
+    path: '/reset-password',
+    name: 'ResetPassword',
+    component: ResetPassword,
+    meta: { requiresGuest: true }
   },
   // Admin routes - Accessible only to super users
   {
