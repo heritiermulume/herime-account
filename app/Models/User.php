@@ -109,13 +109,28 @@ class User extends Authenticatable implements MustVerifyEmail
     public function getAvatarUrlAttribute(): string
     {
         if ($this->avatar) {
+            // Nettoyer le chemin de l'avatar (enlever les slashes en double)
+            $avatarPath = ltrim($this->avatar, '/');
+            
             // Vérifier si le fichier existe
-            if (\Storage::disk('public')->exists($this->avatar)) {
-                return asset('storage/' . $this->avatar);
+            if (\Storage::disk('public')->exists($avatarPath)) {
+                // Utiliser l'URL complète avec APP_URL
+                $url = \Storage::disk('public')->url($avatarPath);
+                // Si l'URL retournée est relative, utiliser asset()
+                if (strpos($url, 'http') === 0) {
+                    return $url;
+                }
+                return asset('storage/' . $avatarPath);
             }
-            // Si le fichier n'existe pas, retourner l'avatar généré
+            // Si le fichier n'existe pas, logger pour debug
+            \Log::warning('Avatar file not found', [
+                'avatar_path' => $avatarPath,
+                'full_path' => storage_path('app/public/' . $avatarPath),
+                'exists' => file_exists(storage_path('app/public/' . $avatarPath))
+            ]);
         }
         
-        return 'https://ui-avatars.com/api/?name=' . urlencode($this->name) . '&color=0ea5e9&background=e0f2fe';
+        // Retourner l'avatar généré par défaut
+        return 'https://ui-avatars.com/api/?name=' . urlencode($this->name ?? 'User') . '&color=0ea5e9&background=e0f2fe';
     }
 }
