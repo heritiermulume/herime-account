@@ -86,6 +86,80 @@ class SSOController extends Controller
     }
 
     /**
+     * Generate SSO token with redirect URL
+     * Called from frontend when force_token is present in URL
+     */
+    public function generateSSOToken(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'User not authenticated'
+            ], 401);
+        }
+
+        if (!$user->isActive()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Your account has been deactivated'
+            ], 403);
+        }
+
+        // Get redirect URL from request
+        $redirectUrl = $request->input('redirect') ?? $request->query('redirect');
+        
+        // Decode if needed
+        if ($redirectUrl) {
+            $decoded = urldecode($redirectUrl);
+            if ($decoded !== $redirectUrl && filter_var($decoded, FILTER_VALIDATE_URL)) {
+                $redirectUrl = $decoded;
+            }
+        }
+        
+        // If no redirect URL, determine from request
+        if (!$redirectUrl || !filter_var($redirectUrl, FILTER_VALIDATE_URL)) {
+            // Try to determine from request
+            if ($request->has('client_domain') || $request->query('client_domain')) {
+                $clientDomain = $request->input('client_domain') ?: $request->query('client_domain');
+                $scheme = $request->secure() ? 'https' : 'http';
+                $redirectPath = $request->query('redirect_path') ?: '/sso/callback';
+                $redirectUrl = $scheme . '://' . $clientDomain . $redirectPath;
+            }
+        }
+
+        if (!$redirectUrl || !filter_var($redirectUrl, FILTER_VALIDATE_URL)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid or missing redirect URL'
+            ], 422);
+        }
+
+        // Create SSO token
+        $token = $user->createToken('SSO Token', ['profile'])->accessToken;
+        
+        // Build callback URL with token
+        $callbackUrl = $redirectUrl . (strpos($redirectUrl, '?') !== false ? '&' : '?') . 'token=' . urlencode($token);
+
+        \Log::info('SSO Token generated via API', [
+            'user_id' => $user->id,
+            'redirect_url' => $redirectUrl,
+            'callback_url' => $callbackUrl
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'SSO token generated successfully',
+            'data' => [
+                'token' => $token,
+                'redirect_url' => $redirectUrl,
+                'callback_url' => $callbackUrl,
+            ]
+        ]);
+    }
+
+    /**
      * Create SSO session for client domain
      */
     public function createSession(Request $request): JsonResponse
