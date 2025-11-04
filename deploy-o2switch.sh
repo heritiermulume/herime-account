@@ -209,6 +209,16 @@ install_passport() {
         log "✅ Passport configuré (migrations non publiées, déjà présentes dans le repository)"
     fi
     
+    # Créer le client d'accès personnel si nécessaire
+    log "Vérification du client d'accès personnel Passport..."
+    if ! php artisan passport:client --list --quiet 2>/dev/null | grep -q "Personal Access Client"; then
+        log "Création du client d'accès personnel..."
+        php artisan passport:client --personal --name="Herime SSO Personal Access Client" --no-interaction || warning "Échec de la création du client personnel"
+        log "✅ Client d'accès personnel créé"
+    else
+        log "Client d'accès personnel existe déjà"
+    fi
+    
     # Nettoyer les migrations OAuth en double après installation
     clean_duplicate_migrations
     
