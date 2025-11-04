@@ -213,8 +213,8 @@ class SSOController extends Controller
                 'user_id' => $user->id,
                 'user_email' => $user->email,
                 'sessions_count' => $sessions->count(),
-                'total_sessions_in_db' => UserSession::count(),
-                'sessions_with_user_id' => UserSession::where('user_id', $user->id)->count(),
+                'total_sessions_in_db' => \App\Models\UserSession::count(),
+                'sessions_with_user_id' => \App\Models\UserSession::where('user_id', $user->id)->count(),
                 'sessions_ids' => $sessions->pluck('id')->toArray()
             ]);
 
@@ -234,15 +234,25 @@ class SSOController extends Controller
             ], 200, [], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         } catch (\Exception $e) {
             \Log::error('Error loading sessions', [
-                'user_id' => $user->id,
+                'user_id' => $user->id ?? 'unknown',
+                'user_email' => $user->email ?? 'unknown',
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => substr($e->getTraceAsString(), 0, 1000)
             ]);
 
+            // En production, ne pas exposer le message d'erreur complet
+            $errorMessage = config('app.debug') ? $e->getMessage() : 'Error loading sessions';
+            
             return response()->json([
                 'success' => false,
-                'message' => 'Error loading sessions',
-                'error' => $e->getMessage()
+                'message' => $errorMessage,
+                'error' => config('app.debug') ? [
+                    'message' => $e->getMessage(),
+                    'file' => $e->getFile(),
+                    'line' => $e->getLine()
+                ] : null
             ], 500);
         }
     }
