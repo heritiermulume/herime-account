@@ -10,9 +10,14 @@ class NotificationService
 {
     /**
      * Return true if email notifications are enabled for the user
+     * Lit toujours depuis la base de données (pas de cache)
      */
     public static function emailEnabled(User $user): bool
     {
+        // Recharger depuis la DB pour avoir les préférences à jour
+        if (!$user->wasRecentlyCreated && !$user->isDirty()) {
+            $user->refresh();
+        }
         $preferences = $user->preferences ?? [];
         // Support two shapes: root boolean or nested notifications.email
         $root = (bool) Arr::get($preferences, 'email_notifications', true);
@@ -22,9 +27,14 @@ class NotificationService
 
     /**
      * Return true if marketing emails are enabled
+     * Lit toujours depuis la base de données (pas de cache)
      */
     public static function marketingEnabled(User $user): bool
     {
+        // Recharger depuis la DB pour avoir les préférences à jour
+        if (!$user->wasRecentlyCreated && !$user->isDirty()) {
+            $user->refresh();
+        }
         $preferences = $user->preferences ?? [];
         return (bool) Arr::get($preferences, 'marketing_emails', false);
     }
@@ -64,6 +74,10 @@ class NotificationService
     public static function sendForEvent(User $user, string $eventKey, $mailable, bool $isMarketing = false): void
     {
         try {
+            // Recharger l'utilisateur depuis la DB pour avoir les préférences à jour
+            if (!$user->wasRecentlyCreated && !$user->isDirty()) {
+                $user->refresh();
+            }
             $preferences = $user->preferences ?? [];
 
             // Global switches

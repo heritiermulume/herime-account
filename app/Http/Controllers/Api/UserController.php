@@ -248,10 +248,25 @@ class UserController extends Controller
             'preferences' => 'required|array',
             'preferences.theme' => 'sometimes|in:light,dark,system',
             'preferences.language' => 'sometimes|string|max:10',
+            // Préférences globales (depuis Profile.vue)
+            'preferences.email_notifications' => 'sometimes|boolean',
+            'preferences.marketing_emails' => 'sometimes|boolean',
+            // Préférences de notifications granulaires (depuis Notifications.vue)
             'preferences.notifications' => 'sometimes|array',
+            'preferences.notifications.suspicious_logins' => 'sometimes|boolean',
+            'preferences.notifications.password_changes' => 'sometimes|boolean',
+            'preferences.notifications.profile_changes' => 'sometimes|boolean',
+            'preferences.notifications.new_features' => 'sometimes|boolean',
+            'preferences.notifications.maintenance' => 'sometimes|boolean',
+            'preferences.notifications.newsletter' => 'sometimes|boolean',
+            'preferences.notifications.special_offers' => 'sometimes|boolean',
             'preferences.notifications.email' => 'sometimes|boolean',
             'preferences.notifications.sms' => 'sometimes|boolean',
             'preferences.notifications.push' => 'sometimes|boolean',
+            // Fréquence des emails
+            'preferences.email_frequency' => 'sometimes|in:immediate,daily,weekly,monthly,never',
+            // Push notifications
+            'preferences.push_notifications' => 'sometimes|boolean',
         ]);
 
         if ($validator->fails()) {
@@ -262,9 +277,20 @@ class UserController extends Controller
             ], 422);
         }
 
-        // Fusionner avec les préférences existantes pour préserver les valeurs non modifiées
+        // Fusionner récursivement avec les préférences existantes pour préserver les valeurs non modifiées
         $currentPreferences = $user->preferences ?? [];
-        $newPreferences = array_merge($currentPreferences, $request->preferences);
+        $newPreferences = array_merge_recursive($currentPreferences, $request->preferences);
+        
+        // array_merge_recursive peut créer des tableaux pour les valeurs scalaires, il faut les corriger
+        foreach ($request->preferences as $key => $value) {
+            if (is_array($value) && isset($newPreferences[$key]) && is_array($newPreferences[$key])) {
+                // Pour les tableaux, faire un merge récursif correct
+                $newPreferences[$key] = array_merge($currentPreferences[$key] ?? [], $value);
+            } else {
+                // Pour les valeurs scalaires, utiliser la nouvelle valeur
+                $newPreferences[$key] = $value;
+            }
+        }
         
         // Log pour debug
         \Log::info('Preferences update:', [
