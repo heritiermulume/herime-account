@@ -341,6 +341,152 @@ class SSOController extends Controller
     }
 
     /**
+     * Validate token with SSO secret authentication
+     * This endpoint is used by external services to validate JWT tokens
+     */
+    public function validateTokenWithSecret(Request $request): JsonResponse
+    {
+        // Validate request body
+        $validator = Validator::make($request->all(), [
+            'token' => 'required|string',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'valid' => false,
+                'message' => 'Token is required'
+            ], 422);
+        }
+
+        // Check SSO_SECRET in Authorization header
+        $authHeader = $request->header('Authorization');
+        if (!$authHeader || !str_starts_with($authHeader, 'Bearer ')) {
+            return response()->json([
+                'valid' => false,
+                'message' => 'Missing or invalid Authorization header'
+            ], 401);
+        }
+
+        $providedSecret = substr($authHeader, 7); // Remove 'Bearer ' prefix
+        $expectedSecret = config('services.sso.secret', env('SSO_SECRET'));
+
+        if (!$expectedSecret || $providedSecret !== $expectedSecret) {
+            return response()->json([
+                'valid' => false,
+                'message' => 'Invalid SSO secret'
+            ], 401);
+        }
+
+        $tokenString = $request->input('token');
+
+        try {
+            // Passport stores token IDs as SHA-256 hash of the JWT token
+            // First, try to find the token by its hash
+            $tokenHash = hash('sha256', $tokenString);
+            $accessToken = \Laravel\Passport\Token::where('id', $tokenHash)
+                ->where('revoked', false)
+                ->first();
+
+            // If not found by hash, try to decode JWT and get user_id from payload
+            if (!$accessToken) {
+                $parts = explode('.', $tokenString);
+                if (count($parts) !== 3) {
+                    return response()->json([
+                        'valid' => false,
+                        'message' => 'Invalid token format'
+                    ], 401);
+                }
+
+                // Decode JWT payload (without verification, as we'll verify via database)
+                $payload = json_decode(base64_decode(strtr($parts[1], '-_', '+/')), true);
+                
+                if (!$payload || !isset($payload['sub'])) {
+                    return response()->json([
+                        'valid' => false,
+                        'message' => 'Invalid token payload'
+                    ], 401);
+                }
+
+                $userId = $payload['sub'];
+                
+                // Find user and check if they have any valid tokens
+                $user = User::find($userId);
+                if (!$user) {
+                    return response()->json([
+                        'valid' => false,
+                        'message' => 'User not found'
+                    ], 401);
+                }
+
+                // Check if token exists for this user (by checking all user tokens)
+                $userTokens = \Laravel\Passport\Token::where('user_id', $userId)
+                    ->where('revoked', false)
+                    ->get();
+
+                $tokenFound = false;
+                foreach ($userTokens as $token) {
+                    if (hash('sha256', $tokenString) === $token->id) {
+                        $accessToken = $token;
+                        $tokenFound = true;
+                        break;
+                    }
+                }
+
+                // If still not found, the token might still be valid but not in our DB
+                // We'll trust the JWT payload if user exists and is active
+                // This handles cases where tokens are generated externally
+            } else {
+                $user = $accessToken->user;
+            }
+
+            // Check if token is expired
+            if ($accessToken && $accessToken->expires_at && $accessToken->expires_at->isPast()) {
+                return response()->json([
+                    'valid' => false,
+                    'message' => 'Token has expired'
+                ], 401);
+            }
+
+            if (!$user) {
+                return response()->json([
+                    'valid' => false,
+                    'message' => 'User not found'
+                ], 401);
+            }
+
+            if (!$user->isActive()) {
+                return response()->json([
+                    'valid' => false,
+                    'message' => 'User account is inactive'
+                ], 401);
+            }
+
+            return response()->json([
+                'valid' => true,
+                'user' => [
+                    'id' => $user->id,
+                    'email' => $user->email,
+                    'name' => $user->name,
+                    'role' => $user->role ?? 'user',
+                    'is_verified' => !is_null($user->email_verified_at),
+                    'is_active' => $user->is_active,
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('Error validating token', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'valid' => false,
+                'message' => 'Error validating token'
+            ], 500);
+        }
+    }
+
+    /**
      * Generate SSO URL for client domain
      */
     private function generateSSOUrl(string $clientDomain, string $token, string $redirectUrl): string

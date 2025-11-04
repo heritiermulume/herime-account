@@ -29,6 +29,9 @@ Route::post('password/reset', [App\Http\Controllers\Api\PasswordResetController:
 // SSO public routes
 Route::post('sso/validate-token', [SSOController::class, 'validateToken']);
 
+// Validate token with SSO secret (for external services)
+Route::post('validate-token', [SSOController::class, 'validateTokenWithSecret']);
+
 // Avatar routes (publiques mais avec vérification dans le contrôleur)
 // Note: Les images <img src=""> ne peuvent pas envoyer de headers Authorization
 // On doit permettre l'accès public ou utiliser un token dans l'URL

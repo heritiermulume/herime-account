@@ -135,6 +135,9 @@ GOOGLE_CLIENT_ID=your-google-client-id
 GOOGLE_CLIENT_SECRET=your-google-client-secret
 FACEBOOK_CLIENT_ID=your-facebook-client-id
 FACEBOOK_CLIENT_SECRET=your-facebook-client-secret
+
+# SSO Secret (pour l'endpoint /api/validate-token)
+SSO_SECRET=your-sso-secret-key-here
 ```
 
 ## 📡 API Endpoints
@@ -155,7 +158,8 @@ FACEBOOK_CLIENT_SECRET=your-facebook-client-secret
 - `DELETE /api/user/account` - Supprimer le compte
 
 ### SSO
-- `POST /api/sso/validate` - Valider un token SSO
+- `POST /api/validate-token` - Valider un token JWT avec authentification SSO_SECRET (pour services externes)
+- `POST /api/sso/validate-token` - Valider un token SSO (legacy)
 - `POST /api/sso/create-session` - Créer une session SSO
 - `GET /api/sso/sessions` - Obtenir les sessions
 - `DELETE /api/sso/sessions/{id}` - Révoquer une session
