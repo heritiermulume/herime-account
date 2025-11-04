@@ -110,9 +110,12 @@ class User extends Authenticatable implements MustVerifyEmail
     public function getAvatarUrlAttribute(): string
     {
         if ($this->avatar) {
-            // Construire l'URL vers la route sécurisée
-            // On ne vérifie pas l'existence du fichier ici pour éviter les erreurs
-            // La route AvatarController vérifiera l'existence
+            // Si avatar est déjà une URL complète (commence par http ou /api), la retourner telle quelle
+            if (strpos($this->avatar, 'http') === 0 || strpos($this->avatar, '/api/user/avatar/') !== false) {
+                return $this->avatar;
+            }
+            
+            // Sinon, c'est l'ancien format (nom de fichier), construire l'URL
             $baseUrl = config('app.url');
             $url = rtrim($baseUrl, '/') . '/api/user/avatar/' . $this->id;
             
