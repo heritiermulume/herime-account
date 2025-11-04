@@ -23,12 +23,14 @@ class CheckMaintenanceMode
             $isAdminRoute = $request->is('admin/*') || $request->is('api/admin/*');
             $isLoginRoute = $request->is('login') || $request->is('api/login');
             $isHealthCheck = $request->is('up') || $request->is('api/health');
+            // Autoriser l'accès aux paramètres publics (utilisés par le client pour gating UI)
+            $isPublicSettings = $request->is('api/settings/public');
             
             // Check if user is authenticated and is a super user
             $user = $request->user();
             $isSuperUser = $user && $user->isSuperUser();
             
-            if (!$isAdminRoute && !$isLoginRoute && !$isHealthCheck && !$isSuperUser) {
+            if (!$isAdminRoute && !$isLoginRoute && !$isHealthCheck && !$isPublicSettings && !$isSuperUser) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Le système est en mode maintenance. Veuillez réessayer plus tard.'
