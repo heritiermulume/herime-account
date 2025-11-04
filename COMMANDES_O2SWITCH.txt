@@ -143,13 +143,15 @@ php artisan db:show
 # Erreur "Vos modifications locales seraient écrasées par la fusion"
 # → Conflit Git lors du pull
 # → Solution automatique (RECOMMANDÉ) :
-#    ./pull-et-corriger-production.sh
+#    git fetch origin main
+#    ./resoudre-conflit-pull.sh
 # → Solution manuelle rapide (si conflit avec public/build/) :
-#    git checkout HEAD -- bootstrap/cache/.gitignore storage/app/.gitignore storage/framework/.gitignore storage/logs/.gitignore
-#    git checkout HEAD -- public/build/ 2>/dev/null || git rm --cached public/build/assets/*.css public/build/manifest.json 2>/dev/null
+#    git rm --cached public/build/assets/app-C8OVHuWe.css public/build/manifest.json
+#    rm -f public/build/manifest.json public/build/assets/app-C8OVHuWe.css
+#    git clean -fd public/build/
 #    git pull origin main
-#    chmod +x pull-et-corriger-production.sh
-#    ./pull-et-corriger-production.sh
+#    chmod +x corriger-production-automatique.sh
+#    ./corriger-production-automatique.sh
 # → Solution alternative (forcer le pull, ATTENTION : supprime toutes les modifications locales) :
 #    git reset --hard origin/main
 #    git pull origin main
