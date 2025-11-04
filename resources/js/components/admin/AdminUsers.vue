@@ -103,7 +103,7 @@
         </div>
 
         <!-- Users Table -->
-        <div class="bg-white dark:bg-gray-800 shadow overflow-hidden sm:rounded-md">
+        <div class="bg-white dark:bg-gray-800 shadow overflow-hidden rounded-md sm:rounded-lg">
           <div v-if="loading" class="flex justify-center items-center h-64">
             <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-500"></div>
           </div>
