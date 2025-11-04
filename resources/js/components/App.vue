@@ -141,6 +141,7 @@ export default {
     provide('notify', notify)
 
     const pageTitle = computed(() => {
+      if (!route || !route.path) return 'HERIME'
       const titles = {
         '/dashboard': 'Accueil',
         '/profile': 'Profil',
@@ -152,7 +153,7 @@ export default {
     })
 
     const showPageTitle = computed(() => {
-      return route.path !== '/dashboard'
+      return route && route.path && route.path !== '/dashboard'
     })
 
     const toggleDarkMode = () => {
@@ -177,7 +178,7 @@ export default {
       console.log('App mounted')
       console.log('Initial user:', authStore.user)
       console.log('Initial authenticated:', authStore.authenticated)
-      console.log('Current route:', route.path)
+      console.log('Current route:', route?.path)
       
       // Check for saved dark mode preference
       const savedDarkMode = localStorage.getItem('darkMode')
