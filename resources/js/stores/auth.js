@@ -163,13 +163,47 @@ export const useAuthStore = defineStore('auth', {
     },
 
     async checkAuth() {
-      if (!this.authenticated) return false
+      // Vérifier si on a un token dans localStorage
+      const token = localStorage.getItem('access_token')
+      if (!token) {
+        this.user = null
+        this.authenticated = false
+        return false
+      }
 
+      // Si on a déjà un user dans le state et authenticated, le retourner
+      if (this.authenticated && this.user) {
+        // Vérifier quand même avec l'API pour s'assurer que le token est toujours valide
+        try {
+          const response = await axios.get('/me')
+          if (response.data.success && response.data.data.user) {
+            this.user = response.data.data.user
+            this.authenticated = true
+            localStorage.setItem('user', JSON.stringify(this.user))
+            localStorage.setItem('authenticated', 'true')
+            return true
+          }
+        } catch (error) {
+          console.error('Auth check failed:', error)
+          // Si l'erreur est 401 (unauthorized), le token est invalide
+          if (error.response?.status === 401) {
+            this.logout()
+            return false
+          }
+          // Pour les autres erreurs, garder l'utilisateur connecté
+          return true
+        }
+      }
+
+      // Si pas de user mais on a un token, essayer de récupérer l'utilisateur
       try {
         const response = await axios.get('/me')
         
-        if (response.data.success) {
+        if (response.data.success && response.data.data.user) {
           this.user = response.data.data.user
+          this.authenticated = true
+          localStorage.setItem('user', JSON.stringify(this.user))
+          localStorage.setItem('authenticated', 'true')
           return true
         } else {
           this.logout()
@@ -177,6 +211,15 @@ export const useAuthStore = defineStore('auth', {
         }
       } catch (error) {
         console.error('Auth check failed:', error)
+        // Si 401, le token est invalide, déconnecter
+        if (error.response?.status === 401) {
+          this.logout()
+          return false
+        }
+        // Pour les autres erreurs (network, 500, etc.), essayer de garder l'utilisateur si on a déjà un user en cache
+        if (this.user) {
+          return true
+        }
         this.logout()
         return false
       }
