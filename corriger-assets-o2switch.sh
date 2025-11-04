@@ -10,6 +10,18 @@ echo ""
 echo "1. Pull des dernières modifications..."
 git pull origin main
 
+# Vérifier si les fichiers sont trackés par Git
+echo ""
+echo "   Vérification des fichiers trackés par Git..."
+GIT_FILES=$(git ls-files public/build/ 2>/dev/null | wc -l)
+echo "   Fichiers trackés dans public/build/: $GIT_FILES"
+
+if [ "$GIT_FILES" -eq 0 ]; then
+    echo "❌ ERREUR: Aucun fichier dans public/build/ n'est tracké par Git"
+    echo "   Les assets doivent être ajoutés avec: git add -f public/build/"
+    exit 1
+fi
+
 # 2. Vérifier les assets
 echo ""
 echo "2. Vérification des assets..."
