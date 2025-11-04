@@ -128,14 +128,27 @@ class SSOController extends Controller
      */
     public function getSessions(Request $request): JsonResponse
     {
+        \Log::info('getSessions called', [
+            'has_token' => $request->bearerToken() ? 'yes' : 'no',
+            'user_authenticated' => $request->user() ? 'yes' : 'no'
+        ]);
+        
         $user = $request->user();
         
         if (!$user) {
+            \Log::warning('getSessions: User not authenticated', [
+                'token_present' => $request->bearerToken() ? 'yes' : 'no'
+            ]);
             return response()->json([
                 'success' => false,
                 'message' => 'User not authenticated'
             ], 401);
         }
+        
+        \Log::info('getSessions: User authenticated', [
+            'user_id' => $user->id,
+            'user_email' => $user->email
+        ]);
         
         try {
             // Vérifier que l'utilisateur a bien un ID
