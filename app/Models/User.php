@@ -114,19 +114,25 @@ class User extends Authenticatable implements MustVerifyEmail
             
             // Vérifier si le fichier existe
             if (\Storage::disk('public')->exists($avatarPath)) {
-                // Utiliser l'URL complète avec APP_URL
-                $url = \Storage::disk('public')->url($avatarPath);
-                // Si l'URL retournée est relative, utiliser asset()
-                if (strpos($url, 'http') === 0) {
-                    return $url;
-                }
-                return asset('storage/' . $avatarPath);
+                // Construire l'URL complète
+                $baseUrl = config('app.url');
+                $url = rtrim($baseUrl, '/') . '/storage/' . ltrim($avatarPath, '/');
+                
+                \Log::info('Avatar URL generated', [
+                    'avatar_path' => $avatarPath,
+                    'generated_url' => $url,
+                    'app_url' => $baseUrl
+                ]);
+                
+                return $url;
             }
+            
             // Si le fichier n'existe pas, logger pour debug
             \Log::warning('Avatar file not found', [
                 'avatar_path' => $avatarPath,
                 'full_path' => storage_path('app/public/' . $avatarPath),
-                'exists' => file_exists(storage_path('app/public/' . $avatarPath))
+                'exists' => file_exists(storage_path('app/public/' . $avatarPath)),
+                'storage_exists' => \Storage::disk('public')->exists($avatarPath)
             ]);
         }
         
