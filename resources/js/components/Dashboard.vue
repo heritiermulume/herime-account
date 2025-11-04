@@ -239,6 +239,7 @@
 <script>
 import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '../stores/auth'
+import axios from 'axios'
 import ProfileModal from './ProfileModal.vue'
 import SessionsModal from './SessionsModal.vue'
 import SecurityModal from './SecurityModal.vue'
@@ -341,6 +342,20 @@ export default {
         await authStore.checkAuth()
         console.log('User after checkAuth:', authStore.user)
       }
+      
+      // Recharger les données utilisateur pour s'assurer d'avoir les dernières informations
+      try {
+        const response = await axios.get('/user/profile')
+        if (response.data.success && response.data.data.user) {
+          authStore.updateUser(response.data.data.user)
+          console.log('✅ User data refreshed from API')
+          console.log('   is_active:', response.data.data.user.is_active)
+          console.log('   last_login_at:', response.data.data.user.last_login_at)
+        }
+      } catch (error) {
+        console.error('Error refreshing user data:', error)
+      }
+      
       loadSessions()
     })
 
