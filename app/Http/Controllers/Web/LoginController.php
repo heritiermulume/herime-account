@@ -16,7 +16,14 @@ class LoginController extends Controller
     public function show(Request $request)
     {
         $redirectUrl = $this->determineRedirectUrl($request);
-        $forceToken = $request->boolean('force_token', false);
+        $forceToken = $request->boolean('force_token', false) || $request->has('force_token') || $request->query('force_token');
+
+        \Log::info('LoginController@show', [
+            'auth_check' => Auth::check(),
+            'force_token' => $forceToken,
+            'redirect_url' => $redirectUrl,
+            'query_params' => $request->all()
+        ]);
 
         // Si l'utilisateur est déjà connecté ET force_token est présent
         if (Auth::check() && $forceToken) {

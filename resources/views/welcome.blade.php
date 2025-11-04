@@ -19,31 +19,43 @@
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
         <!-- Redirection SSO immédiate (si nécessaire) -->
-        @if(isset($sso_redirect) && $sso_redirect)
+        @if(isset($sso_redirect) && !empty($sso_redirect))
         <script>
             // Redirection SSO immédiate AVANT que Vue.js ne charge
-            // Ce script s'exécute immédiatement dans le head pour éviter que Vue.js ne se charge
+            // Ce script s'exécute immédiatement dans le head
             (function() {
-                console.log('SSO redirect detected, redirecting immediately to:', '{{ $sso_redirect }}');
-                // Utiliser window.location.replace pour ne pas ajouter à l'historique
-                window.location.replace('{{ $sso_redirect }}');
+                var redirectUrl = {!! json_encode($sso_redirect, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) !!};
+                console.log('SSO redirect: Redirecting to', redirectUrl);
+                
+                // Redirection immédiate
+                if (window.location && window.location.replace) {
+                    window.location.replace(redirectUrl);
+                } else if (window.location && window.location.href) {
+                    window.location.href = redirectUrl;
+                } else {
+                    // Dernier recours : meta refresh sera exécuté par le navigateur
+                    document.write('<meta http-equiv="refresh" content="0;url=' + redirectUrl + '">');
+                }
             })();
         </script>
+        <!-- Meta refresh comme fallback absolu -->
+        <meta http-equiv="refresh" content="0;url={{ addslashes($sso_redirect) }}">
         @endif
         
         <!-- Styles / Scripts - Ne charger que si pas de redirection SSO -->
-        @if(!isset($sso_redirect) || !$sso_redirect)
+        @if(!isset($sso_redirect) || empty($sso_redirect))
         @vite(['resources/css/app.css', 'resources/js/app.js'])
         @else
         <!-- Styles minimaux pour la page de chargement -->
         <style>
-            body { margin: 0; padding: 0; font-family: Inter, sans-serif; }
+            body { margin: 0; padding: 0; font-family: Inter, sans-serif; background: #f9fafb; }
+            #app { display: flex; align-items: center; justify-content: center; height: 100vh; }
         </style>
         @endif
         
     </head>
     <body class="bg-gray-50 dark:bg-gray-900">
-        @if(isset($sso_redirect) && $sso_redirect)
+        @if(isset($sso_redirect) && !empty($sso_redirect))
         <div id="app">
             <div style="display: flex; align-items: center; justify-content: center; height: 100vh; flex-direction: column; font-family: Inter, sans-serif;">
                 <div style="border: 4px solid #f3f4f6; border-top: 4px solid #003366; border-radius: 50%; width: 48px; height: 48px; animation: spin 1s linear infinite;"></div>
@@ -55,6 +67,16 @@
                     100% { transform: rotate(360deg); }
                 }
             </style>
+            <!-- Script de redirection dans le body aussi (double sécurité) -->
+            <script>
+                setTimeout(function() {
+                    var redirectUrl = {!! json_encode($sso_redirect, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) !!};
+                    if (window.location.href.indexOf('compte.herime.com') !== -1) {
+                        console.log('Fallback redirect triggered');
+                        window.location.replace(redirectUrl);
+                    }
+                }, 50);
+            </script>
         </div>
         @else
         <div id="app"></div>
