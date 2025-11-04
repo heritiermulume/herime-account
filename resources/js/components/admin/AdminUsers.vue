@@ -418,7 +418,17 @@ export default {
       changePage,
       visiblePages,
       toggleUserStatus,
-      deleteUser
+      deleteUser,
+      getAvatarUrl,
+      onAvatarError,
+      makeAdmin,
+      openPreview,
+      openEdit,
+      saveEdit,
+      previewUser,
+      editUser,
+      showPreview,
+      showEdit
     }
   }
 }

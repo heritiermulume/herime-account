@@ -154,6 +154,28 @@ class AdminController extends Controller
         $perPage = $request->get('per_page', 15);
         $users = $query->orderBy('created_at', 'desc')->paginate($perPage);
         
+        // Format users to include avatar_url
+        $formattedUsers = $users->getCollection()->map(function ($user) {
+            return [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'phone' => $user->phone,
+                'company' => $user->company,
+                'position' => $user->position,
+                'role' => $user->role ?? 'user',
+                'is_active' => $user->is_active ?? true,
+                'avatar' => $user->avatar,
+                'avatar_filename' => $user->avatar_filename,
+                'avatar_url' => $user->avatar_url,
+                'created_at' => $user->created_at ? $user->created_at->toIso8601String() : null,
+                'updated_at' => $user->updated_at ? $user->updated_at->toIso8601String() : null,
+            ];
+        });
+        
+        // Replace the collection with formatted data
+        $users->setCollection($formattedUsers);
+        
         return response()->json([
             'success' => true,
             'data' => $users
