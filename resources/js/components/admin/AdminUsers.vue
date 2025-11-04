@@ -160,38 +160,76 @@
                     {{ user.is_active ? 'Actif' : 'Inactif' }}
                   </span>
                   <div class="flex space-x-1">
+                    <!-- Activer / Désactiver -->
                     <button
                       @click="toggleUserStatus(user)"
                       :disabled="user.role === 'super_user'"
-                      class="text-sm text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                      class="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                      :title="user.is_active ? 'Désactiver' : 'Activer'"
+                      aria-label="Basculer le statut"
                     >
-                      {{ user.is_active ? 'Désactiver' : 'Activer' }}
+                      <svg v-if="user.is_active" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-blue-600 dark:text-blue-400" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M10 2a8 8 0 100 16V2z" />
+                      </svg>
+                      <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-blue-600 dark:text-blue-400" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 2a10 10 0 100 20V2z" />
+                      </svg>
                     </button>
+
+                    <!-- Nommer / Retirer admin -->
                     <button
                       v-if="user.role !== 'super_user'"
-                      @click="makeAdmin(user)"
-                      class="text-sm text-yellow-600 hover:text-yellow-700 dark:text-yellow-400 dark:hover:text-yellow-300"
+                      @click="toggleAdminRole(user)"
+                      class="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700"
+                      :title="user.role === 'admin' ? 'Retirer admin' : 'Nommer admin'"
+                      aria-label="Basculer rôle admin"
                     >
-                      Nommer admin
+                      <svg v-if="user.role === 'admin'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="h-5 w-5 text-yellow-600 dark:text-yellow-400">
+                        <path d="M15 14l-3-3-3 3 1.5 1.5L12 13l1.5 2.5L15 14z" />
+                        <path d="M12 2a10 10 0 100 20 10 10 0 000-20z" fill-opacity=".1" />
+                      </svg>
+                      <svg v-else xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="h-5 w-5 text-yellow-600 dark:text-yellow-400">
+                        <path d="M12 12l4-2V7l-4 2-4-2v3l4 2z" />
+                        <path d="M4 18v-1a4 4 0 014-4h8a4 4 0 014 4v1H4z" />
+                      </svg>
                     </button>
+
+                    <!-- Voir -->
                     <button
                       @click="openPreview(user)"
-                      class="text-sm text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white"
+                      class="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700"
+                      title="Voir"
+                      aria-label="Voir"
                     >
-                      Voir
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-600 dark:text-gray-300" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M10 3C5 3 1 7.5 1 10s4 7 9 7 9-4.5 9-7-4-7-9-7zm0 12a5 5 0 110-10 5 5 0 010 10z" />
+                      </svg>
                     </button>
+
+                    <!-- Modifier -->
                     <button
                       @click="openEdit(user)"
-                      class="text-sm text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300"
+                      class="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700"
+                      title="Modifier"
+                      aria-label="Modifier"
                     >
-                      Modifier
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-600 dark:text-green-400" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M13.586 3.586a2 2 0 112.828 2.828L7 16H4v-3l9.586-9.414z" />
+                      </svg>
                     </button>
+
+                    <!-- Supprimer -->
                     <button
                       v-if="user.role !== 'super_user'"
                       @click="deleteUser(user)"
-                      class="text-sm text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
+                      class="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700"
+                      title="Supprimer"
+                      aria-label="Supprimer"
                     >
-                      Supprimer
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-red-600 dark:text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M6 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm6-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
+                        <path d="M4 5h12l-1 12a2 2 0 01-2 2H7a2 2 0 01-2-2L4 5zM9 2h2a1 1 0 011 1v1H8V3a1 1 0 011-1z" />
+                      </svg>
                     </button>
                   </div>
                 </div>
@@ -204,6 +242,86 @@
             <Pagination :page="pagination.current_page" :perPage="15" :total="pagination.total" @update:page="changePage" />
           </div>
         </div>
+
+        <!-- Preview Modal -->
+        <teleport to="body">
+          <transition enter-active-class="transition ease-out duration-200" enter-from-class="opacity-0" enter-to-class="opacity-100" leave-active-class="transition ease-in duration-150" leave-from-class="opacity-100" leave-to-class="opacity-0">
+            <div v-if="showPreview" class="fixed inset-0 z-50 flex items-center justify-center">
+              <div class="fixed inset-0 bg-black bg-opacity-50" @click="showPreview = false"></div>
+              <div class="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-lg mx-4 p-6">
+                <div class="flex items-center justify-between mb-4">
+                  <h3 class="text-lg font-medium text-gray-900 dark:text-white">Aperçu de l'utilisateur</h3>
+                  <button class="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700" @click="showPreview = false" aria-label="Fermer">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+                  </button>
+                </div>
+                <div v-if="previewUser" class="space-y-2">
+                  <div class="flex items-center space-x-3">
+                    <img v-if="getAvatarUrl(previewUser)" :src="getAvatarUrl(previewUser)" class="h-12 w-12 rounded-full object-cover" @error="onAvatarError($event)" />
+                    <div>
+                      <div class="text-sm font-semibold text-gray-900 dark:text-white">{{ previewUser.name }}</div>
+                      <div class="text-sm text-gray-600 dark:text-gray-300">{{ previewUser.email }}</div>
+                    </div>
+                  </div>
+                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                    <div class="text-sm text-gray-500 dark:text-gray-400">Rôle: <span class="text-gray-900 dark:text-white">{{ previewUser.role }}</span></div>
+                    <div class="text-sm text-gray-500 dark:text-gray-400">Statut: <span class="text-gray-900 dark:text-white">{{ previewUser.is_active ? 'Actif' : 'Inactif' }}</span></div>
+                    <div class="text-sm text-gray-500 dark:text-gray-400">Entreprise: <span class="text-gray-900 dark:text-white">{{ previewUser.company || '-' }}</span></div>
+                    <div class="text-sm text-gray-500 dark:text-gray-400">Poste: <span class="text-gray-900 dark:text-white">{{ previewUser.position || '-' }}</span></div>
+                  </div>
+                </div>
+                <div class="mt-4 flex justify-end">
+                  <button class="px-4 py-2 rounded bg-yellow-500 text-white hover:bg-yellow-600" @click="showPreview = false">Fermer</button>
+                </div>
+              </div>
+            </div>
+          </transition>
+        </teleport>
+
+        <!-- Edit Modal -->
+        <teleport to="body">
+          <transition enter-active-class="transition ease-out duration-200" enter-from-class="opacity-0" enter-to-class="opacity-100" leave-active-class="transition ease-in duration-150" leave-from-class="opacity-100" leave-to-class="opacity-0">
+            <div v-if="showEdit" class="fixed inset-0 z-50 flex items-center justify-center">
+              <div class="fixed inset-0 bg-black bg-opacity-50" @click="showEdit = false"></div>
+              <div class="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-lg mx-4 p-6">
+                <div class="flex items-center justify-between mb-4">
+                  <h3 class="text-lg font-medium text-gray-900 dark:text-white">Modifier l'utilisateur</h3>
+                  <button class="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700" @click="showEdit = false" aria-label="Fermer">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+                  </button>
+                </div>
+                <div v-if="editUser" class="space-y-4">
+                  <div>
+                    <label class="block text-sm text-gray-700 dark:text-gray-300">Nom</label>
+                    <input v-model="editUser.name" type="text" class="mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-yellow-500 focus:border-yellow-500 dark:bg-gray-700 dark:text-white sm:text-sm" />
+                  </div>
+                  <div>
+                    <label class="block text-sm text-gray-700 dark:text-gray-300">Email</label>
+                    <input v-model="editUser.email" type="email" class="mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-yellow-500 focus:border-yellow-500 dark:bg-gray-700 dark:text-white sm:text-sm" />
+                  </div>
+                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label class="block text-sm text-gray-700 dark:text-gray-300">Entreprise</label>
+                      <input v-model="editUser.company" type="text" class="mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-yellow-500 focus:border-yellow-500 dark:bg-gray-700 dark:text-white sm:text-sm" />
+                    </div>
+                    <div>
+                      <label class="block text-sm text-gray-700 dark:text-gray-300">Poste</label>
+                      <input v-model="editUser.position" type="text" class="mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-yellow-500 focus:border-yellow-500 dark:bg-gray-700 dark:text-white sm:text-sm" />
+                    </div>
+                  </div>
+                  <div class="flex items-center space-x-2">
+                    <input id="is_active" type="checkbox" v-model="editUser.is_active" class="rounded border-gray-300 text-yellow-600 focus:ring-yellow-500" />
+                    <label for="is_active" class="text-sm text-gray-700 dark:text-gray-300">Actif</label>
+                  </div>
+                </div>
+                <div class="mt-6 flex justify-end space-x-2">
+                  <button class="px-4 py-2 rounded bg-gray-200 dark:bg-gray-700 dark:text-white hover:bg-gray-300 dark:hover:bg-gray-600" @click="showEdit = false">Annuler</button>
+                  <button class="px-4 py-2 rounded bg-green-600 text-white hover:bg-green-700" @click="saveEdit">Enregistrer</button>
+                </div>
+              </div>
+            </div>
+          </transition>
+        </teleport>
   </div>
 </template>
 
@@ -331,12 +449,13 @@ export default {
 
     const onAvatarError = (e) => { e.target.style.display = 'none' }
 
-    const makeAdmin = async (u) => {
+    const toggleAdminRole = async (u) => {
       try {
-        await axios.put(`/admin/users/${u.id}/role`, { role: 'admin' })
+        const targetRole = u.role === 'admin' ? 'user' : 'admin'
+        await axios.put(`/admin/users/${u.id}/role`, { role: targetRole })
         await fetchUsers(pagination.value?.current_page || 1)
       } catch (err) {
-        console.error('Error promoting to admin:', err)
+        console.error('Error toggling admin role:', err)
       }
     }
 
@@ -421,7 +540,7 @@ export default {
       deleteUser,
       getAvatarUrl,
       onAvatarError,
-      makeAdmin,
+      toggleAdminRole,
       openPreview,
       openEdit,
       saveEdit,
