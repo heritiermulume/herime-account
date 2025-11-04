@@ -211,7 +211,9 @@ install_passport() {
     
     # Créer le client d'accès personnel si nécessaire
     log "Vérification du client d'accès personnel Passport..."
-    if ! php artisan passport:client --list --quiet 2>/dev/null | grep -q "Personal Access Client"; then
+    # Vérifier via la base de données
+    CLIENT_EXISTS=$(php artisan tinker --execute="echo \Laravel\Passport\Client::where('personal_access_client', 1)->exists() ? 'exists' : 'missing';" 2>/dev/null | grep -q "exists" && echo "yes" || echo "no")
+    if [ "$CLIENT_EXISTS" = "no" ]; then
         log "Création du client d'accès personnel..."
         php artisan passport:client --personal --name="Herime SSO Personal Access Client" --no-interaction || warning "Échec de la création du client personnel"
         log "✅ Client d'accès personnel créé"
