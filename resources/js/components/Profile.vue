@@ -693,9 +693,23 @@ export default {
         }
       } catch (error) {
         console.error('Error deleting account:', error)
-        if (error.response?.data?.message) {
+        
+        // Vérifier le code de statut HTTP pour identifier le type d'erreur
+        if (error.response?.status === 400) {
+          // Erreur 400 = mot de passe incorrect
+          const errorMessage = error.response?.data?.message || 'Le mot de passe est incorrect'
+          notify.error('Mot de passe incorrect', errorMessage)
+          // Réinitialiser le champ mot de passe pour permettre une nouvelle tentative
+          deletePassword.value = ''
+        } else if (error.response?.status === 422) {
+          // Erreur 422 = validation failed
+          const errorMessage = error.response?.data?.message || 'Veuillez vérifier les informations saisies'
+          notify.error('Erreur de validation', errorMessage)
+        } else if (error.response?.data?.message) {
+          // Autre erreur avec message spécifique
           notify.error('Erreur', error.response.data.message)
         } else {
+          // Erreur générique
           notify.error('Erreur', 'Erreur lors de la suppression du compte')
         }
       } finally {
