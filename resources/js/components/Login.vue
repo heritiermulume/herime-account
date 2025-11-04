@@ -298,19 +298,40 @@ export default {
         if (cached !== null) {
           enabled = cached === 'true'
         } else {
-          const resp = await axios.get('/settings/public')
-          enabled = !!resp.data?.data?.registration_enabled
-          localStorage.setItem('registration_enabled', String(enabled))
+          // Utiliser fetch directement pour éviter les intercepteurs axios
+          const baseURL = window.location.origin + '/api'
+          const response = await fetch(`${baseURL}/settings/public`, {
+            method: 'GET',
+            headers: {
+              'Accept': 'application/json',
+              'Content-Type': 'application/json'
+            }
+          })
+          
+          if (response.ok) {
+            const data = await response.json()
+            if (data?.success && data?.data) {
+              enabled = !!data.data.registration_enabled
+              localStorage.setItem('registration_enabled', String(enabled))
+            } else {
+              enabled = true // Par défaut autoriser
+            }
+          } else {
+            enabled = true // En cas d'erreur HTTP, autoriser par défaut
+          }
         }
         if (!enabled) {
           notify.info('Information', 'Les inscriptions sont actuellement désactivées.')
           return
         }
-        // émettre l’événement si autorisé
+        // émettre l'événement si autorisé
         emit('switch-to-register')
       } catch (e) {
         console.error('Failed to check registration setting', e)
-        notify.error('Erreur', "Impossible de vérifier l'état des inscriptions. Réessayez plus tard.")
+        // En cas d'erreur, autoriser l'accès pour ne pas bloquer l'utilisateur
+        // Le backend bloquera de toute façon si l'inscription est désactivée
+        console.warn('Allowing registration attempt despite check error, backend will validate')
+        emit('switch-to-register')
       }
     }
 
