@@ -15,16 +15,40 @@ echo ""
 echo "2. Vérification des assets..."
 if [ ! -f "public/build/manifest.json" ]; then
     echo "❌ ERREUR: manifest.json manquant !"
+    echo "   Les assets doivent être compilés localement et poussés sur GitHub"
     exit 1
 fi
 
-if [ ! -f "public/build/assets/app-DVlYVwTs.css" ]; then
-    echo "❌ ERREUR: app-DVlYVwTs.css manquant !"
+# Extraire les noms des fichiers depuis le manifest
+CSS_FILE=$(grep -A 3 '"resources/css/app.css"' public/build/manifest.json | grep '"file"' | cut -d'"' -f4)
+JS_FILE=$(grep -A 3 '"resources/js/app.js"' public/build/manifest.json | grep '"file"' | cut -d'"' -f4)
+
+echo "   CSS attendu: $CSS_FILE"
+echo "   JS attendu: $JS_FILE"
+
+if [ -z "$CSS_FILE" ]; then
+    echo "❌ ERREUR: Impossible de trouver le fichier CSS dans le manifest"
     exit 1
 fi
 
-if [ ! -f "public/build/assets/app-udSiXqFf.js" ]; then
-    echo "❌ ERREUR: app-udSiXqFf.js manquant !"
+if [ -z "$JS_FILE" ]; then
+    echo "❌ ERREUR: Impossible de trouver le fichier JS dans le manifest"
+    exit 1
+fi
+
+if [ ! -f "public/build/$CSS_FILE" ]; then
+    echo "❌ ERREUR: $CSS_FILE manquant !"
+    echo "   Vérifiez que les assets sont bien commités sur GitHub"
+    echo "   Liste des fichiers présents dans public/build/assets/:"
+    ls -la public/build/assets/ 2>/dev/null || echo "   (dossier vide ou inexistant)"
+    exit 1
+fi
+
+if [ ! -f "public/build/$JS_FILE" ]; then
+    echo "❌ ERREUR: $JS_FILE manquant !"
+    echo "   Vérifiez que les assets sont bien commités sur GitHub"
+    echo "   Liste des fichiers présents dans public/build/assets/:"
+    ls -la public/build/assets/ 2>/dev/null || echo "   (dossier vide ou inexistant)"
     exit 1
 fi
 
