@@ -151,9 +151,31 @@ setup_environment() {
     log "✅ Environnement configuré"
 }
 
+# Supprimer les migrations OAuth en double
+clean_duplicate_migrations() {
+    log "Nettoyage des migrations OAuth en double..."
+    
+    if [ -f "supprimer-migrations-oauth-dupliquees.sh" ]; then
+        # Exécuter le script de nettoyage automatiquement (mode non-interactif)
+        bash supprimer-migrations-oauth-dupliquees.sh <<< "o" 2>/dev/null || true
+        
+        # Alternative: supprimer directement les migrations qui ne sont pas les originales Passport
+        find database/migrations -name "*oauth*.php" -type f | grep -vE "(2016_06_01|2024_06_01)" | xargs -r rm -f
+        
+        log "✅ Migrations OAuth en double supprimées"
+    else
+        # Supprimer directement les migrations qui ne sont pas les originales Passport
+        find database/migrations -name "*oauth*.php" -type f | grep -vE "(2016_06_01|2024_06_01)" | xargs -r rm -f
+        log "✅ Nettoyage des migrations OAuth effectué"
+    fi
+}
+
 # Exécuter les migrations
 run_migrations() {
     log "Exécution des migrations..."
+    
+    # Nettoyer les migrations OAuth en double AVANT d'exécuter les migrations
+    clean_duplicate_migrations
     
     # Vérifier la connexion à la base de données
     php artisan migrate:status || warning "Impossible de vérifier le statut des migrations"
@@ -173,8 +195,22 @@ install_passport() {
         log "Passport est déjà configuré"
     else
         log "Installation de Passport..."
-        php artisan passport:install --force || warning "Échec de l'installation de Passport"
+        
+        # Ne PAS publier les migrations (elles sont déjà dans le repository)
+        # Créer les clés seulement
+        php artisan passport:keys --force || warning "Échec de la création des clés Passport"
+        
+        # Publier uniquement la config si nécessaire
+        php artisan vendor:publish --tag=passport-config --force > /dev/null 2>&1 || true
+        
+        # NE PAS publier les migrations pour éviter les doublons
+        # php artisan vendor:publish --tag=passport-migrations --force
+        
+        log "✅ Passport configuré (migrations non publiées, déjà présentes dans le repository)"
     fi
+    
+    # Nettoyer les migrations OAuth en double après installation
+    clean_duplicate_migrations
     
     log "✅ Passport configuré"
 }
