@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div class="fixed inset-0 z-50 bg-gray-50 dark:bg-gray-900 overflow-y-auto">
     <Login v-if="currentView === 'login'" @switch-to-register="currentView = 'register'" />
     <Register v-else @switch-to-login="currentView = 'login'" />
   </div>

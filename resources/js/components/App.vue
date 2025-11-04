@@ -11,13 +11,13 @@
 
     <!-- Main Content -->
     <div v-else class="min-h-screen">
-        <!-- Sidebar -->
-        <Sidebar v-if="user" />
+        <!-- Sidebar - Hide on login/register pages -->
+        <Sidebar v-if="user && route.path !== '/login' && route.path !== '/register'" />
       
       <!-- Main Content -->
-      <div :class="user ? 'md:pl-64' : ''" class="flex flex-col flex-1">
-        <!-- Top Navigation - Only show when user is logged in -->
-        <nav v-if="user" class="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
+      <div :class="user && route.path !== '/login' && route.path !== '/register' ? 'md:pl-64' : ''" class="flex flex-col flex-1">
+        <!-- Top Navigation - Only show when user is logged in and not on auth pages -->
+        <nav v-if="user && route.path !== '/login' && route.path !== '/register'" class="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
           <div class="px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between h-16">
               <div class="flex items-center">
