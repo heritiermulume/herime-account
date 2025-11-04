@@ -35,7 +35,16 @@
                 Bienvenue
               </dt>
               <dd class="text-lg font-medium text-gray-900 dark:text-white">
-                {{ user.name }}
+                {{ user?.name || 'Utilisateur' }}
+              </dd>
+              <dd v-if="user?.email" class="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                {{ user.email }}
+              </dd>
+              <dd v-if="user?.company" class="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                {{ user.company }}
+              </dd>
+              <dd v-if="user?.position" class="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                {{ user.position }}
               </dd>
             </dl>
           </div>
@@ -59,7 +68,7 @@
                   Sessions actives
                 </dt>
                 <dd class="text-lg font-medium text-gray-900 dark:text-white">
-                  {{ sessions.length }}
+                  {{ sessions ? sessions.length : 0 }}
                 </dd>
               </dl>
             </div>
@@ -67,27 +76,27 @@
         </div>
       </div>
 
-      <div class="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg">
-        <div class="p-5">
-          <div class="flex items-center">
-            <div class="flex-shrink-0">
-              <svg class="h-6 w-6" style="color: #ffcc33;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-              </svg>
+            <div class="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg">
+              <div class="p-5">
+                <div class="flex items-center">
+                  <div class="flex-shrink-0">
+                    <svg class="h-6 w-6" :style="{ color: user?.is_active ? '#ffcc33' : '#ef4444' }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                  </div>
+                  <div class="ml-5 w-0 flex-1">
+                    <dl>
+                      <dt class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">
+                        Statut du compte
+                      </dt>
+                      <dd class="text-lg font-medium" :style="{ color: user?.is_active ? '#ffcc33' : '#ef4444' }">
+                        {{ user?.is_active ? 'Actif' : 'Inactif' }}
+                      </dd>
+                    </dl>
+                  </div>
+                </div>
+              </div>
             </div>
-            <div class="ml-5 w-0 flex-1">
-              <dl>
-                <dt class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">
-                  Statut du compte
-                </dt>
-                <dd class="text-lg font-medium" style="color: #ffcc33;">
-                  Actif
-                </dd>
-              </dl>
-            </div>
-          </div>
-        </div>
-      </div>
 
       <div class="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg">
         <div class="p-5">
@@ -99,12 +108,12 @@
             </div>
             <div class="ml-5 w-0 flex-1">
               <dl>
-                <dt class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">
-                  Dernière connexion
-                </dt>
-                <dd class="text-lg font-medium text-gray-900 dark:text-white">
-                  {{ formatDate(user.last_login_at) }}
-                </dd>
+                      <dt class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">
+                        Dernière connexion
+                      </dt>
+                      <dd class="text-lg font-medium text-gray-900 dark:text-white">
+                        {{ user?.last_login_at ? formatDate(user.last_login_at) : 'Jamais' }}
+                      </dd>
               </dl>
             </div>
           </div>
