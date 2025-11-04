@@ -19,10 +19,21 @@ class TwoFactorController extends Controller
     {
         $user = $request->user();
         
+        // Recharger l'utilisateur depuis la base de données pour s'assurer d'avoir les dernières données
+        $user->refresh();
+        
+        $enabled = $user->two_factor_confirmed_at !== null;
+        
+        \Log::info('2FA Status check', [
+            'user_id' => $user->id,
+            'two_factor_confirmed_at' => $user->two_factor_confirmed_at,
+            'enabled' => $enabled
+        ]);
+        
         return response()->json([
             'success' => true,
             'data' => [
-                'enabled' => $user->two_factor_confirmed_at !== null,
+                'enabled' => $enabled,
                 'confirmed_at' => $user->two_factor_confirmed_at ? $user->two_factor_confirmed_at->toISOString() : null,
             ]
         ]);
