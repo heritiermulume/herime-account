@@ -138,14 +138,19 @@ class SimpleAuthController extends Controller
         // Vérifier si la 2FA est activée
         $user->refresh();
         
+        // Utiliser la méthode Fortify pour vérifier si la 2FA est activée
+        $has2FAEnabled = $user->hasEnabledTwoFactorAuthentication();
+        
         \Log::info('Login - 2FA check', [
             'user_id' => $user->id,
             'two_factor_confirmed_at' => $user->two_factor_confirmed_at,
+            'two_factor_secret' => $user->two_factor_secret ? 'present' : 'null',
             'is_null' => is_null($user->two_factor_confirmed_at),
-            'has_enabled_2fa' => $user->two_factor_confirmed_at !== null
+            'has_enabled_2fa' => $has2FAEnabled,
+            'hasEnabledTwoFactorAuthentication' => $has2FAEnabled
         ]);
         
-        if ($user->two_factor_confirmed_at !== null) {
+        if ($has2FAEnabled) {
             // La 2FA est activée, on doit demander le code
             // Stocker temporairement l'ID de l'utilisateur en session pour la vérification 2FA
             session(['2fa_login_user_id' => $user->id]);
