@@ -558,10 +558,19 @@ export default {
           formData.append('avatar', form.avatar_file)
         }
         
-        // Mettre à jour les préférences
+        // Mettre à jour les préférences (merge avec celles du serveur pour ne rien perdre)
+        let serverPrefs = {}
+        try {
+          const cur = await axios.get('/user/profile')
+          if (cur.data?.success && cur.data.data?.user?.preferences) {
+            serverPrefs = cur.data.data.user.preferences
+          }
+        } catch (e) {}
+
         const preferences = {
-          email_notifications: form.email_notifications,
-          marketing_emails: form.marketing_emails
+          ...serverPrefs,
+          email_notifications: !!form.email_notifications,
+          marketing_emails: !!form.marketing_emails,
         }
         
         console.log('📤 Sending profile data')
@@ -589,8 +598,10 @@ export default {
           console.log('   avatar_url:', profileResponse.data.data.user?.avatar_url)
           console.log('   avatar:', profileResponse.data.data.user?.avatar)
           
-          // Update user in store
-          authStore.updateUser(profileResponse.data.data.user)
+          // Update user in store (profil + prefs)
+          const updatedUser = profileResponse.data.data.user
+          const updatedPrefs = preferencesResponse.data.data?.preferences || preferences
+          authStore.updateUser({ ...updatedUser, preferences: updatedPrefs })
           
           // Vérifier que avatar_url est bien mis à jour
           console.log('✅ User updated in store')
@@ -644,7 +655,7 @@ export default {
       }
     }
 
-    onMounted(() => {
+    onMounted(async () => {
       if (user.value) {
         console.log('📋 Loading user data into form:', user.value)
         console.log('   avatar_url from user:', user.value.avatar_url)
@@ -672,6 +683,19 @@ export default {
         }
         
         console.log('✅ Form initialized, avatar_url:', form.avatar_url)
+      }
+
+      // Recharger depuis l'API pour s'assurer d'avoir les dernières préférences et infos
+      try {
+        const res = await axios.get('/user/profile')
+        if (res.data?.success && res.data.data?.user) {
+          const u = res.data.data.user
+          authStore.updateUser(u)
+          form.email_notifications = u.preferences?.email_notifications !== false
+          form.marketing_emails = u.preferences?.marketing_emails === true
+        }
+      } catch (e) {
+        console.error('Failed to refresh profile on mount:', e)
       }
     })
 
