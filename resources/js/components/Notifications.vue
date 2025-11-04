@@ -20,6 +20,13 @@
         <h3 class="text-lg leading-6 font-medium text-gray-900 dark:text-white mb-6">
           Notifications par e-mail
         </h3>
+
+        <!-- Master switch info -->
+        <div v-if="!emailEnabled" class="mb-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-md p-4">
+          <p class="text-sm text-yellow-800 dark:text-yellow-200">
+            Les notifications par e-mail sont désactivées dans vos paramètres de profil. Les options ci-dessous sont inactives tant que ce paramètre reste désactivé.
+          </p>
+        </div>
         
         <div class="space-y-6">
           <!-- Account Notifications -->
@@ -44,6 +51,7 @@
                     notifications.suspicious_logins ? 'bg-herime-600' : 'bg-gray-200 dark:bg-gray-600'
                   ]"
                   :style="notifications.suspicious_logins ? 'background-color: #003366;' : ''"
+                  :disabled="!emailEnabled"
                 >
                   <span
                     :class="[
@@ -70,6 +78,7 @@
                     notifications.password_changes ? 'bg-herime-600' : 'bg-gray-200 dark:bg-gray-600'
                   ]"
                   :style="notifications.password_changes ? 'background-color: #003366;' : ''"
+                  :disabled="!emailEnabled"
                 >
                   <span
                     :class="[
@@ -96,6 +105,7 @@
                     notifications.profile_changes ? 'bg-herime-600' : 'bg-gray-200 dark:bg-gray-600'
                   ]"
                   :style="notifications.profile_changes ? 'background-color: #003366;' : ''"
+                  :disabled="!emailEnabled"
                 >
                   <span
                     :class="[
@@ -130,6 +140,7 @@
                     notifications.new_features ? 'bg-herime-600' : 'bg-gray-200 dark:bg-gray-600'
                   ]"
                   :style="notifications.new_features ? 'background-color: #003366;' : ''"
+                  :disabled="!emailEnabled"
                 >
                   <span
                     :class="[
@@ -156,6 +167,7 @@
                     notifications.maintenance ? 'bg-herime-600' : 'bg-gray-200 dark:bg-gray-600'
                   ]"
                   :style="notifications.maintenance ? 'background-color: #003366;' : ''"
+                  :disabled="!emailEnabled"
                 >
                   <span
                     :class="[
@@ -190,6 +202,7 @@
                     notifications.newsletter ? 'bg-herime-600' : 'bg-gray-200 dark:bg-gray-600'
                   ]"
                   :style="notifications.newsletter ? 'background-color: #003366;' : ''"
+                  :disabled="!emailEnabled"
                 >
                   <span
                     :class="[
@@ -216,6 +229,7 @@
                     notifications.special_offers ? 'bg-herime-600' : 'bg-gray-200 dark:bg-gray-600'
                   ]"
                   :style="notifications.special_offers ? 'background-color: #003366;' : ''"
+                  :disabled="!emailEnabled"
                 >
                   <span
                     :class="[
@@ -346,7 +360,7 @@
 </template>
 
 <script>
-import { ref, reactive, onMounted, inject } from 'vue'
+import { ref, reactive, onMounted, inject, computed } from 'vue'
 import { useAuthStore } from '../stores/auth'
 import axios from 'axios'
 
@@ -359,6 +373,10 @@ export default {
     const pushNotificationsSupported = ref(false)
     const pushNotificationsEnabled = ref(false)
     const selectedEmailFrequency = ref('daily')
+    const emailEnabled = computed(() => {
+      const prefs = authStore.user?.preferences || {}
+      return prefs.email_notifications !== false
+    })
 
     const notifications = reactive({
       suspicious_logins: true,
@@ -468,6 +486,8 @@ export default {
         const res = await axios.get('/user/profile')
         if (res.data?.success && res.data.data?.user) {
           const prefs = res.data.data.user.preferences || {}
+          // Mettre à jour aussi le store pour cohérence globale
+          authStore.updateUser(res.data.data.user)
           // Fréquence
           if (prefs.email_frequency) {
             selectedEmailFrequency.value = prefs.email_frequency
@@ -501,6 +521,7 @@ export default {
       pushNotificationsEnabled,
       selectedEmailFrequency,
       emailFrequencies,
+      emailEnabled,
       toggleNotification,
       togglePushNotifications,
       saveNotifications
