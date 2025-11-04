@@ -45,7 +45,7 @@
     ]
   },
   "resources/js/app.js": {
-    "file": "assets/app-D8p3tlvb.js",
+    "file": "assets/app-D32TI4JA.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,
@@ -81,7 +81,7 @@
     ]
   },
   "resources/js/router/index.js": {
-    "file": "assets/index-BQ0Mm2Ep.js",
+    "file": "assets/index-DWhmH-Gj.js",
     "name": "index",
     "src": "resources/js/router/index.js",
     "isDynamicEntry": true,

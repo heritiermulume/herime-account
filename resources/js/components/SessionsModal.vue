@@ -143,7 +143,7 @@ export default {
 
       loading.value = true
       try {
-        const response = await axios.delete(`/api/sso/sessions/${sessionId}`)
+        const response = await axios.delete(`/sso/sessions/${sessionId}`)
         if (response.data.success) {
           await loadSessions() // Reload sessions
         }
