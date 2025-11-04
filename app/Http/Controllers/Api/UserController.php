@@ -19,6 +19,9 @@ class UserController extends Controller
     {
         $user = $request->user();
         
+        // S'assurer que avatar_url est inclus dans la réponse
+        $user->makeVisible(['avatar', 'avatar_url']);
+        
         return response()->json([
             'success' => true,
             'data' => [
@@ -112,6 +115,9 @@ class UserController extends Controller
 
         // Recharger l'utilisateur avec toutes les relations
         $user->refresh();
+        
+        // S'assurer que avatar_url est inclus dans la réponse
+        $user->makeVisible(['avatar', 'avatar_url']);
 
         return response()->json([
             'success' => true,
