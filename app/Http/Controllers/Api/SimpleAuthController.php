@@ -183,10 +183,17 @@ class SimpleAuthController extends Controller
             ], 401);
         }
         
-        // Forcer l'inclusion de avatar_url
-        $user->makeVisible(['avatar', 'avatar_url']);
+        // Forcer l'inclusion de avatar_url et last_login_at
+        $user->makeVisible(['avatar', 'avatar_url', 'last_login_at', 'is_active']);
         $userData = $user->load('currentSession')->toArray();
         $userData['avatar_url'] = $user->avatar_url;
+        
+        // S'assurer que last_login_at est bien formaté
+        if ($user->last_login_at) {
+            $userData['last_login_at'] = $user->last_login_at->toISOString();
+        } else {
+            $userData['last_login_at'] = null;
+        }
         
         return response()->json([
             'success' => true,
