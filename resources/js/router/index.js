@@ -120,19 +120,31 @@ router.beforeEach(async (to, from, next) => {
                        to.query.force_token === 'on'
   
   if (hasForceToken && to.path === '/login') {
-    console.log('[Router] force_token détecté sur /login, vérification auth...')
+    console.log('[Router] force_token détecté sur /login, vérification auth...', {
+      force_token: to.query.force_token,
+      redirect: to.query.redirect
+    })
+    
+    // Vérifier le token dans localStorage directement
+    const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null
+    console.log('[Router] Token dans localStorage:', token ? 'PRÉSENT (' + token.substring(0, 20) + '...)' : 'AUCUN')
     
     // Vérifier l'authentification
     await authStore.checkAuth()
     const isAuthenticated = authStore.authenticated
     
+    console.log('[Router] État après checkAuth:', {
+      authenticated: isAuthenticated,
+      has_user: !!authStore.user
+    })
+    
     if (isAuthenticated) {
-      console.log('[Router] User authenticated with force_token, allowing access - Auth.vue gérera la redirection')
+      console.log('[Router] ✅ User authenticated with force_token, allowing access - Auth.vue gérera la redirection SSO')
       // Permettre l'accès, Auth.vue gérera la redirection SSO
       next()
       return
     } else {
-      console.log('[Router] User NOT authenticated with force_token, showing login form')
+      console.log('[Router] ⚠️ User NOT authenticated with force_token, showing login form')
       // Utilisateur pas authentifié, afficher le formulaire de login
       next()
       return
