@@ -104,35 +104,33 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /**
-     * Get user's avatar URL.
+     * Get user's avatar URL (sécurisé - nécessite authentification).
      */
     public function getAvatarUrlAttribute(): string
     {
         if ($this->avatar) {
-            // Nettoyer le chemin de l'avatar (enlever les slashes en double)
-            $avatarPath = ltrim($this->avatar, '/');
-            
-            // Vérifier si le fichier existe
-            if (\Storage::disk('public')->exists($avatarPath)) {
-                // Construire l'URL complète
+            // Vérifier si le fichier existe dans le stockage privé
+            $avatarPath = 'avatars/' . basename($this->avatar);
+            if (\Storage::disk('private')->exists($avatarPath)) {
+                // Retourner l'URL vers la route sécurisée
                 $baseUrl = config('app.url');
-                $url = rtrim($baseUrl, '/') . '/storage/' . ltrim($avatarPath, '/');
+                $url = rtrim($baseUrl, '/') . '/api/user/avatar/' . $this->id;
                 
-                \Log::info('Avatar URL generated', [
+                \Log::info('Avatar URL generated (secure)', [
                     'avatar_path' => $avatarPath,
                     'generated_url' => $url,
-                    'app_url' => $baseUrl
+                    'user_id' => $this->id
                 ]);
                 
                 return $url;
             }
             
             // Si le fichier n'existe pas, logger pour debug
-            \Log::warning('Avatar file not found', [
+            \Log::warning('Avatar file not found in private storage', [
                 'avatar_path' => $avatarPath,
-                'full_path' => storage_path('app/public/' . $avatarPath),
-                'exists' => file_exists(storage_path('app/public/' . $avatarPath)),
-                'storage_exists' => \Storage::disk('public')->exists($avatarPath)
+                'full_path' => storage_path('app/private/' . $avatarPath),
+                'exists' => file_exists(storage_path('app/private/' . $avatarPath)),
+                'storage_exists' => \Storage::disk('private')->exists($avatarPath)
             ]);
         }
         

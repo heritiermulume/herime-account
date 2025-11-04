@@ -39,6 +39,10 @@ Route::group(['middleware' => 'auth:api'], function () {
     Route::post('user/preferences', [UserController::class, 'updatePreferences']); // POST pour compatibilité
     Route::post('user/deactivate', [UserController::class, 'deactivateAccount']);
     Route::delete('user/delete', [UserController::class, 'deleteAccount']);
+    
+    // Avatar routes (sécurisées - nécessitent authentification)
+    Route::get('user/avatar/{userId}', [App\Http\Controllers\Api\AvatarController::class, 'show']);
+    Route::get('user/avatar', [App\Http\Controllers\Api\AvatarController::class, 'current']);
 
     // SSO routes
     Route::post('sso/create-session', [SSOController::class, 'createSession']);

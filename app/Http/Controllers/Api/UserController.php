@@ -92,23 +92,27 @@ class UserController extends Controller
         // Handle avatar upload
         if ($request->hasFile('avatar')) {
             try {
-                // Delete old avatar if exists
-                if ($user->avatar && Storage::disk('public')->exists($user->avatar)) {
-                    Storage::disk('public')->delete($user->avatar);
+                // Delete old avatar if exists (dans le dossier privé)
+                if ($user->avatar) {
+                    $oldAvatarPath = 'avatars/' . basename($user->avatar);
+                    if (Storage::disk('private')->exists($oldAvatarPath)) {
+                        Storage::disk('private')->delete($oldAvatarPath);
+                    }
                 }
 
-                // Store avatar in public storage
+                // Store avatar in private storage (sécurisé)
                 // Générer un nom unique pour éviter les collisions
                 $filename = time() . '_' . uniqid() . '.' . $request->file('avatar')->getClientOriginalExtension();
-                $avatarPath = $request->file('avatar')->storeAs('avatars', $filename, 'public');
-                // S'assurer que le chemin est relatif (sans 'storage/app/public' au début)
-                $data['avatar'] = $avatarPath;
+                $avatarPath = $request->file('avatar')->storeAs('avatars', $filename, 'private');
                 
-                \Log::info('Avatar stored', [
+                // Stocker uniquement le nom du fichier dans la DB pour sécurité
+                $data['avatar'] = $filename;
+                
+                \Log::info('Avatar stored in private storage', [
                     'filename' => $filename,
                     'avatar_path' => $avatarPath,
-                    'full_path' => storage_path('app/public/' . $avatarPath),
-                    'exists' => Storage::disk('public')->exists($avatarPath)
+                    'full_path' => storage_path('app/private/' . $avatarPath),
+                    'exists' => Storage::disk('private')->exists($avatarPath)
                 ]);
                 
                 // Log pour debug
