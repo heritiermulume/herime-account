@@ -277,20 +277,9 @@ class UserController extends Controller
             ], 422);
         }
 
-        // Fusionner récursivement avec les préférences existantes pour préserver les valeurs non modifiées
+        // Fusionner en remplaçant récursivement pour que les nouvelles valeurs écrasent les anciennes
         $currentPreferences = $user->preferences ?? [];
-        $newPreferences = $currentPreferences; // Commencer avec les préférences actuelles
-        
-        // Merge récursif manuel pour éviter les problèmes de array_merge_recursive
-        foreach ($request->preferences as $key => $value) {
-            if (is_array($value) && isset($currentPreferences[$key]) && is_array($currentPreferences[$key])) {
-                // Pour les tableaux imbriqués (comme notifications), faire un merge
-                $newPreferences[$key] = array_merge($currentPreferences[$key], $value);
-            } else {
-                // Pour les valeurs scalaires ou nouveaux tableaux, utiliser la nouvelle valeur
-                $newPreferences[$key] = $value;
-            }
-        }
+        $newPreferences = array_replace_recursive($currentPreferences, $request->preferences);
         
         // Log pour debug
         \Log::info('Preferences update:', [

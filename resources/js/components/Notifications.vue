@@ -347,12 +347,14 @@
 
 <script>
 import { ref, reactive, onMounted, inject } from 'vue'
+import { useAuthStore } from '../stores/auth'
 import axios from 'axios'
 
 export default {
   name: 'Notifications',
   setup() {
     const notify = inject('notify')
+    const authStore = useAuthStore()
     const saving = ref(false)
     const pushNotificationsSupported = ref(false)
     const pushNotificationsEnabled = ref(false)
@@ -436,6 +438,9 @@ export default {
         
         if (response.data.success) {
           notify.success('Succès', 'Préférences de notifications sauvegardées!')
+          // Mettre à jour le store utilisateur pour refléter immédiatement les changements
+          const updated = response.data.data?.preferences || merged
+          authStore.updateUser({ preferences: updated })
         }
       } catch (error) {
         console.error('Error saving notifications:', error)
