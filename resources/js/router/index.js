@@ -146,13 +146,18 @@ router.beforeEach(async (to, from, next) => {
   // Vérifier les routes qui nécessitent d'être un invité (non authentifié)
   if (to.meta.requiresGuest && isAuthenticated) {
     // Si force_token est présent, permettre l'accès à la page de login
-    // Le composant Auth.vue gérera la redirection SSO
-    if (to.query.force_token) {
-      console.log('User is authenticated with force_token, allowing access for SSO redirect')
+    // Le composant Auth.vue gérera la redirection SSO AVANT le montage
+    const hasForceToken = to.query.force_token === '1' || 
+                         to.query.force_token === 1 || 
+                         to.query.force_token === true || 
+                         to.query.force_token === 'true'
+    
+    if (hasForceToken) {
+      console.log('[Router] User authenticated with force_token, allowing access for SSO redirect')
       next()
       return
     }
-    console.log('User is authenticated, redirecting to dashboard')
+    console.log('[Router] User authenticated without force_token, redirecting to dashboard')
     next('/dashboard')
     return
   }

@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test SSO Redirect</title>
+    <meta charset="UTF-8">
+</head>
+<body>
+    <h1>Test SSO Redirect</h1>
+    <p>Ce script simule le comportement attendu pour la redirection SSO.</p>
+    
+    <button onclick="testRedirect()">Tester la redirection</button>
+    
+    <div id="log" style="margin-top: 20px; padding: 10px; background: #f5f5f5; font-family: monospace; white-space: pre-wrap;"></div>
+    
+    <script>
+        function log(message) {
+            const logDiv = document.getElementById('log');
+            logDiv.textContent += new Date().toISOString() + ': ' + message + '\n';
+        }
+        
+        async function testRedirect() {
+            log('Début du test de redirection SSO');
+            
+            // Simuler les paramètres de l'URL
+            const redirectUrl = 'https://academie.herime.com/sso/callback?redirect=' + encodeURIComponent('https://academie.herime.com');
+            const loginUrl = '/login?redirect=' + encodeURIComponent(redirectUrl) + '&force_token=1';
+            
+            log('URL de test: ' + loginUrl);
+            log('Redirect param: ' + redirectUrl);
+            
+            // Vérifier le token dans localStorage
+            const token = localStorage.getItem('access_token');
+            if (!token) {
+                log('ERREUR: Pas de token dans localStorage');
+                return;
+            }
+            log('Token trouvé dans localStorage: ' + token.substring(0, 20) + '...');
+            
+            // Simuler l'appel API
+            try {
+                log('Appel de /api/sso/generate-token...');
+                const response = await fetch('/api/sso/generate-token', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + token,
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        redirect: redirectUrl
+                    })
+                });
+                
+                log('Status: ' + response.status);
+                
+                const data = await response.json();
+                log('Réponse: ' + JSON.stringify(data, null, 2));
+                
+                if (data.success && data.data && data.data.callback_url) {
+                    log('✓ Callback URL reçue: ' + data.data.callback_url);
+                    log('Redirection dans 2 secondes...');
+                    setTimeout(() => {
+                        window.location.replace(data.data.callback_url);
+                    }, 2000);
+                } else {
+                    log('ERREUR: Structure de réponse invalide');
+                }
+            } catch (error) {
+                log('ERREUR: ' + error.message);
+                log('Stack: ' + error.stack);
+            }
+        }
+        
+        // Auto-test au chargement
+        window.addEventListener('DOMContentLoaded', () => {
+            log('Page chargée. Cliquez sur le bouton pour tester.');
+        });
+    </script>
+</body>
+</html>

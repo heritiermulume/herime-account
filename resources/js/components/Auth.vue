@@ -6,7 +6,7 @@
 </template>
 
 <script>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onBeforeMount } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import axios from 'axios'
@@ -24,8 +24,75 @@ export default {
     const route = useRoute()
     const authStore = useAuthStore()
     const currentView = ref('login')
+    const isRedirecting = ref(false)
+
+    // Gérer la redirection SSO AVANT que le composant ne soit monté
+    onBeforeMount(async () => {
+      // Vérifier immédiatement si on doit rediriger SSO
+      const hasForceToken = route.query.force_token === '1' || 
+                           route.query.force_token === 1 || 
+                           route.query.force_token === true || 
+                           route.query.force_token === 'true'
+      
+      if (hasForceToken) {
+        console.log('[Auth] force_token détecté dans onBeforeMount', {
+          force_token: route.query.force_token,
+          redirect: route.query.redirect,
+          path: route.path
+        })
+        
+        // Vérifier l'authentification
+        const isAuthenticated = await authStore.checkAuth()
+        
+        if (isAuthenticated) {
+          console.log('[Auth] Utilisateur authentifié, génération token SSO...')
+          isRedirecting.value = true
+          
+          try {
+            const redirect = route.query.redirect
+            if (!redirect) {
+              console.error('[Auth] No redirect URL provided')
+              return
+            }
+            
+            console.log('[Auth] Calling /api/sso/generate-token with redirect:', redirect)
+            
+            const response = await axios.post('/api/sso/generate-token', {
+              redirect: redirect
+            })
+            
+            console.log('[Auth] SSO token response:', response.data)
+            
+            if (response.data && response.data.success && response.data.data && response.data.data.callback_url) {
+              const callbackUrl = response.data.data.callback_url
+              console.log('[Auth] Redirecting to:', callbackUrl)
+              
+              // Redirection immédiate et définitive
+              window.location.replace(callbackUrl)
+              return // Ne pas continuer
+            } else {
+              console.error('[Auth] Invalid response structure:', response.data)
+            }
+          } catch (error) {
+            console.error('[Auth] Error generating SSO token:', error)
+            console.error('[Auth] Error details:', {
+              message: error.message,
+              response: error.response?.data,
+              status: error.response?.status
+            })
+          }
+        } else {
+          console.log('[Auth] User not authenticated, will show login form')
+        }
+      }
+    })
 
     onMounted(async () => {
+      // Si on est en train de rediriger, ne pas continuer
+      if (isRedirecting.value) {
+        return
+      }
+      
       // Determine view based on current route
       if (route.path === '/register') {
         currentView.value = 'register'
@@ -33,73 +100,25 @@ export default {
         currentView.value = 'login'
       }
 
-      // Check if user is already authenticated
+      // Check if user is already authenticated (pour redirection normale sans force_token)
       const isAuthenticated = await authStore.checkAuth()
-      if (isAuthenticated) {
-        // Si force_token est présent dans l'URL, générer un token SSO et rediriger
-        // Vérifier force_token de plusieurs façons pour être sûr
+      if (isAuthenticated && !isRedirecting.value) {
+        // Vérifier à nouveau force_token au cas où
         const hasForceToken = route.query.force_token === '1' || 
                              route.query.force_token === 1 || 
                              route.query.force_token === true || 
                              route.query.force_token === 'true'
         
-        if (hasForceToken) {
-          console.log('force_token detected, generating SSO token...', {
-            force_token: route.query.force_token,
-            redirect: route.query.redirect,
-            allQuery: route.query
-          })
-          
-          try {
-            const redirect = route.query.redirect
-            if (!redirect) {
-              console.error('No redirect URL provided')
-              router.push('/dashboard')
-              return
-            }
-            
-            console.log('Calling /api/sso/generate-token with redirect:', redirect)
-            
-            const response = await axios.post('/api/sso/generate-token', {
-              redirect: redirect
-            })
-            
-            console.log('SSO token response:', response.data)
-            
-            if (response.data && response.data.success && response.data.data && response.data.data.callback_url) {
-              const callbackUrl = response.data.data.callback_url
-              console.log('Redirecting to:', callbackUrl)
-              
-              // Utiliser window.location.replace pour éviter que l'utilisateur puisse revenir
-              window.location.replace(callbackUrl)
-              return
-            } else {
-              console.error('Invalid response from SSO token generation:', response.data)
-              // En cas de réponse invalide, ne pas rediriger vers dashboard, afficher erreur
-              throw new Error('Invalid response from SSO token generation')
-            }
-          } catch (error) {
-            console.error('Error generating SSO token:', error)
-            console.error('Error details:', {
-              message: error.message,
-              response: error.response?.data,
-              status: error.response?.status
-            })
-            // En cas d'erreur, rediriger vers le dashboard seulement après un délai pour voir les logs
-            setTimeout(() => {
-              router.push('/dashboard')
-            }, 2000)
-            return
-          }
-        } else {
-          // Sinon, rediriger vers le dashboard seulement si pas de force_token
+        if (!hasForceToken) {
+          // Redirection normale vers dashboard seulement si pas de force_token
           router.push('/dashboard')
         }
       }
     })
 
     return {
-      currentView
+      currentView,
+      isRedirecting
     }
   }
 }
