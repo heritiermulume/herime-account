@@ -527,8 +527,10 @@ export default {
     const load2FAStatus = async () => {
       try {
         const response = await axios.get('/user/two-factor/status')
+        console.log('2FA Status API response:', response.data)
         if (response.data.success) {
           twoFactorEnabled.value = response.data.data.enabled
+          console.log('2FA status updated:', twoFactorEnabled.value)
         }
       } catch (error) {
         console.error('Error loading 2FA status:', error)
@@ -587,7 +589,8 @@ export default {
           recoveryCodes.value = response.data.data.recovery_codes || []
           showRecoveryCodes.value = true
           show2FASetup.value = false
-          twoFactorEnabled.value = true
+          // Recharger l'état depuis l'API
+          await load2FAStatus()
           notify.success('Succès', 'Authentification à deux facteurs activée avec succès!')
         }
       } catch (error) {
@@ -615,9 +618,10 @@ export default {
           password: twoFactorPassword.value
         })
         if (response.data.success) {
-          twoFactorEnabled.value = false
           show2FADisable.value = false
           twoFactorPassword.value = ''
+          // Recharger l'état depuis l'API
+          await load2FAStatus()
           notify.success('Succès', 'Authentification à deux facteurs désactivée avec succès!')
         }
       } catch (error) {
