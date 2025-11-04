@@ -16,7 +16,14 @@ class LoginController extends Controller
     public function show(Request $request)
     {
         $redirectUrl = $this->determineRedirectUrl($request);
-        $forceToken = $request->boolean('force_token', false) || $request->has('force_token') || $request->query('force_token');
+        
+        // Détection robuste de force_token (vérifier plusieurs façons)
+        $forceToken = false;
+        if ($request->has('force_token')) {
+            $forceTokenValue = $request->input('force_token') ?? $request->query('force_token');
+            $forceToken = in_array($forceTokenValue, [1, '1', true, 'true', 'yes', 'on'], true) 
+                       || $request->boolean('force_token', false);
+        }
 
         \Log::info('LoginController@show', [
             'auth_check' => Auth::check(),
@@ -39,19 +46,17 @@ class LoginController extends Controller
 
             $token = $this->generateSSOToken($user);
 
-            // Si une URL de redirection a été détectée, passer à la vue pour redirection JS immédiate
+            // Si une URL de redirection a été détectée, rediriger directement via HTTP
             if ($redirectUrl) {
-                $callbackUrl = $redirectUrl . (strpos($redirectUrl, '?') !== false ? '&' : '?') . 'token=' . $token;
+                $callbackUrl = $redirectUrl . (strpos($redirectUrl, '?') !== false ? '&' : '?') . 'token=' . urlencode($token);
                 \Log::info('SSO Redirect with token', [
                     'redirect_url' => $callbackUrl,
-                    'user_id' => $user->id
+                    'user_id' => $user->id,
+                    'token_length' => strlen($token)
                 ]);
                 
-                // Passer l'URL de redirection à la vue pour redirection JavaScript immédiate
-                // Cela évite que Vue.js charge avant la redirection
-                return view('welcome', [
-                    'sso_redirect' => $callbackUrl
-                ]);
+                // Redirection HTTP directe - plus fiable qu'une redirection JavaScript
+                return redirect($callbackUrl);
             }
 
             // Sinon, rediriger vers le dashboard local (cas où l'utilisateur se connecte directement)
@@ -91,18 +96,28 @@ class LoginController extends Controller
         // 1. Priorité : paramètre 'redirect' explicite dans la requête
         if ($request->has('redirect') || $request->query('redirect')) {
             $redirect = $request->input('redirect') ?: $request->query('redirect');
-            // Laravel décode automatiquement les paramètres d'URL une fois
-            // Si le paramètre est doublement encodé (comme dans certains cas), on le décode une fois de plus
-            $decodedRedirect = urldecode($redirect);
-            // Utiliser la version décodée si elle est différente et valide
-            $finalRedirect = ($decodedRedirect !== $redirect && filter_var($decodedRedirect, FILTER_VALIDATE_URL)) 
-                ? $decodedRedirect 
-                : $redirect;
             
-            if ($finalRedirect && filter_var($finalRedirect, FILTER_VALIDATE_URL)) {
-                \Log::info('SSO Redirect detected', ['redirect_url' => $finalRedirect, 'original' => $redirect]);
-                return $finalRedirect;
+            // Laravel décode automatiquement les paramètres d'URL une fois
+            // Vérifier si l'URL est valide telle quelle
+            if ($redirect && filter_var($redirect, FILTER_VALIDATE_URL)) {
+                \Log::info('SSO Redirect detected (direct)', ['redirect_url' => $redirect]);
+                return $redirect;
             }
+            
+            // Si pas valide, essayer de décoder une fois de plus (cas double encodage)
+            $decodedRedirect = urldecode($redirect);
+            if ($decodedRedirect !== $redirect && filter_var($decodedRedirect, FILTER_VALIDATE_URL)) {
+                \Log::info('SSO Redirect detected (decoded)', ['redirect_url' => $decodedRedirect, 'original' => $redirect]);
+                return $decodedRedirect;
+            }
+            
+            // Log si aucune URL valide n'a été trouvée
+            \Log::warning('SSO Redirect URL invalid', [
+                'redirect' => $redirect,
+                'decoded' => $decodedRedirect,
+                'is_valid_direct' => filter_var($redirect, FILTER_VALIDATE_URL),
+                'is_valid_decoded' => filter_var($decodedRedirect, FILTER_VALIDATE_URL)
+            ]);
         }
 
         // 2. Vérifier le paramètre 'client_domain' pour construire l'URL de callback
