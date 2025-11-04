@@ -37,10 +37,27 @@ export default {
       const isAuthenticated = await authStore.checkAuth()
       if (isAuthenticated) {
         // Si force_token est présent dans l'URL, générer un token SSO et rediriger
-        if (route.query.force_token) {
-          console.log('force_token detected, generating SSO token...', route.query)
+        // Vérifier force_token de plusieurs façons pour être sûr
+        const hasForceToken = route.query.force_token === '1' || 
+                             route.query.force_token === 1 || 
+                             route.query.force_token === true || 
+                             route.query.force_token === 'true'
+        
+        if (hasForceToken) {
+          console.log('force_token detected, generating SSO token...', {
+            force_token: route.query.force_token,
+            redirect: route.query.redirect,
+            allQuery: route.query
+          })
+          
           try {
             const redirect = route.query.redirect
+            if (!redirect) {
+              console.error('No redirect URL provided')
+              router.push('/dashboard')
+              return
+            }
+            
             console.log('Calling /api/sso/generate-token with redirect:', redirect)
             
             const response = await axios.post('/api/sso/generate-token', {
@@ -49,19 +66,29 @@ export default {
             
             console.log('SSO token response:', response.data)
             
-            if (response.data.success && response.data.data.callback_url) {
-              console.log('Redirecting to:', response.data.data.callback_url)
-              // Rediriger vers l'URL de callback avec le token SSO
-              window.location.href = response.data.data.callback_url
+            if (response.data && response.data.success && response.data.data && response.data.data.callback_url) {
+              const callbackUrl = response.data.data.callback_url
+              console.log('Redirecting to:', callbackUrl)
+              
+              // Utiliser window.location.replace pour éviter que l'utilisateur puisse revenir
+              window.location.replace(callbackUrl)
               return
             } else {
               console.error('Invalid response from SSO token generation:', response.data)
+              // En cas de réponse invalide, ne pas rediriger vers dashboard, afficher erreur
+              throw new Error('Invalid response from SSO token generation')
             }
           } catch (error) {
             console.error('Error generating SSO token:', error)
-            console.error('Error details:', error.response?.data || error.message)
-            // En cas d'erreur, rediriger vers le dashboard
-            router.push('/dashboard')
+            console.error('Error details:', {
+              message: error.message,
+              response: error.response?.data,
+              status: error.response?.status
+            })
+            // En cas d'erreur, rediriger vers le dashboard seulement après un délai pour voir les logs
+            setTimeout(() => {
+              router.push('/dashboard')
+            }, 2000)
             return
           }
         } else {
