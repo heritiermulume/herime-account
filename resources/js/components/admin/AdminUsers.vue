@@ -120,7 +120,7 @@
 
           <ul v-else class="divide-y divide-gray-200 dark:divide-gray-700">
             <li v-for="user in users" :key="user.id" class="px-4 py-4 sm:px-6">
-              <div class="flex items-center justify-between">
+              <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between">
                 <div class="flex items-center">
                   <div class="flex-shrink-0 h-10 w-10">
                     <div v-if="getAvatarUrl(user)" class="h-10 w-10 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-700">
@@ -150,7 +150,7 @@
                     </div>
                   </div>
                 </div>
-                <div class="flex items-center space-x-2">
+                <div class="w-full sm:w-auto mt-3 sm:mt-0 flex items-center space-x-2">
                   <span :class="[
                     'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium',
                     user.is_active 
@@ -159,7 +159,7 @@
                   ]">
                     {{ user.is_active ? 'Actif' : 'Inactif' }}
                   </span>
-                  <div class="flex items-center justify-end gap-1 sm:gap-2 max-w-full overflow-x-auto whitespace-nowrap">
+                  <div class="flex items-center justify-start sm:justify-end gap-1 sm:gap-2 max-w-full overflow-x-auto whitespace-nowrap">
                     <!-- Activer / Désactiver -->
                     <button
                       @click="toggleUserStatus(user)"
