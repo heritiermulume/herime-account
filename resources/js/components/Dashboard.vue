@@ -263,12 +263,33 @@ export default {
 
     const loadSessions = async () => {
       try {
+        console.log('🔄 Loading sessions from API...')
+        const token = localStorage.getItem('access_token')
+        console.log('🔑 Token available:', token ? 'Yes (' + token.substring(0, 20) + '...)' : 'No')
+        
         const response = await axios.get('/api/sso/sessions')
+        console.log('✅ Sessions API response:', response.status, response.data)
+        
         if (response.data.success) {
-          sessions.value = response.data.data.sessions
+          sessions.value = response.data.data.sessions || []
+          console.log('📊 Sessions loaded:', sessions.value.length, 'sessions')
+        } else {
+          console.warn('⚠️ Sessions response not successful:', response.data)
+          sessions.value = []
         }
       } catch (error) {
-        console.error('Error loading sessions:', error)
+        console.error('❌ Error loading sessions:', error)
+        console.error('   Status:', error.response?.status)
+        console.error('   Message:', error.response?.data?.message || error.message)
+        console.error('   Data:', error.response?.data)
+        
+        // Si erreur 401, le token est invalide
+        if (error.response?.status === 401) {
+          console.error('🔒 Unauthorized - token may be invalid or expired')
+        }
+        
+        // Ne pas bloquer l'affichage si les sessions ne se chargent pas
+        sessions.value = []
       }
     }
 
