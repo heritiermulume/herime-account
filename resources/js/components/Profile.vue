@@ -359,14 +359,23 @@ export default {
       
       // Sinon, construire l'URL vers l'API sécurisée
       if (user.value?.id && user.value?.avatar) {
-        // Utiliser window.location.origin pour construire l'URL absolue
+        // Pour les images <img src="">, on ne peut pas envoyer de headers Authorization
+        // On doit utiliser une URL complète ou ajouter le token dans l'URL
+        const token = localStorage.getItem('access_token')
         const baseURL = (typeof window !== 'undefined' && window.axios?.defaults?.baseURL) 
           ? window.axios.defaults.baseURL 
           : '/api'
+        
+        // Option 1: URL avec token (si nécessaire)
+        // const url = `${baseURL}/user/avatar/${user.value.id}?token=${token}`
+        
+        // Option 2: URL simple (le contrôleur doit gérer l'auth différemment)
         const url = `${baseURL}/user/avatar/${user.value.id}`
+        
         console.log('🔗 Constructed avatar URL:', url, 'from user avatar:', user.value.avatar)
         console.log('   Base URL:', baseURL)
         console.log('   User ID:', user.value.id)
+        console.log('   Has token:', token ? 'YES' : 'NO')
         return url
       }
       

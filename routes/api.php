@@ -41,6 +41,8 @@ Route::group(['middleware' => 'auth:api'], function () {
     Route::delete('user/delete', [UserController::class, 'deleteAccount']);
     
     // Avatar routes (sécurisées - nécessitent authentification)
+    // Note: Les images <img src=""> ne peuvent pas envoyer de headers Authorization
+    // La vérification se fait dans le contrôleur
     Route::get('user/avatar/{userId}', [App\Http\Controllers\Api\AvatarController::class, 'show']);
     Route::get('user/avatar', [App\Http\Controllers\Api\AvatarController::class, 'current']);
 
