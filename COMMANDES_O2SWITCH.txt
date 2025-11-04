@@ -144,12 +144,13 @@ php artisan db:show
 # → Conflit Git lors du pull
 # → Solution automatique (RECOMMANDÉ) :
 #    ./pull-et-corriger-production.sh
-# → Solution manuelle rapide :
+# → Solution manuelle rapide (si conflit avec public/build/) :
 #    git checkout HEAD -- bootstrap/cache/.gitignore storage/app/.gitignore storage/framework/.gitignore storage/logs/.gitignore
+#    git checkout HEAD -- public/build/ 2>/dev/null || git rm --cached public/build/assets/*.css public/build/manifest.json 2>/dev/null
 #    git pull origin main
 #    chmod +x pull-et-corriger-production.sh
 #    ./pull-et-corriger-production.sh
-# → Solution alternative (forcer le pull) :
+# → Solution alternative (forcer le pull, ATTENTION : supprime toutes les modifications locales) :
 #    git reset --hard origin/main
 #    git pull origin main
 #    ./corriger-production-automatique.sh

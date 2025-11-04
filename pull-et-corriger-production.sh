@@ -75,6 +75,25 @@ git checkout HEAD -- storage/framework/views/.gitignore 2>/dev/null || true
 git checkout HEAD -- storage/logs/.gitignore 2>/dev/null || true
 log "Fichiers .gitignore réinitialisés"
 
+# 3.1. Gérer les assets dans public/build/ (souvent en conflit)
+echo ""
+echo "3.1. Gestion des assets frontend..."
+if git status --porcelain | grep -q "public/build/"; then
+    info "Assets locaux détectés, sauvegarde..."
+    # Sauvegarder les assets modifiés localement
+    if [ -f "public/build/manifest.json" ]; then
+        cp public/build/manifest.json "$BACKUP_DIR/manifest.json.local" 2>/dev/null || true
+    fi
+    if [ -d "public/build/assets" ]; then
+        cp -r public/build/assets "$BACKUP_DIR/assets.local" 2>/dev/null || true
+    fi
+    # Supprimer les fichiers modifiés pour permettre le pull
+    git checkout HEAD -- public/build/ 2>/dev/null || true
+    # Si checkout ne fonctionne pas, supprimer les fichiers modifiés
+    git rm --cached public/build/assets/*.css public/build/manifest.json 2>/dev/null || true
+    log "Assets préparés pour le pull"
+fi
+
 # 4. Pull les modifications
 echo ""
 echo "4. Pull des modifications depuis GitHub..."
