@@ -364,7 +364,7 @@ export default {
         console.log('✅ Profile update response:', profileResponse.data)
         
         // Envoyer les préférences
-        const preferencesResponse = await axios.post('/user/preferences', {
+        const preferencesResponse = await axios.put('/user/preferences', {
           preferences: preferences
         })
         

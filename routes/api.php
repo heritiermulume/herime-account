@@ -36,6 +36,7 @@ Route::group(['middleware' => 'auth:api'], function () {
     Route::put('user/profile', [UserController::class, 'updateProfile']);
     Route::put('user/password', [UserController::class, 'changePassword']);
     Route::put('user/preferences', [UserController::class, 'updatePreferences']);
+    Route::post('user/preferences', [UserController::class, 'updatePreferences']); // POST pour compatibilité
     Route::post('user/deactivate', [UserController::class, 'deactivateAccount']);
     Route::delete('user/delete', [UserController::class, 'deleteAccount']);
 
