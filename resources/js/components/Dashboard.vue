@@ -263,7 +263,7 @@ export default {
 
     const loadSessions = async () => {
       try {
-        const response = await axios.get('/sso/sessions')
+        const response = await axios.get('/api/sso/sessions')
         if (response.data.success) {
           sessions.value = response.data.data.sessions
         }
