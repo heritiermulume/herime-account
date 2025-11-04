@@ -140,6 +140,20 @@ php artisan db:show
 📍 DÉPANNAGE
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+# Erreur "Vos modifications locales seraient écrasées par la fusion"
+# → Conflit Git lors du pull
+# → Solution automatique (RECOMMANDÉ) :
+#    ./pull-et-corriger-production.sh
+# → Solution manuelle rapide :
+#    git checkout HEAD -- bootstrap/cache/.gitignore storage/app/.gitignore storage/framework/.gitignore storage/logs/.gitignore
+#    git pull origin main
+#    chmod +x pull-et-corriger-production.sh
+#    ./pull-et-corriger-production.sh
+# → Solution alternative (forcer le pull) :
+#    git reset --hard origin/main
+#    git pull origin main
+#    ./corriger-production-automatique.sh
+
 # Erreur "Access denied" MySQL
 # → Vérifier le fichier .env (remplacer votre_db_user par les vraies valeurs)
 # → Vider le cache : php artisan config:clear
