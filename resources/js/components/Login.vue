@@ -293,44 +293,41 @@ export default {
     })
     const handleSwitchToRegister = async () => {
       try {
-        const cached = localStorage.getItem('registration_enabled')
-        let enabled = null
-        if (cached !== null) {
-          enabled = cached === 'true'
-        } else {
-          // Utiliser fetch directement pour éviter les intercepteurs axios
-          const baseURL = window.location.origin + '/api'
-          const response = await fetch(`${baseURL}/settings/public`, {
-            method: 'GET',
-            headers: {
-              'Accept': 'application/json',
-              'Content-Type': 'application/json'
-            }
-          })
-          
-          if (response.ok) {
-            const data = await response.json()
-            if (data?.success && data?.data) {
-              enabled = !!data.data.registration_enabled
-              localStorage.setItem('registration_enabled', String(enabled))
-            } else {
-              enabled = true // Par défaut autoriser
-            }
-          } else {
-            enabled = true // En cas d'erreur HTTP, autoriser par défaut
+        // Toujours interroger le serveur pour éviter un cache obsolète
+        const baseURL = window.location.origin + '/api'
+        const response = await fetch(`${baseURL}/settings/public`, {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
           }
+        })
+        let enabled = true
+        if (response.ok) {
+          const data = await response.json()
+          if (data?.success && data?.data) {
+            enabled = !!data.data.registration_enabled
+            localStorage.setItem('registration_enabled', String(enabled))
+          }
+        } else {
+          // Fallback: utiliser la dernière valeur connue si disponible
+          const cached = localStorage.getItem('registration_enabled')
+          if (cached !== null) enabled = cached === 'true'
         }
+
         if (!enabled) {
           notify.info('Information', 'Les inscriptions sont actuellement désactivées.')
           return
         }
-        // émettre l'événement si autorisé
         emit('switch-to-register')
       } catch (e) {
         console.error('Failed to check registration setting', e)
-        // En cas d'erreur, autoriser l'accès pour ne pas bloquer l'utilisateur
-        // Le backend bloquera de toute façon si l'inscription est désactivée
-        console.warn('Allowing registration attempt despite check error, backend will validate')
+        // Dernier recours: utiliser le cache, sinon autoriser
+        const cached = localStorage.getItem('registration_enabled')
+        if (cached === 'false') {
+          notify.info('Information', 'Les inscriptions sont actuellement désactivées.')
+          return
+        }
         emit('switch-to-register')
       }
     }
