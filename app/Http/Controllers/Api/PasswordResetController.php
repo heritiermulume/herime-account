@@ -9,9 +9,11 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
+use App\Mail\PasswordResetMail;
 
 class PasswordResetController extends Controller
 {
@@ -71,25 +73,30 @@ class PasswordResetController extends Controller
         // Construire l'URL de réinitialisation
         $resetUrl = config('app.url') . '/reset-password?token=' . $token . '&email=' . urlencode($request->email);
 
-        // TODO: Envoyer l'email avec le lien de réinitialisation
-        // Pour l'instant, on log l'URL (à supprimer en production)
+        // Log pour debug
         \Log::info('Password reset link generated', [
             'email' => $request->email,
             'reset_url' => $resetUrl,
             'token' => $token
         ]);
 
-        // En production, décommenter cette partie pour envoyer l'email
-        /*
+        // Envoyer l'email avec le lien de réinitialisation
         try {
             Mail::to($request->email)->send(new PasswordResetMail($resetUrl));
+            \Log::info('Password reset email sent successfully', [
+                'email' => $request->email
+            ]);
         } catch (\Exception $e) {
             \Log::error('Failed to send password reset email', [
                 'email' => $request->email,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
             ]);
+            
+            // En cas d'erreur d'envoi, on retourne quand même un succès pour ne pas révéler 
+            // si l'email existe ou non (bonne pratique de sécurité)
+            // Mais on log l'erreur pour le diagnostic
         }
-        */
 
         return response()->json([
             'success' => true,
