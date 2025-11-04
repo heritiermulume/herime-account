@@ -347,6 +347,7 @@
 
 <script>
 import { ref, reactive, onMounted, inject } from 'vue'
+import axios from 'axios'
 
 export default {
   name: 'Notifications',
@@ -419,13 +420,43 @@ export default {
       }
     }
 
-    onMounted(() => {
+    onMounted(async () => {
       // Check if push notifications are supported
       pushNotificationsSupported.value = 'Notification' in window
       
       // Check current permission status
       if (pushNotificationsSupported.value) {
         pushNotificationsEnabled.value = Notification.permission === 'granted'
+      }
+
+      // Charger les préférences depuis l'API pour l'utilisateur courant
+      try {
+        const res = await axios.get('/user/profile')
+        if (res.data?.success && res.data.data?.user) {
+          const prefs = res.data.data.user.preferences || {}
+          // Fréquence
+          if (prefs.email_frequency) {
+            selectedEmailFrequency.value = prefs.email_frequency
+          }
+          // Push
+          if (typeof prefs.push_notifications === 'boolean') {
+            pushNotificationsEnabled.value = prefs.push_notifications
+          }
+          // Notifications granulaires
+          if (prefs.notifications && typeof prefs.notifications === 'object') {
+            Object.assign(notifications, {
+              suspicious_logins: prefs.notifications.suspicious_logins ?? notifications.suspicious_logins,
+              password_changes: prefs.notifications.password_changes ?? notifications.password_changes,
+              profile_changes: prefs.notifications.profile_changes ?? notifications.profile_changes,
+              new_features: prefs.notifications.new_features ?? notifications.new_features,
+              maintenance: prefs.notifications.maintenance ?? notifications.maintenance,
+              newsletter: prefs.notifications.newsletter ?? notifications.newsletter,
+              special_offers: prefs.notifications.special_offers ?? notifications.special_offers,
+            })
+          }
+        }
+      } catch (e) {
+        console.error('Failed to load preferences:', e)
       }
     })
 
