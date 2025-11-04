@@ -162,6 +162,14 @@ php artisan db:show
 #    5. Vérifier la DB : php artisan migrate:status
 # → Consultez RESOUDRE_ERREUR_500_PRODUCTION.md pour plus de détails
 
+# Erreur "Vite manifest not found" en production
+# → Les assets frontend n'ont pas été compilés/transférés
+# → Solution rapide :
+#    Sur votre machine : npm run build
+#    Puis : scp -r public/build/ utilisateur@o2switch.fr:/home/muhe3594/herime-account/public/
+#    Sur O2Switch : php artisan view:clear
+# → Consultez RESOUDRE_ERREUR_VITE_MANIFEST.md pour plus de détails
+
 # Voir les logs
 tail -f storage/logs/laravel.log
 
