@@ -125,14 +125,22 @@ class AvatarController extends Controller
         ];
         $mimeType = $mimeTypes[$extension] ?? 'image/jpeg';
         
-        // Retourner l'image avec les bons headers
+        // Utiliser le nom du fichier depuis avatar_filename si disponible
+        $filename = $user->avatar_filename ?? basename($user->avatar);
+        
+        // Retourner l'image avec les bons headers pour éviter le cache
         return response($fileContent, 200)
             ->header('Content-Type', $mimeType)
-            ->header('Content-Disposition', 'inline; filename="' . basename($user->avatar) . '"')
-            ->header('Cache-Control', 'private, max-age=3600')
+            ->header('Content-Disposition', 'inline; filename="' . $filename . '"')
+            ->header('Cache-Control', 'no-cache, no-store, must-revalidate, max-age=0')
+            ->header('Pragma', 'no-cache')
+            ->header('Expires', '0')
+            ->header('ETag', md5($fileContent)) // Ajouter un ETag basé sur le contenu
+            ->header('Last-Modified', gmdate('D, d M Y H:i:s', filemtime(Storage::disk('private')->path($avatarPath))) . ' GMT')
             ->header('Access-Control-Allow-Origin', '*')
             ->header('Access-Control-Allow-Methods', 'GET, OPTIONS')
-            ->header('Access-Control-Allow-Headers', 'Authorization, Content-Type');
+            ->header('Access-Control-Allow-Headers', 'Authorization, Content-Type')
+            ->header('X-Content-Type-Options', 'nosniff');
     }
     
     /**
