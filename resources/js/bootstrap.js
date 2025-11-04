@@ -25,15 +25,35 @@ axios.interceptors.request.use((config) => {
   return config
 })
 
-// Set up response interceptor for debugging
+// Set up response interceptor for debugging and auto-logout on 401
 axios.interceptors.response.use(
   (response) => {
     console.log('Axios response interceptor:', response.status, response.config.url)
     console.log('Response data in interceptor (first 200 chars):', JSON.stringify(response.data).substring(0, 200))
     return response
   },
-  (error) => {
+  async (error) => {
     console.error('Axios error interceptor:', error.message, error.config?.url, error.response?.data)
+    
+    // Si l'erreur est 401 (Unauthorized), l'utilisateur doit être déconnecté
+    if (error.response?.status === 401) {
+      console.log('401 Unauthorized detected, logging out user')
+      
+      // Récupérer le store auth et le router de manière dynamique
+      // pour éviter les imports circulaires
+      const { useAuthStore } = await import('./stores/auth')
+      const authStore = useAuthStore()
+      
+      // Déconnecter l'utilisateur
+      await authStore.logout()
+      
+      // Rediriger vers la page de login si on n'y est pas déjà
+      if (window.location.pathname !== '/login' && window.location.pathname !== '/register') {
+        console.log('Redirecting to login page')
+        window.location.href = '/login'
+      }
+    }
+    
     return Promise.reject(error)
   }
 )
