@@ -24,6 +24,12 @@ Route::post('login', [SimpleAuthController::class, 'login']);
 // SSO public routes
 Route::post('sso/validate-token', [SSOController::class, 'validateToken']);
 
+// Avatar routes (publiques mais avec vérification dans le contrôleur)
+// Note: Les images <img src=""> ne peuvent pas envoyer de headers Authorization
+// On doit permettre l'accès public ou utiliser un token dans l'URL
+Route::get('user/avatar/{userId}', [App\Http\Controllers\Api\AvatarController::class, 'show']);
+Route::get('user/avatar', [App\Http\Controllers\Api\AvatarController::class, 'current']);
+
 // Protected routes
 Route::group(['middleware' => 'auth:api'], function () {
     // Auth routes
@@ -39,12 +45,6 @@ Route::group(['middleware' => 'auth:api'], function () {
     Route::post('user/preferences', [UserController::class, 'updatePreferences']); // POST pour compatibilité
     Route::post('user/deactivate', [UserController::class, 'deactivateAccount']);
     Route::delete('user/delete', [UserController::class, 'deleteAccount']);
-    
-    // Avatar routes (sécurisées - nécessitent authentification)
-    // Note: Les images <img src=""> ne peuvent pas envoyer de headers Authorization
-    // La vérification se fait dans le contrôleur
-    Route::get('user/avatar/{userId}', [App\Http\Controllers\Api\AvatarController::class, 'show']);
-    Route::get('user/avatar', [App\Http\Controllers\Api\AvatarController::class, 'current']);
 
     // SSO routes
     Route::post('sso/create-session', [SSOController::class, 'createSession']);

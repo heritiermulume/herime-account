@@ -102,9 +102,11 @@ class AvatarController extends Controller
      */
     public function current(Request $request): Response|JsonResponse
     {
+        // Pour cette route, on peut vérifier l'authentification si nécessaire
         $user = $request->user();
         
         if (!$user) {
+            // Si pas authentifié, retourner une erreur ou rediriger vers login
             return response()->json([
                 'success' => false,
                 'message' => 'Unauthorized'
