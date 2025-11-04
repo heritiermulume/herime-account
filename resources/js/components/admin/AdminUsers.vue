@@ -159,12 +159,12 @@
                   ]">
                     {{ user.is_active ? 'Actif' : 'Inactif' }}
                   </span>
-                  <div class="flex flex-wrap items-center gap-1 sm:gap-2 max-w-full">
+                  <div class="flex flex-wrap items-center justify-end gap-1 sm:gap-2 max-w-full">
                     <!-- Activer / Désactiver -->
                     <button
                       @click="toggleUserStatus(user)"
                       :disabled="user.role === 'super_user'"
-                      class="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                      class="order-1 flex-none w-9 h-9 p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
                       :title="user.is_active ? 'Désactiver' : 'Activer'"
                       aria-label="Basculer le statut"
                     >
@@ -183,7 +183,7 @@
                     <button
                       v-if="user.role !== 'super_user'"
                       @click="toggleAdminRole(user)"
-                      class="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700"
+                      class="order-2 flex-none w-9 h-9 p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700"
                       :title="user.role === 'admin' ? 'Retirer admin' : 'Nommer admin'"
                       aria-label="Basculer rôle admin"
                     >
@@ -201,7 +201,7 @@
                     <!-- Voir -->
                     <button
                       @click="openPreview(user)"
-                      class="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700"
+                      class="order-3 flex-none w-9 h-9 p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700"
                       title="Voir"
                       aria-label="Voir"
                     >
@@ -213,7 +213,7 @@
                     <!-- Modifier -->
                     <button
                       @click="openEdit(user)"
-                      class="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700"
+                      class="order-4 flex-none w-9 h-9 p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700"
                       title="Modifier"
                       aria-label="Modifier"
                     >
@@ -226,7 +226,7 @@
                     <button
                       v-if="user.role !== 'super_user'"
                       @click="deleteUser(user)"
-                      class="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700"
+                      class="order-5 flex-none w-9 h-9 p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700"
                       title="Supprimer"
                       aria-label="Supprimer"
                     >
