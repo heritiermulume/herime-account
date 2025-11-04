@@ -91,7 +91,15 @@ class UserController extends Controller
                 // Générer un nom unique pour éviter les collisions
                 $filename = time() . '_' . uniqid() . '.' . $request->file('avatar')->getClientOriginalExtension();
                 $avatarPath = $request->file('avatar')->storeAs('avatars', $filename, 'public');
+                // S'assurer que le chemin est relatif (sans 'storage/app/public' au début)
                 $data['avatar'] = $avatarPath;
+                
+                \Log::info('Avatar stored', [
+                    'filename' => $filename,
+                    'avatar_path' => $avatarPath,
+                    'full_path' => storage_path('app/public/' . $avatarPath),
+                    'exists' => Storage::disk('public')->exists($avatarPath)
+                ]);
                 
                 // Log pour debug
                 \Log::info('Avatar uploaded:', [
