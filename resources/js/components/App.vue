@@ -217,6 +217,28 @@ export default {
       }
     })
 
+    const getAvatarUrl = () => {
+      if (!user.value?.avatar_url || user.value.avatar_url === '') {
+        return null
+      }
+      
+      // Si c'est déjà une URL complète (commence par http), la retourner telle quelle
+      if (user.value.avatar_url.startsWith('http')) {
+        return user.value.avatar_url
+      }
+      
+      // Construire l'URL vers l'API sécurisée
+      if (user.value?.id) {
+        return `/api/user/avatar/${user.value.id}`
+      }
+      
+      return user.value.avatar_url
+    }
+
+    const handleImageError = (event) => {
+      console.error('❌ Image load error in App:', event.target.src)
+    }
+
     return {
       loading,
       isDarkMode,
@@ -226,7 +248,9 @@ export default {
       toggleDarkMode,
       logout,
       authStore,
-      toastContainer
+      toastContainer,
+      getAvatarUrl,
+      handleImageError
     }
   }
 }
