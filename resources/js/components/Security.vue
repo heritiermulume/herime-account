@@ -306,9 +306,9 @@
     <!-- 2FA Setup Modal -->
     <teleport to="body">
       <transition enter-active-class="transition ease-out duration-200" enter-from-class="opacity-0" enter-to-class="opacity-100" leave-active-class="transition ease-in duration-150" leave-from-class="opacity-100" leave-to-class="opacity-0">
-        <div v-if="show2FASetup" class="fixed inset-0 z-50 flex items-center justify-center">
+        <div v-if="show2FASetup" class="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto py-4">
           <div class="fixed inset-0 bg-black bg-opacity-50" @click="show2FASetup = false"></div>
-          <div class="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md mx-4 p-6 max-h-[90vh] overflow-y-auto">
+          <div class="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md mx-4 p-6 my-auto">
             <div class="flex items-center justify-between mb-4">
               <h3 class="text-lg font-medium text-gray-900 dark:text-white">Configurer l'authentification à deux facteurs</h3>
               <button class="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700" @click="show2FASetup = false" aria-label="Fermer">
