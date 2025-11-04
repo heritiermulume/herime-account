@@ -150,8 +150,8 @@ class SSOController extends Controller
                         'browser' => $session->browser ?? 'Unknown',
                         'ip_address' => $session->ip_address ?? 'Unknown',
                         'is_current' => $session->is_current ?? false,
-                        'last_activity' => $session->last_activity ? $session->last_activity->toISOString() : ($session->created_at ? $session->created_at->toISOString() : null),
-                        'created_at' => $session->created_at ? $session->created_at->toISOString() : null,
+                        'last_activity' => $session->last_activity ? $session->last_activity->toIso8601String() : ($session->created_at ? $session->created_at->toIso8601String() : null),
+                        'created_at' => $session->created_at ? $session->created_at->toIso8601String() : null,
                     ];
                 });
 
