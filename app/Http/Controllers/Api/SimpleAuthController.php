@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\UserSession;
+use App\Models\SystemSetting;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
@@ -21,6 +22,15 @@ class SimpleAuthController extends Controller
      */
     public function register(Request $request): JsonResponse
     {
+        // Check if registration is enabled
+        $registrationEnabled = SystemSetting::get('registration_enabled', '1') === '1';
+        if (!$registrationEnabled) {
+            return response()->json([
+                'success' => false,
+                'message' => 'L\'inscription est actuellement désactivée. Veuillez contacter un administrateur.'
+            ], 403);
+        }
+
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
@@ -223,7 +233,31 @@ class SimpleAuthController extends Controller
      */
     private function createUserSession(User $user, Request $request): void
     {
-        // Mark all previous sessions as inactive
+        // Clean expired sessions first
+        $this->cleanExpiredSessions($user);
+        
+        // Get max sessions per user setting
+        $maxSessions = (int)SystemSetting::get('max_sessions_per_user', 5);
+        
+        // Count current active sessions
+        $activeSessionsCount = $user->sessions()->where('is_current', true)->count();
+        
+        // If user has reached max sessions, remove oldest sessions
+        if ($activeSessionsCount >= $maxSessions) {
+            $sessionsToDelete = $activeSessionsCount - $maxSessions + 1;
+            $oldestSessions = $user->sessions()
+                ->where('is_current', true)
+                ->orderBy('last_activity', 'asc')
+                ->orderBy('created_at', 'asc')
+                ->limit($sessionsToDelete)
+                ->get();
+            
+            foreach ($oldestSessions as $session) {
+                $session->delete();
+            }
+        }
+
+        // Mark all remaining sessions as inactive
         $user->sessions()->update(['is_current' => false]);
 
         // Create new session
@@ -240,6 +274,25 @@ class SimpleAuthController extends Controller
             'is_current' => true,
             'last_activity' => now(),
         ]);
+    }
+
+    /**
+     * Clean expired sessions for a user
+     */
+    private function cleanExpiredSessions(User $user): void
+    {
+        $timeoutHours = (int)SystemSetting::get('session_timeout', 24);
+        $expiredDate = now()->subHours($timeoutHours);
+        
+        $user->sessions()
+            ->where(function($query) use ($expiredDate) {
+                $query->where('last_activity', '<', $expiredDate)
+                      ->orWhere(function($q) use ($expiredDate) {
+                          $q->whereNull('last_activity')
+                            ->where('created_at', '<', $expiredDate);
+                      });
+            })
+            ->delete();
     }
 
     /**

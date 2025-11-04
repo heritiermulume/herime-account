@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\UserSession;
+use App\Models\SystemSetting;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
@@ -436,15 +437,15 @@ public function updateUserStatus(Request $request, $id): JsonResponse
      */
     public function settings(): JsonResponse
     {
-        // For now, return basic settings
-        // In a real app, these would come from a settings table or config
+        $allSettings = SystemSetting::allSettings();
+        
         $settings = [
             'app_name' => config('app.name'),
             'app_url' => config('app.url'),
-            'maintenance_mode' => false,
-            'registration_enabled' => true,
-            'max_sessions_per_user' => 5,
-            'session_timeout' => 24, // hours
+            'maintenance_mode' => (bool)($allSettings['maintenance_mode'] ?? false),
+            'registration_enabled' => (bool)($allSettings['registration_enabled'] ?? true),
+            'max_sessions_per_user' => (int)($allSettings['max_sessions_per_user'] ?? 5),
+            'session_timeout' => (int)($allSettings['session_timeout'] ?? 24), // hours
         ];
         
         return response()->json([
@@ -473,13 +474,59 @@ public function updateUserStatus(Request $request, $id): JsonResponse
             ], 422);
         }
         
-        // In a real app, you would save these to a settings table
-        // For now, just return success
+        // Save settings to database
+        if ($request->has('maintenance_mode')) {
+            SystemSetting::set('maintenance_mode', $request->maintenance_mode ? '1' : '0');
+        }
+        
+        if ($request->has('registration_enabled')) {
+            SystemSetting::set('registration_enabled', $request->registration_enabled ? '1' : '0');
+        }
+        
+        if ($request->has('max_sessions_per_user')) {
+            SystemSetting::set('max_sessions_per_user', (string)$request->max_sessions_per_user);
+        }
+        
+        if ($request->has('session_timeout')) {
+            SystemSetting::set('session_timeout', (string)$request->session_timeout);
+        }
+        
+        // Clean expired sessions when timeout is updated
+        if ($request->has('session_timeout')) {
+            $this->cleanExpiredSessions();
+        }
+        
+        // Return updated settings
+        $allSettings = SystemSetting::allSettings();
+        $updatedSettings = [
+            'app_name' => config('app.name'),
+            'app_url' => config('app.url'),
+            'maintenance_mode' => (bool)($allSettings['maintenance_mode'] ?? false),
+            'registration_enabled' => (bool)($allSettings['registration_enabled'] ?? true),
+            'max_sessions_per_user' => (int)($allSettings['max_sessions_per_user'] ?? 5),
+            'session_timeout' => (int)($allSettings['session_timeout'] ?? 24),
+        ];
         
         return response()->json([
             'success' => true,
             'message' => 'Paramètres mis à jour avec succès',
-            'data' => $request->all()
+            'data' => $updatedSettings
         ]);
+    }
+
+    /**
+     * Clean expired sessions based on timeout setting
+     */
+    private function cleanExpiredSessions(): void
+    {
+        $timeoutHours = (int)SystemSetting::get('session_timeout', 24);
+        $expiredDate = now()->subHours($timeoutHours);
+        
+        UserSession::where('last_activity', '<', $expiredDate)
+            ->orWhere(function($query) use ($expiredDate) {
+                $query->whereNull('last_activity')
+                      ->where('created_at', '<', $expiredDate);
+            })
+            ->delete();
     }
 }
