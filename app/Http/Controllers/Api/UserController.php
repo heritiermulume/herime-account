@@ -112,8 +112,16 @@ class UserController extends Controller
                 // Compresser l'image si elle dépasse 1Mo (1048576 bytes)
                 ImageService::compressAndSave($file, 'private', $avatarPath, 1048576, 85);
                 
-                // Stocker uniquement le nom du fichier dans la DB pour sécurité
-                $data['avatar'] = $filename;
+                // Stocker l'URL complète de l'avatar dans la DB
+                // Format: /api/user/avatar/{userId}
+                $baseUrl = config('app.url');
+                $avatarUrl = rtrim($baseUrl, '/') . '/api/user/avatar/' . $user->id;
+                $data['avatar'] = $avatarUrl;
+                
+                // Stocker aussi le nom du fichier pour pouvoir le retrouver
+                if (isset($user->avatar_filename)) {
+                    $data['avatar_filename'] = $filename;
+                }
                 
                 $finalSize = Storage::disk('private')->size($avatarPath);
                 

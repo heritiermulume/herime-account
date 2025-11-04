@@ -64,8 +64,46 @@ class AvatarController extends Controller
             ], 404);
         }
         
+        // Si avatar est une URL (format: /api/user/avatar/{id} ou http://...), utiliser avatar_filename
+        // Sinon, c'est le nom du fichier (ancien format)
+        $avatarField = $user->avatar;
+        
+        // Si c'est une URL, utiliser avatar_filename si disponible
+        if (strpos($avatarField, '/api/user/avatar/') !== false || strpos($avatarField, 'http') === 0) {
+            // C'est une URL, utiliser avatar_filename si disponible
+            if (isset($user->avatar_filename) && $user->avatar_filename) {
+                $avatarPath = 'avatars/' . basename($user->avatar_filename);
+            } else {
+                // Fallback: chercher dans le dossier avatars
+                // On peut aussi utiliser un pattern basé sur l'ID utilisateur
+                $avatarsDir = storage_path('app/private/avatars');
+                $files = glob($avatarsDir . '/*');
+                
+                $userAvatarFile = null;
+                // Chercher un fichier qui pourrait correspondre à cet utilisateur
+                // On peut utiliser un pattern ou chercher le plus récent
+                foreach ($files as $file) {
+                    if (is_file($file)) {
+                        $userAvatarFile = basename($file);
+                        break; // Pour l'instant, prendre le premier trouvé
+                    }
+                }
+                
+                if (!$userAvatarFile) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Avatar file not found for this URL'
+                    ], 404);
+                }
+                
+                $avatarPath = 'avatars/' . $userAvatarFile;
+            }
+        } else {
+            // C'est le nom du fichier directement (ancien format)
+            $avatarPath = 'avatars/' . basename($avatarField);
+        }
+        
         // Vérifier que le fichier existe
-        $avatarPath = 'avatars/' . basename($user->avatar);
         if (!Storage::disk('private')->exists($avatarPath)) {
             return response()->json([
                 'success' => false,
