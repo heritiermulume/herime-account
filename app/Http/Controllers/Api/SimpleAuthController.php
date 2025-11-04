@@ -84,7 +84,7 @@ class SimpleAuthController extends Controller
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Validation failed',
+                'message' => 'Veuillez vérifier les informations saisies.',
                 'errors' => $validator->errors()
             ], 422);
         }
@@ -103,7 +103,7 @@ class SimpleAuthController extends Controller
         if (!$user->isActive()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Account is deactivated'
+                'message' => 'Votre compte a été désactivé. Veuillez contacter l\'administrateur.'
             ], 403);
         }
 
@@ -179,7 +179,7 @@ class SimpleAuthController extends Controller
         if (!$user) {
             return response()->json([
                 'success' => false,
-                'message' => 'User not authenticated'
+                'message' => 'Utilisateur non authentifié'
             ], 401);
         }
         

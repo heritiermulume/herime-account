@@ -179,9 +179,12 @@ export default {
         if (err.response?.data?.errors) {
           errors.value = err.response.data.errors
         } else if (err.response?.data?.message) {
+          // Utiliser le message du serveur (déjà traduit en français)
           error.value = err.response.data.message
         } else if (err.response?.status === 401) {
           error.value = 'Identifiants incorrects. Veuillez vérifier votre email et mot de passe.'
+        } else if (err.response?.status === 403) {
+          error.value = 'Votre compte a été désactivé. Veuillez contacter l\'administrateur.'
         } else if (err.response?.status === 404) {
           error.value = 'Service non disponible. Veuillez réessayer plus tard.'
         } else {

@@ -95,7 +95,7 @@ class AuthController extends Controller
         if (!$user->isActive()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Account is deactivated'
+                'message' => 'Votre compte a été désactivé. Veuillez contacter l\'administrateur.'
             ], 403);
         }
 

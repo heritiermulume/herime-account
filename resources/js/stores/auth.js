@@ -84,9 +84,12 @@ export const useAuthStore = defineStore('auth', {
         console.error('AuthStore: Error data:', error.response?.data)
         
         if (error.response?.data?.message) {
+          // Utiliser le message du serveur (déjà traduit en français)
           this.error = error.response.data.message
         } else if (error.response?.status === 401) {
           this.error = 'Identifiants incorrects. Veuillez vérifier votre email et mot de passe.'
+        } else if (error.response?.status === 403) {
+          this.error = 'Votre compte a été désactivé. Veuillez contacter l\'administrateur.'
         } else if (error.response?.status === 404) {
           this.error = 'Service non disponible. Veuillez réessayer plus tard.'
         } else if (error.code === 'NETWORK_ERROR' || error.message.includes('Network Error')) {
