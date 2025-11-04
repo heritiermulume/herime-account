@@ -159,7 +159,7 @@
                   ]">
                     {{ user.is_active ? 'Actif' : 'Inactif' }}
                   </span>
-                  <div class="flex space-x-1">
+                  <div class="flex flex-wrap items-center gap-1 sm:gap-2 max-w-full">
                     <!-- Activer / Désactiver -->
                     <button
                       @click="toggleUserStatus(user)"
@@ -168,11 +168,14 @@
                       :title="user.is_active ? 'Désactiver' : 'Activer'"
                       aria-label="Basculer le statut"
                     >
-                      <svg v-if="user.is_active" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-blue-600 dark:text-blue-400" viewBox="0 0 20 20" fill="currentColor">
-                        <path d="M10 2a8 8 0 100 16V2z" />
+                      <!-- Icône On/Off plus explicite -->
+                      <svg v-if="user.is_active" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="h-5 w-5 text-blue-600 dark:text-blue-400">
+                        <path d="M11 2a1 1 0 012 0v10a1 1 0 11-2 0V2z" />
+                        <path d="M7.05 4.636a8 8 0 1110.9 0 1 1 0 01-1.414 1.414 6 6 0 10-8.072 0A1 1 0 017.05 4.636z" />
                       </svg>
-                      <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-blue-600 dark:text-blue-400" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M12 2a10 10 0 100 20V2z" />
+                      <svg v-else xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="h-5 w-5 text-blue-600 dark:text-blue-400">
+                        <path d="M12 2a10 10 0 100 20 10 10 0 000-20z" fill-opacity=".1" />
+                        <path d="M11 6a1 1 0 012 0v4a1 1 0 11-2 0V6z" />
                       </svg>
                     </button>
 
@@ -184,13 +187,12 @@
                       :title="user.role === 'admin' ? 'Retirer admin' : 'Nommer admin'"
                       aria-label="Basculer rôle admin"
                     >
+                      <!-- Icônes admin: étoile pleine pour admin, contour pour non-admin -->
                       <svg v-if="user.role === 'admin'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="h-5 w-5 text-yellow-600 dark:text-yellow-400">
-                        <path d="M15 14l-3-3-3 3 1.5 1.5L12 13l1.5 2.5L15 14z" />
-                        <path d="M12 2a10 10 0 100 20 10 10 0 000-20z" fill-opacity=".1" />
+                        <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21 12 17.27z" />
                       </svg>
-                      <svg v-else xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="h-5 w-5 text-yellow-600 dark:text-yellow-400">
-                        <path d="M12 12l4-2V7l-4 2-4-2v3l4 2z" />
-                        <path d="M4 18v-1a4 4 0 014-4h8a4 4 0 014 4v1H4z" />
+                      <svg v-else xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" class="h-5 w-5 text-yellow-600 dark:text-yellow-400">
+                        <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21 12 17.27z" stroke="currentColor" stroke-width="1.5" />
                       </svg>
                     </button>
 
