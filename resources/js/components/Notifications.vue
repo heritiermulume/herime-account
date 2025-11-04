@@ -397,12 +397,41 @@ export default {
     const saveNotifications = async () => {
       saving.value = true
       try {
-        const response = await axios.put('/user/preferences', {
-          preferences: {
-            notifications: notifications,
-            email_frequency: selectedEmailFrequency.value,
-            push_notifications: pushNotificationsEnabled.value
+        // 1) Charger les préférences actuelles du serveur pour éviter d'écraser d'autres clés
+        let current = {}
+        try {
+          const cur = await axios.get('/user/profile')
+          if (cur.data?.success && cur.data.data?.user?.preferences) {
+            current = cur.data.data.user.preferences
           }
+        } catch (e) {
+          // ignorer, on utilisera seulement nos valeurs locales
+        }
+
+        // 2) Construire l'objet notifications à partir de l'état local
+        const notifPayload = {
+          suspicious_logins: !!notifications.suspicious_logins,
+          password_changes: !!notifications.password_changes,
+          profile_changes: !!notifications.profile_changes,
+          new_features: !!notifications.new_features,
+          maintenance: !!notifications.maintenance,
+          newsletter: !!notifications.newsletter,
+          special_offers: !!notifications.special_offers,
+        }
+
+        // 3) Merge côté client pour préserver les autres préférences existantes
+        const merged = {
+          ...current,
+          notifications: {
+            ...(current.notifications || {}),
+            ...notifPayload,
+          },
+          email_frequency: selectedEmailFrequency.value,
+          push_notifications: !!pushNotificationsEnabled.value,
+        }
+
+        const response = await axios.put('/user/preferences', {
+          preferences: merged
         })
         
         if (response.data.success) {
