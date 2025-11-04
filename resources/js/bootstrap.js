@@ -26,6 +26,8 @@ axios.interceptors.request.use((config) => {
 })
 
 // Set up response interceptor for debugging and auto-logout on 401
+let isRedirecting = false
+
 axios.interceptors.response.use(
   (response) => {
     console.log('Axios response interceptor:', response.status, response.config.url)
@@ -36,21 +38,38 @@ axios.interceptors.response.use(
     console.error('Axios error interceptor:', error.message, error.config?.url, error.response?.data)
     
     // Si l'erreur est 401 (Unauthorized), l'utilisateur doit être déconnecté
-    if (error.response?.status === 401) {
+    if (error.response?.status === 401 && !isRedirecting) {
+      const currentPath = window.location.pathname
+      
+      // Ignorer les erreurs 401 sur les routes de login/register
+      if (currentPath === '/login' || currentPath === '/register') {
+        return Promise.reject(error)
+      }
+      
       console.log('401 Unauthorized detected, logging out user')
+      isRedirecting = true
       
-      // Récupérer le store auth et le router de manière dynamique
-      // pour éviter les imports circulaires
-      const { useAuthStore } = await import('./stores/auth')
-      const authStore = useAuthStore()
-      
-      // Déconnecter l'utilisateur
-      await authStore.logout()
-      
-      // Rediriger vers la page de login si on n'y est pas déjà
-      if (window.location.pathname !== '/login' && window.location.pathname !== '/register') {
-        console.log('Redirecting to login page')
-        window.location.href = '/login'
+      try {
+        // Récupérer le store auth de manière dynamique
+        const { useAuthStore } = await import('./stores/auth')
+        const authStore = useAuthStore()
+        
+        // Déconnecter l'utilisateur (sans attendre)
+        authStore.logout().catch(err => {
+          console.error('Error during logout:', err)
+        })
+        
+        // Rediriger vers la page de login de manière asynchrone pour éviter le blocage
+        setTimeout(() => {
+          if (window.location.pathname !== '/login' && window.location.pathname !== '/register') {
+            console.log('Redirecting to login page')
+            window.location.replace('/login')
+          }
+          isRedirecting = false
+        }, 0)
+      } catch (err) {
+        console.error('Error in 401 handler:', err)
+        isRedirecting = false
       }
     }
     

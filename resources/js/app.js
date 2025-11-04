@@ -3,6 +3,7 @@ import { createApp } from 'vue';
 import { createPinia } from 'pinia';
 import App from './components/App.vue';
 import router from './router';
+import { setRouter } from './bootstrap';
 
 console.log('Starting app.js...');
 
