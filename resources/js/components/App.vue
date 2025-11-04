@@ -12,12 +12,12 @@
     <!-- Main Content -->
     <div v-else class="min-h-screen">
         <!-- Sidebar - Hide on login/register pages -->
-        <Sidebar v-if="user && route.path !== '/login' && route.path !== '/register'" />
+        <Sidebar v-if="user && route && route.path !== '/login' && route.path !== '/register'" />
       
       <!-- Main Content -->
-      <div :class="user && route.path !== '/login' && route.path !== '/register' ? 'md:pl-64' : ''" class="flex flex-col flex-1">
+      <div :class="user && route && route.path !== '/login' && route.path !== '/register' ? 'md:pl-64' : ''" class="flex flex-col flex-1">
         <!-- Top Navigation - Only show when user is logged in and not on auth pages -->
-        <nav v-if="user && route.path !== '/login' && route.path !== '/register'" class="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
+        <nav v-if="user && route && route.path !== '/login' && route.path !== '/register'" class="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
           <div class="px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between h-16">
               <div class="flex items-center">
@@ -79,7 +79,7 @@
     </div>
 
     <!-- Mobile Navigation - Hide on login/register pages -->
-    <MobileNavigation v-if="user && route.path !== '/login' && route.path !== '/register'" />
+    <MobileNavigation v-if="user && route && route.path !== '/login' && route.path !== '/register'" />
 
     <!-- Toast Container -->
     <ToastContainer ref="toastContainer" />
