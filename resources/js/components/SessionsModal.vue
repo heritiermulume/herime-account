@@ -127,7 +127,7 @@ export default {
 
     const loadSessions = async () => {
       try {
-        const response = await axios.get('/api/sso/sessions')
+        const response = await axios.get('/sso/sessions')
         if (response.data.success) {
           sessions.value = response.data.data.sessions
         }
@@ -162,7 +162,7 @@ export default {
 
       loading.value = true
       try {
-        const response = await axios.delete('/api/sso/sessions')
+        const response = await axios.delete('/sso/sessions')
         if (response.data.success) {
           await loadSessions() // Reload sessions
         }

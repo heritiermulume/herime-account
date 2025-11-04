@@ -294,7 +294,7 @@ export default {
         
         console.log('📤 Sending data:', dataToSend)
         
-        const response = await axios.post('/api/user/profile', dataToSend)
+        const response = await axios.post('/user/profile', dataToSend)
         
         console.log('✅ Profile update response:', response.data)
         

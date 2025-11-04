@@ -306,7 +306,7 @@ export default {
       passwordSuccess.value = ''
 
       try {
-        const response = await axios.post('/api/user/change-password', passwordForm)
+        const response = await axios.put('/user/password', passwordForm)
         
         if (response.data.success) {
           passwordSuccess.value = 'Mot de passe changé avec succès'
@@ -331,7 +331,7 @@ export default {
       deactivateLoading.value = true
       
       try {
-        const response = await axios.post('/api/user/deactivate', {
+        const response = await axios.post('/user/deactivate', {
           password: passwordForm.current_password
         })
         
@@ -351,7 +351,7 @@ export default {
       deleteLoading.value = true
       
       try {
-        const response = await axios.delete('/api/user/account', {
+        const response = await axios.delete('/user/delete', {
           data: {
             password: passwordForm.current_password,
             confirmation: deleteConfirmation.value

@@ -267,7 +267,7 @@ export default {
         const token = localStorage.getItem('access_token')
         console.log('🔑 Token available:', token ? 'Yes (' + token.substring(0, 20) + '...)' : 'No')
         
-        const response = await axios.get('/api/sso/sessions')
+        const response = await axios.get('/sso/sessions')
         console.log('✅ Sessions API response:', response.status, response.data)
         
         if (response.data.success) {

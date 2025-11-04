@@ -240,7 +240,7 @@ export default {
         console.log('🔄 Updating profile with FormData')
         console.log('   Form values:', { name: form.name, phone: form.phone, company: form.company, position: form.position })
         
-        const response = await axios.post('/api/user/profile', formData, {
+        const response = await axios.post('/user/profile', formData, {
           headers: {
             'Content-Type': 'multipart/form-data'
           }
