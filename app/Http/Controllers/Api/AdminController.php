@@ -455,6 +455,21 @@ public function updateUserStatus(Request $request, $id): JsonResponse
     }
 
     /**
+     * Public settings (no auth) for client gating
+     */
+    public function publicSettings(): JsonResponse
+    {
+        $allSettings = SystemSetting::allSettings();
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'registration_enabled' => (bool)($allSettings['registration_enabled'] ?? true),
+                'maintenance_mode' => (bool)($allSettings['maintenance_mode'] ?? false),
+            ]
+        ]);
+    }
+
+    /**
      * Update system settings
      */
     public function updateSettings(Request $request): JsonResponse

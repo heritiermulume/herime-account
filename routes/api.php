@@ -34,6 +34,9 @@ Route::post('sso/validate-token', [SSOController::class, 'validateToken']);
 Route::get('user/avatar/{userId}', [App\Http\Controllers\Api\AvatarController::class, 'show']);
 Route::get('user/avatar', [App\Http\Controllers\Api\AvatarController::class, 'current']);
 
+// Public settings for gating UI (registration, maintenance)
+Route::get('settings/public', [App\Http\Controllers\Api\AdminController::class, 'publicSettings']);
+
 // Protected routes
 Route::group(['middleware' => 'auth:api'], function () {
     // Auth routes

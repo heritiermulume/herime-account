@@ -131,7 +131,7 @@
           <p class="text-sm text-gray-600 dark:text-gray-400">
             Vous n'avez pas de compte ?
             <button
-              @click="$emit('switch-to-register')"
+              @click="handleSwitchToRegister"
               class="font-medium hover:opacity-80 ml-1"
               style="color: #ffcc33;"
             >
@@ -291,6 +291,28 @@ export default {
       error: () => {},
       info: () => {}
     })
+    const handleSwitchToRegister = async () => {
+      try {
+        const cached = localStorage.getItem('registration_enabled')
+        let enabled = null
+        if (cached !== null) {
+          enabled = cached === 'true'
+        } else {
+          const resp = await axios.get('/settings/public')
+          enabled = !!resp.data?.data?.registration_enabled
+          localStorage.setItem('registration_enabled', String(enabled))
+        }
+        if (!enabled) {
+          notify.info('Information', 'Les inscriptions sont actuellement désactivées.')
+          return
+        }
+        // émettre l’événement si autorisé
+        emit('switch-to-register')
+      } catch (e) {
+        console.error('Failed to check registration setting', e)
+        notify.error('Erreur', "Impossible de vérifier l'état des inscriptions. Réessayez plus tard.")
+      }
+    }
 
     const handleLogin = async () => {
       console.log('Login attempt started', form)
@@ -388,7 +410,8 @@ export default {
       forgotPasswordSuccess,
       forgotPasswordLoading,
       resetUrl,
-      handleForgotPassword
+      handleForgotPassword,
+      handleSwitchToRegister
     }
   }
 }

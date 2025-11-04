@@ -254,7 +254,7 @@ export default {
     const authStore = useAuthStore()
     
     // Initialiser le thème sombre si nécessaire
-    onMounted(() => {
+    onMounted(async () => {
       // Vérifier la préférence dark mode sauvegardée
       const savedDarkMode = localStorage.getItem('darkMode')
       if (savedDarkMode !== null) {
@@ -264,6 +264,29 @@ export default {
         // Vérifier la préférence système
         const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
         document.documentElement.classList.toggle('dark', prefersDark)
+      }
+
+      // Bloquer la page si l'inscription est désactivée
+      try {
+        const cached = localStorage.getItem('registration_enabled')
+        let enabled = null
+        if (cached !== null) {
+          enabled = cached === 'true'
+        } else {
+          const resp = await fetch('/api/settings/public')
+          if (resp.ok) {
+            const data = await resp.json()
+            enabled = !!data?.data?.registration_enabled
+            localStorage.setItem('registration_enabled', String(enabled))
+          }
+        }
+        if (enabled === false) {
+          alert("Les inscriptions sont désactivées. Veuillez contacter l'administrateur.")
+          router.push('/login')
+        }
+      } catch (e) {
+        // En cas d'erreur, ne pas bloquer mais éviter crash
+        console.warn('Registration setting check failed', e)
       }
     })
     
