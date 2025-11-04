@@ -20,8 +20,40 @@
             Rejoignez l'écosystème HERIME
           </p>
         </div>
+
+        <!-- Loading state -->
+        <div v-if="checkingRegistration" class="flex justify-center items-center py-8">
+          <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        </div>
+
+        <!-- Registration disabled message -->
+        <div v-else-if="registrationDisabled" class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-6 text-center">
+          <div class="flex justify-center mb-4">
+            <svg class="h-12 w-12 text-red-600 dark:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          <h3 class="text-lg font-semibold text-red-800 dark:text-red-200 mb-2">
+            Inscriptions désactivées
+          </h3>
+          <p class="text-sm text-red-700 dark:text-red-300 mb-4">
+            {{ error || "Les inscriptions sont actuellement désactivées. Veuillez contacter l'administrateur pour plus d'informations." }}
+          </p>
+          <p class="text-xs text-red-600 dark:text-red-400 mb-4">
+            Redirection vers la page de connexion dans quelques instants...
+          </p>
+          <button
+            @click="router.push('/login')"
+            class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition duration-200"
+            style="background-color: #003366;"
+            @mouseenter="$event.target.style.backgroundColor = '#ffcc33'"
+            @mouseleave="$event.target.style.backgroundColor = '#003366'"
+          >
+            Aller à la connexion
+          </button>
+        </div>
         
-        <form class="space-y-4" @submit.prevent="handleRegister">
+        <form v-else class="space-y-4" @submit.prevent="handleRegister" :class="{ 'opacity-50 pointer-events-none': registrationDisabled }">
           <div>
             <label for="name" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Nom complet
@@ -266,27 +298,57 @@ export default {
         document.documentElement.classList.toggle('dark', prefersDark)
       }
 
-      // Bloquer la page si l'inscription est désactivée
+      // Vérifier et bloquer la page si l'inscription est désactivée
       try {
-        const cached = localStorage.getItem('registration_enabled')
-        let enabled = null
-        if (cached !== null) {
-          enabled = cached === 'true'
+        // Toujours vérifier depuis le serveur pour avoir la valeur à jour
+        const baseURL = window.location.origin + '/api'
+        const resp = await fetch(`${baseURL}/settings/public`, {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+          }
+        })
+        
+        if (resp.ok) {
+          const data = await resp.json()
+          const enabled = !!data?.data?.registration_enabled
+          
+          // Mettre à jour le cache
+          localStorage.setItem('registration_enabled', String(enabled))
+          
+          if (!enabled) {
+            registrationDisabled.value = true
+            error.value = "Les inscriptions sont actuellement désactivées. Veuillez contacter l'administrateur pour plus d'informations."
+            // Rediriger après 3 secondes
+            setTimeout(() => {
+              router.push('/login')
+            }, 3000)
+          }
         } else {
-          const resp = await fetch('/api/settings/public')
-          if (resp.ok) {
-            const data = await resp.json()
-            enabled = !!data?.data?.registration_enabled
-            localStorage.setItem('registration_enabled', String(enabled))
+          // En cas d'erreur serveur, vérifier le cache comme fallback
+          const cached = localStorage.getItem('registration_enabled')
+          if (cached === 'false') {
+            registrationDisabled.value = true
+            error.value = "Les inscriptions sont actuellement désactivées. Veuillez contacter l'administrateur."
+            setTimeout(() => {
+              router.push('/login')
+            }, 3000)
           }
         }
-        if (enabled === false) {
-          alert("Les inscriptions sont désactivées. Veuillez contacter l'administrateur.")
-          router.push('/login')
-        }
       } catch (e) {
-        // En cas d'erreur, ne pas bloquer mais éviter crash
-        console.warn('Registration setting check failed', e)
+        console.error('Registration setting check failed', e)
+        // En cas d'erreur, vérifier le cache comme fallback
+        const cached = localStorage.getItem('registration_enabled')
+        if (cached === 'false') {
+          registrationDisabled.value = true
+          error.value = "Les inscriptions sont actuellement désactivées. Veuillez contacter l'administrateur."
+          setTimeout(() => {
+            router.push('/login')
+          }, 3000)
+        }
+      } finally {
+        checkingRegistration.value = false
       }
     })
     
@@ -306,8 +368,15 @@ export default {
     const loading = ref(false)
     const showPassword = ref(false)
     const showPasswordConfirmation = ref(false)
+    const registrationDisabled = ref(false)
+    const checkingRegistration = ref(true)
 
     const handleRegister = async () => {
+      // Bloquer si l'inscription est désactivée
+      if (registrationDisabled.value) {
+        return
+      }
+      
       loading.value = true
       errors.value = {}
       error.value = ''
@@ -343,7 +412,9 @@ export default {
       loading,
       showPassword,
       showPasswordConfirmation,
-      handleRegister
+      handleRegister,
+      registrationDisabled,
+      checkingRegistration
     }
   }
 }
