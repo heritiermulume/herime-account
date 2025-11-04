@@ -21,18 +21,7 @@
           </p>
         </div>
         
-        <!-- Back button -->
-        <div class="flex items-center">
-          <button
-            @click="goToLogin"
-            class="inline-flex items-center text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
-          >
-            <svg class="h-5 w-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
-            </svg>
-            Retour à la connexion
-          </button>
-        </div>
+    
         
         <form class="space-y-4" @submit.prevent="handleResetPassword">
           <div v-if="error" class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
