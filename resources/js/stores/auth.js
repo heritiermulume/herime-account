@@ -83,6 +83,13 @@ export const useAuthStore = defineStore('auth', {
         console.error('AuthStore: Error status:', error.response?.status)
         console.error('AuthStore: Error data:', error.response?.data)
         
+        // Si la 2FA est requise, retourner une erreur spéciale
+        if (error.response?.data?.requires_two_factor) {
+          const customError = new Error(error.response.data.message || 'Code 2FA requis')
+          customError.requiresTwoFactor = true
+          throw customError
+        }
+        
         if (error.response?.data?.message) {
           // Utiliser le message du serveur (déjà traduit en français)
           this.error = error.response.data.message
@@ -101,6 +108,48 @@ export const useAuthStore = defineStore('auth', {
       } finally {
         this.loading = false
         console.log('=== AUTH STORE LOGIN END ===')
+      }
+    },
+
+    async verifyTwoFactor(email, code) {
+      this.loading = true
+      this.error = null
+
+      try {
+        const response = await axios.post('/login/verify-2fa', {
+          email,
+          code
+        })
+        
+        if (response.data.success) {
+          this.user = response.data.data.user
+          this.authenticated = true
+          
+          // Store user and token in localStorage
+          localStorage.setItem('user', JSON.stringify(this.user))
+          localStorage.setItem('authenticated', 'true')
+          const token = response.data.data.access_token
+          localStorage.setItem('access_token', token)
+          
+          console.log('AuthStore: 2FA verification successful, user:', this.user)
+          return response.data
+        } else {
+          throw new Error(response.data.message || '2FA verification failed')
+        }
+      } catch (error) {
+        console.error('AuthStore: 2FA verification error:', error)
+        if (error.response?.data?.message) {
+          this.error = error.response.data.message
+        } else if (error.response?.status === 422) {
+          this.error = 'Code de vérification invalide.'
+        } else if (error.response?.status === 401) {
+          this.error = 'Session expirée. Veuillez vous reconnecter.'
+        } else {
+          this.error = error.message || 'Une erreur est survenue lors de la vérification du code.'
+        }
+        throw error
+      } finally {
+        this.loading = false
       }
     },
 

@@ -14,6 +14,8 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use App\Services\NotificationService;
 use App\Mail\NewLoginMail;
+use Laravel\Fortify\Contracts\TwoFactorAuthenticationProvider;
+use Laravel\Fortify\Fortify;
 
 class SimpleAuthController extends Controller
 {
@@ -126,10 +128,28 @@ class SimpleAuthController extends Controller
         $user = Auth::user();
 
         if (!$user->isActive()) {
+            Auth::logout();
             return response()->json([
                 'success' => false,
                 'message' => 'Votre compte a été désactivé. Veuillez contacter l\'administrateur.'
             ], 403);
+        }
+
+        // Vérifier si la 2FA est activée
+        $user->refresh();
+        if ($user->two_factor_confirmed_at !== null) {
+            // La 2FA est activée, on doit demander le code
+            // Stocker temporairement l'ID de l'utilisateur en session pour la vérification 2FA
+            session(['2fa_login_user_id' => $user->id]);
+            
+            // Déconnecter l'utilisateur jusqu'à ce que le code 2FA soit vérifié
+            Auth::logout();
+            
+            return response()->json([
+                'success' => false,
+                'requires_two_factor' => true,
+                'message' => 'Veuillez entrer le code d\'authentification à deux facteurs.'
+            ], 200);
         }
 
         // Update last login info
@@ -163,6 +183,130 @@ class SimpleAuthController extends Controller
             'last_login_at' => $user->last_login_at,
             'last_login_at_in_array' => $userData['last_login_at'] ?? 'not set'
         ]);
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'Login successful',
+            'data' => [
+                'user' => $userData,
+                'authenticated' => true,
+                'access_token' => $token,
+                'token_type' => 'Bearer'
+            ]
+        ]);
+    }
+
+    /**
+     * Verify 2FA code and complete login
+     */
+    public function verifyTwoFactor(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'email' => 'required|email',
+            'code' => 'required|string|size:6',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Veuillez entrer un code de 6 chiffres.',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        // Récupérer l'ID de l'utilisateur depuis la session
+        $userId = session('2fa_login_user_id');
+        
+        if (!$userId) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Session expirée. Veuillez vous reconnecter.'
+            ], 401);
+        }
+
+        $user = User::find($userId);
+
+        if (!$user || $user->email !== $request->email) {
+            session()->forget('2fa_login_user_id');
+            return response()->json([
+                'success' => false,
+                'message' => 'Utilisateur non trouvé ou email incorrect.'
+            ], 401);
+        }
+
+        if (!$user->isActive()) {
+            session()->forget('2fa_login_user_id');
+            return response()->json([
+                'success' => false,
+                'message' => 'Votre compte a été désactivé. Veuillez contacter l\'administrateur.'
+            ], 403);
+        }
+
+        // Vérifier le code 2FA
+        if (!$user->two_factor_secret) {
+            session()->forget('2fa_login_user_id');
+            return response()->json([
+                'success' => false,
+                'message' => 'Aucun secret 2FA trouvé.'
+            ], 400);
+        }
+
+        $provider = app(TwoFactorAuthenticationProvider::class);
+        $valid = $provider->verify(
+            Fortify::currentEncrypter()->decrypt($user->two_factor_secret),
+            $request->code
+        );
+
+        if (!$valid) {
+            // Vérifier aussi les codes de récupération
+            $recoveryCodes = json_decode(
+                Fortify::currentEncrypter()->decrypt($user->two_factor_recovery_codes ?? '[]'),
+                true
+            ) ?? [];
+            
+            if (!in_array($request->code, $recoveryCodes)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Code de vérification invalide.'
+                ], 422);
+            }
+            
+            // Code de récupération utilisé, le remplacer
+            $recoveryCodes = array_values(array_diff($recoveryCodes, [$request->code]));
+            $user->forceFill([
+                'two_factor_recovery_codes' => Fortify::currentEncrypter()->encrypt(json_encode($recoveryCodes)),
+            ])->save();
+        }
+
+        // Code valide, finaliser la connexion
+        session()->forget('2fa_login_user_id');
+        Auth::login($user);
+
+        // Update last login info
+        $user->update([
+            'last_login_at' => now(),
+            'last_login_ip' => $request->ip(),
+            'last_login_user_agent' => $request->userAgent(),
+        ]);
+
+        // Create user session
+        $this->createUserSession($user, $request);
+
+        // Recharger l'utilisateur pour s'assurer d'avoir les dernières données
+        $user->refresh();
+        
+        // Create access token for API authentication
+        $token = $user->createToken('API Token')->accessToken;
+
+        // Forcer l'inclusion de avatar_url et last_login_at
+        $user->makeVisible(['avatar', 'avatar_url', 'last_login_at', 'is_active']);
+        $userData = $user->load('currentSession')->toArray();
+        $userData['avatar_url'] = $user->avatar_url;
+        
+        // S'assurer que last_login_at est bien inclus
+        if (!isset($userData['last_login_at'])) {
+            $userData['last_login_at'] = $user->last_login_at ? $user->last_login_at->toISOString() : null;
+        }
         
         return response()->json([
             'success' => true,

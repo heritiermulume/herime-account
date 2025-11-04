@@ -21,7 +21,7 @@
           </p>
         </div>
         
-        <form class="space-y-4" @submit.prevent="handleLogin">
+        <form class="space-y-4" @submit.prevent="requiresTwoFactor ? handleVerify2FA() : handleLogin()">
           <div>
             <label for="email" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Adresse email
@@ -40,7 +40,7 @@
             </p>
           </div>
           
-          <div>
+          <div v-if="!requiresTwoFactor">
             <label for="password" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Mot de passe
             </label>
@@ -73,7 +73,45 @@
             </p>
           </div>
 
-          <div class="flex items-center justify-between">
+          <div v-if="requiresTwoFactor" class="space-y-4">
+            <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+              <div class="flex">
+                <svg class="h-5 w-5 text-blue-400 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+                </svg>
+                <div class="ml-3">
+                  <p class="text-sm text-blue-800 dark:text-blue-200">
+                    Veuillez entrer le code à 6 chiffres de votre application d'authentification.
+                  </p>
+                </div>
+              </div>
+            </div>
+            
+            <div>
+              <label for="two_factor_code" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Code d'authentification à deux facteurs
+              </label>
+              <input
+                id="two_factor_code"
+                v-model="twoFactorCode"
+                type="text"
+                maxlength="6"
+                required
+                placeholder="000000"
+                class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200 dark:bg-gray-700 dark:text-white text-center text-2xl tracking-widest"
+                :class="{ 'border-red-500 focus:ring-red-500': errors.two_factor_code }"
+                @input="errors.two_factor_code = null"
+              />
+              <p v-if="errors.two_factor_code" class="mt-1 text-sm text-red-600 dark:text-red-400">
+                {{ errors.two_factor_code[0] || errors.two_factor_code }}
+              </p>
+              <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                Vous pouvez également utiliser un code de récupération.
+              </p>
+            </div>
+          </div>
+
+          <div v-if="!requiresTwoFactor" class="flex items-center justify-between">
             <div class="flex items-center">
               <input
                 id="remember-me"
@@ -122,7 +160,7 @@
               <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
               Connexion...
             </span>
-            <span v-else>Se connecter</span>
+            <span v-else>{{ requiresTwoFactor ? 'Vérifier' : 'Se connecter' }}</span>
           </button>
         </form>
         
@@ -277,6 +315,8 @@ export default {
     const error = ref('')
     const loading = ref(false)
     const showPassword = ref(false)
+    const requiresTwoFactor = ref(false)
+    const twoFactorCode = ref('')
     
     // Forgot password
     const showForgotPassword = ref(false)
@@ -346,6 +386,14 @@ export default {
         router.push('/dashboard')
       } catch (err) {
         console.error('Login error:', err)
+        
+        // Vérifier si la 2FA est requise
+        if (err.requiresTwoFactor || err.response?.data?.requires_two_factor) {
+          requiresTwoFactor.value = true
+          error.value = err.response?.data?.message || 'Veuillez entrer le code d\'authentification à deux facteurs.'
+          return
+        }
+        
         if (err.response?.data?.errors) {
           errors.value = err.response.data.errors
         } else if (err.response?.data?.message) {
@@ -359,6 +407,35 @@ export default {
           error.value = 'Service non disponible. Veuillez réessayer plus tard.'
         } else {
           error.value = err.message || 'Une erreur est survenue lors de la connexion.'
+        }
+      } finally {
+        loading.value = false
+      }
+    }
+
+    const handleVerify2FA = async () => {
+      if (!twoFactorCode.value || twoFactorCode.value.length !== 6) {
+        errors.value = { two_factor_code: 'Veuillez entrer un code de 6 chiffres' }
+        return
+      }
+
+      loading.value = true
+      errors.value = {}
+      error.value = ''
+
+      try {
+        const result = await authStore.verifyTwoFactor(form.email, twoFactorCode.value)
+        console.log('2FA verification successful:', result)
+        // Redirect to dashboard after successful verification
+        router.push('/dashboard')
+      } catch (err) {
+        console.error('2FA verification error:', err)
+        if (err.response?.data?.errors) {
+          errors.value = err.response.data.errors
+        } else if (err.response?.data?.message) {
+          error.value = err.response.data.message
+        } else {
+          error.value = err.message || 'Code de vérification invalide.'
         }
       } finally {
         loading.value = false

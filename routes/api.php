@@ -20,6 +20,7 @@ use App\Http\Controllers\Api\SSOController;
 // Public routes
 Route::post('register', [SimpleAuthController::class, 'register']);
 Route::post('login', [SimpleAuthController::class, 'login']);
+Route::post('login/verify-2fa', [SimpleAuthController::class, 'verifyTwoFactor']);
 
 // Password reset routes
 Route::post('password/forgot', [App\Http\Controllers\Api\PasswordResetController::class, 'sendResetLink']);
