@@ -78,8 +78,8 @@
       </div>
     </div>
 
-    <!-- Mobile Navigation -->
-    <MobileNavigation v-if="user" />
+    <!-- Mobile Navigation - Hide on login/register pages -->
+    <MobileNavigation v-if="user && route.path !== '/login' && route.path !== '/register'" />
 
     <!-- Toast Container -->
     <ToastContainer ref="toastContainer" />
