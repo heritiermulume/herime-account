@@ -8,10 +8,10 @@
         <title>Compte Herime</title>
 
         <!-- Favicon -->
-        <link rel="icon" type="image/x-icon" href="{{ asset('favicon.ico') }}">
-        <link rel="icon" type="image/png" sizes="32x32" href="{{ asset('logo.png') }}">
-        <link rel="icon" type="image/png" sizes="16x16" href="{{ asset('logo.png') }}">
-        <link rel="apple-touch-icon" href="{{ asset('logo.png') }}">
+        <link rel="icon" type="image/png" href="{{ asset('icon.png') }}">
+        <link rel="icon" type="image/png" sizes="32x32" href="{{ asset('icon.png') }}">
+        <link rel="icon" type="image/png" sizes="16x16" href="{{ asset('icon.png') }}">
+        <link rel="apple-touch-icon" href="{{ asset('icon.png') }}">
 
         <!-- Fonts -->
         <link rel="preconnect" href="https://fonts.googleapis.com">
