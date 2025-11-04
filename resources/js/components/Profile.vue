@@ -25,7 +25,7 @@
           <!-- Avatar Section -->
           <div class="flex items-center space-x-6">
             <div class="flex-shrink-0">
-              <div v-if="form.avatar_url && form.avatar_url !== ''" class="h-20 w-20 rounded-full overflow-hidden bg-gray-200">
+              <div v-if="getAvatarUrl()" class="h-20 w-20 rounded-full overflow-hidden bg-gray-200">
                 <img
                   :src="getAvatarUrl()"
                   :alt="form.name"
@@ -286,6 +286,7 @@ export default {
       location: '',
       website: '',
       avatar_url: '',
+      avatar_preview: null, // Pour l'aperçu immédiat
       avatar_file: null,
       email_notifications: true,
       marketing_emails: false
@@ -309,10 +310,14 @@ export default {
           return
         }
         form.avatar_file = file
-        // Afficher un aperçu immédiat (même si la compression sera faite côté serveur)
+        
+        // Afficher un aperçu immédiat avec data URL
         const reader = new FileReader()
         reader.onload = (e) => {
-          form.avatar_url = e.target.result
+          // Stocker l'aperçu dans un champ séparé pour l'affichage
+          form.avatar_preview = e.target.result
+          form.avatar_url = e.target.result // Pour l'affichage immédiat
+          console.log('✅ Avatar preview loaded:', form.avatar_url.substring(0, 50) + '...')
         }
         reader.readAsDataURL(file)
         
@@ -332,31 +337,50 @@ export default {
     }
 
     const getAvatarUrl = () => {
-      if (!form.avatar_url || form.avatar_url === '') {
-        return null
+      // Si on a un aperçu local (data URL), l'utiliser en priorité
+      if (form.avatar_preview) {
+        return form.avatar_preview
       }
       
-      // Si c'est déjà une URL complète (commence par http), la retourner telle quelle
-      if (form.avatar_url.startsWith('http')) {
+      // Si on a un avatar_url qui est une data URL (commence par data:), l'utiliser
+      if (form.avatar_url && form.avatar_url.startsWith('data:')) {
+        return form.avatar_url
+      }
+      
+      // Si on a un avatar_url qui est une URL complète (commence par http), la retourner
+      if (form.avatar_url && form.avatar_url.startsWith('http')) {
         return form.avatar_url
       }
       
       // Sinon, construire l'URL vers l'API sécurisée
-      // L'URL devrait être de la forme /api/user/avatar/{userId}
-      // Mais on a besoin de l'ID de l'utilisateur
-      if (user.value?.id) {
+      if (user.value?.id && user.value?.avatar) {
         return `/api/user/avatar/${user.value.id}`
       }
       
-      return form.avatar_url
+      // Si pas d'avatar, retourner null pour afficher l'icône
+      return null
     }
 
     const handleImageError = (event) => {
       console.error('❌ Image load error:', event.target.src)
       console.error('   Form avatar_url:', form.avatar_url)
       console.error('   User avatar_url:', user.value?.avatar_url)
+      console.error('   User avatar:', user.value?.avatar)
+      
+      // Si l'erreur vient de l'API, essayer de retirer le timestamp
+      if (event.target.src.includes('?t=')) {
+        const urlWithoutTimestamp = event.target.src.split('?t=')[0]
+        console.log('   Retrying without timestamp:', urlWithoutTimestamp)
+        // Réessayer sans timestamp
+        setTimeout(() => {
+          form.avatar_url = urlWithoutTimestamp
+        }, 100)
+        return
+      }
+      
       // Fallback vers l'avatar généré - masquer l'image
       form.avatar_url = ''
+      form.avatar_preview = null
     }
 
     const handleImageLoad = () => {
@@ -414,6 +438,7 @@ export default {
           // Log pour debug
           console.log('🔄 Updating user in store with:', profileResponse.data.data.user)
           console.log('   avatar_url:', profileResponse.data.data.user?.avatar_url)
+          console.log('   avatar:', profileResponse.data.data.user?.avatar)
           
           // Update user in store
           authStore.updateUser(profileResponse.data.data.user)
@@ -421,11 +446,26 @@ export default {
           // Vérifier que avatar_url est bien mis à jour
           console.log('✅ User updated in store')
           console.log('   New avatar_url:', authStore.user?.avatar_url)
+          console.log('   New avatar:', authStore.user?.avatar)
           
-          // Mettre à jour form.avatar_url pour refléter le changement
+          // Mettre à jour form.avatar_url avec la nouvelle URL de l'API
+          // Effacer l'aperçu pour forcer l'utilisation de l'URL de l'API
+          form.avatar_preview = null
+          form.avatar_file = null
+          
+          // Mettre à jour avec la nouvelle URL de l'API
           if (profileResponse.data.data.user?.avatar_url) {
             form.avatar_url = profileResponse.data.data.user.avatar_url
             console.log('✅ form.avatar_url updated to:', form.avatar_url)
+          } else if (profileResponse.data.data.user?.avatar && user.value?.id) {
+            // Si avatar_url n'est pas dans la réponse mais avatar existe, construire l'URL
+            form.avatar_url = `/api/user/avatar/${user.value.id}`
+            console.log('✅ form.avatar_url constructed:', form.avatar_url)
+          }
+          
+          // Forcer un re-render en ajoutant un timestamp à l'URL pour éviter le cache
+          if (form.avatar_url && form.avatar_url.startsWith('/api/')) {
+            form.avatar_url = form.avatar_url + '?t=' + Date.now()
           }
           
           // Show success message
@@ -451,6 +491,7 @@ export default {
       if (user.value) {
         console.log('📋 Loading user data into form:', user.value)
         console.log('   avatar_url from user:', user.value.avatar_url)
+        console.log('   avatar from user:', user.value.avatar)
         
         Object.assign(form, {
           name: user.value.name || '',
@@ -462,9 +503,16 @@ export default {
           location: user.value.location || '',
           website: user.value.website || '',
           avatar_url: user.value.avatar_url || '',
+          avatar_preview: null, // Pas d'aperçu au chargement
           email_notifications: user.value.preferences?.email_notifications !== false,
           marketing_emails: user.value.preferences?.marketing_emails === true
         })
+        
+        // Si on a un avatar mais pas d'avatar_url, construire l'URL
+        if (user.value.avatar && !form.avatar_url && user.value.id) {
+          form.avatar_url = `/api/user/avatar/${user.value.id}`
+          console.log('✅ Constructed avatar_url:', form.avatar_url)
+        }
         
         console.log('✅ Form initialized, avatar_url:', form.avatar_url)
       }

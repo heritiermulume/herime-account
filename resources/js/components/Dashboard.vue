@@ -263,21 +263,23 @@ export default {
     }
 
     const getAvatarUrl = () => {
-      if (!user.value?.avatar_url || user.value.avatar_url === '') {
-        return null
-      }
-      
-      // Si c'est déjà une URL complète (commence par http), la retourner telle quelle
-      if (user.value.avatar_url.startsWith('http')) {
+      // Si on a un avatar_url qui est une URL complète (commence par http), la retourner
+      if (user.value?.avatar_url && user.value.avatar_url.startsWith('http')) {
         return user.value.avatar_url
       }
       
-      // Construire l'URL vers l'API sécurisée
-      if (user.value?.id) {
+      // Si on a un avatar mais pas d'avatar_url, construire l'URL
+      if (user.value?.avatar && user.value?.id) {
         return `/api/user/avatar/${user.value.id}`
       }
       
-      return user.value.avatar_url
+      // Si on a un avatar_url qui commence par /api, le retourner
+      if (user.value?.avatar_url && user.value.avatar_url.startsWith('/api')) {
+        return user.value.avatar_url
+      }
+      
+      // Sinon, pas d'avatar
+      return null
     }
 
     const handleImageError = (event) => {
