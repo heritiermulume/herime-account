@@ -66,6 +66,8 @@ Route::group(['middleware' => 'auth:api'], function () {
         Route::get('users', [App\Http\Controllers\Api\AdminController::class, 'users']);
         Route::get('users/{id}', [App\Http\Controllers\Api\AdminController::class, 'userDetails']);
         Route::put('users/{id}/status', [App\Http\Controllers\Api\AdminController::class, 'updateUserStatus']);
+        Route::put('users/{id}/role', [App\Http\Controllers\Api\AdminController::class, 'updateUserRole']);
+        Route::put('users/{id}', [App\Http\Controllers\Api\AdminController::class, 'updateUser']);
         Route::delete('users/{id}', [App\Http\Controllers\Api\AdminController::class, 'deleteUser']);
         
         // Session management

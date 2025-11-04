@@ -292,6 +292,71 @@ public function updateUserStatus(Request $request, $id): JsonResponse
     }
 
     /**
+     * Update user role (make admin/user/super_user)
+     */
+    public function updateUserRole(Request $request, $id): JsonResponse
+    {
+        $user = User::find($id);
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Utilisateur non trouvé'
+            ], 404);
+        }
+        $validator = Validator::make($request->all(), [
+            'role' => 'required|in:user,admin,super_user'
+        ]);
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+        $user->update(['role' => $request->role]);
+        return response()->json([
+            'success' => true,
+            'message' => 'Rôle utilisateur mis à jour avec succès',
+            'data' => $user->fresh()
+        ]);
+    }
+
+    /**
+     * Update user details by admin
+     */
+    public function updateUser(Request $request, $id): JsonResponse
+    {
+        $user = User::find($id);
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Utilisateur non trouvé'
+            ], 404);
+        }
+        $validator = Validator::make($request->all(), [
+            'name' => 'sometimes|required|string|max:255',
+            'email' => 'sometimes|required|email|max:255|unique:users,email,' . $user->id,
+            'phone' => 'sometimes|nullable|string|max:20',
+            'company' => 'sometimes|nullable|string|max:255',
+            'position' => 'sometimes|nullable|string|max:255',
+            'is_active' => 'sometimes|boolean',
+        ]);
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+        $user->update($request->only(['name','email','phone','company','position','is_active']));
+        return response()->json([
+            'success' => true,
+            'message' => 'Utilisateur mis à jour avec succès',
+            'data' => $user->fresh()
+        ]);
+    }
+
+    /**
      * Get all sessions
      */
     public function sessions(Request $request): JsonResponse

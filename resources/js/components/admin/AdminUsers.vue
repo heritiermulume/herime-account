@@ -123,7 +123,10 @@
               <div class="flex items-center justify-between">
                 <div class="flex items-center">
                   <div class="flex-shrink-0 h-10 w-10">
-                    <div class="h-10 w-10 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center">
+                    <div v-if="getAvatarUrl(user)" class="h-10 w-10 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-700">
+                      <img :src="getAvatarUrl(user)" :alt="user.name" class="h-full w-full object-cover" @error="onAvatarError($event)" />
+                    </div>
+                    <div v-else class="h-10 w-10 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center">
                       <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
                         {{ user.name.charAt(0).toUpperCase() }}
                       </span>
@@ -163,6 +166,25 @@
                       class="text-sm text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {{ user.is_active ? 'Désactiver' : 'Activer' }}
+                    </button>
+                    <button
+                      v-if="user.role !== 'super_user'"
+                      @click="makeAdmin(user)"
+                      class="text-sm text-yellow-600 hover:text-yellow-700 dark:text-yellow-400 dark:hover:text-yellow-300"
+                    >
+                      Nommer admin
+                    </button>
+                    <button
+                      @click="openPreview(user)"
+                      class="text-sm text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white"
+                    >
+                      Voir
+                    </button>
+                    <button
+                      @click="openEdit(user)"
+                      class="text-sm text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300"
+                    >
+                      Modifier
                     </button>
                     <button
                       v-if="user.role !== 'super_user'"
@@ -292,6 +314,55 @@ export default {
       
       return pages
     })
+
+    const getAvatarUrl = (u) => {
+      if (u?.avatar_url && u.avatar_url.startsWith('http')) {
+        const sep = u.avatar_url.includes('?') ? '&' : '?'
+        return u.avatar_url.includes('?t=') ? u.avatar_url : u.avatar_url + sep + 't=' + Date.now()
+      }
+      if (u?.avatar && u?.id) {
+        return `/api/user/avatar/${u.id}?t=${Date.now()}`
+      }
+      if (u?.avatar_url && u.avatar_url.startsWith('/api')) {
+        return u.avatar_url.includes('?t=') ? u.avatar_url : u.avatar_url + '?t=' + Date.now()
+      }
+      return null
+    }
+
+    const onAvatarError = (e) => { e.target.style.display = 'none' }
+
+    const makeAdmin = async (u) => {
+      try {
+        await axios.put(`/admin/users/${u.id}/role`, { role: 'admin' })
+        await fetchUsers(pagination.value?.current_page || 1)
+      } catch (err) {
+        console.error('Error promoting to admin:', err)
+      }
+    }
+
+    const previewUser = ref(null)
+    const editUser = ref(null)
+    const showPreview = ref(false)
+    const showEdit = ref(false)
+    const openPreview = (u) => { previewUser.value = u; showPreview.value = true }
+    const openEdit = (u) => { editUser.value = { ...u }; showEdit.value = true }
+    const saveEdit = async () => {
+      try {
+        const u = editUser.value
+        await axios.put(`/admin/users/${u.id}`, {
+          name: u.name,
+          email: u.email,
+          phone: u.phone,
+          company: u.company,
+          position: u.position,
+          is_active: u.is_active
+        })
+        showEdit.value = false
+        await fetchUsers(pagination.value?.current_page || 1)
+      } catch (err) {
+        console.error('Error updating user:', err)
+      }
+    }
 
     const toggleUserStatus = async (user) => {
       try {
