@@ -6,7 +6,7 @@
 </div>
 # Réinitialisation de votre mot de passe
 
-Bonjour {{ $userName ?? 'Utilisateur' }},
+Bonjour {{ trim(($firstName ?? '').' '.($lastName ?? '')) ?: 'Utilisateur' }},
 
 Vous avez demandé à réinitialiser votre mot de passe pour votre compte Herime.
 

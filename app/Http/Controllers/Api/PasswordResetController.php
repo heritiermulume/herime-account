@@ -82,7 +82,20 @@ class PasswordResetController extends Controller
 
         // Envoyer l'email avec le lien de réinitialisation
         try {
-            Mail::to($request->email)->send(new PasswordResetMail($resetUrl, $user->name ?? null));
+            // Extraire prénom et nom si possible
+            $firstName = null;
+            $lastName = null;
+            if (!empty($user->name)) {
+                $parts = preg_split('/\s+/', trim($user->name));
+                if ($parts && count($parts) > 0) {
+                    $firstName = $parts[0];
+                    if (count($parts) > 1) {
+                        $lastName = implode(' ', array_slice($parts, 1));
+                    }
+                }
+            }
+
+            Mail::to($request->email)->send(new PasswordResetMail($resetUrl, $firstName, $lastName));
             \Log::info('Password reset email sent successfully', [
                 'email' => $request->email
             ]);
