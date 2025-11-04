@@ -38,27 +38,36 @@ export default {
       if (isAuthenticated) {
         // Si force_token est présent dans l'URL, générer un token SSO et rediriger
         if (route.query.force_token) {
+          console.log('force_token detected, generating SSO token...', route.query)
           try {
             const redirect = route.query.redirect
+            console.log('Calling /api/sso/generate-token with redirect:', redirect)
+            
             const response = await axios.post('/api/sso/generate-token', {
               redirect: redirect
             })
             
+            console.log('SSO token response:', response.data)
+            
             if (response.data.success && response.data.data.callback_url) {
+              console.log('Redirecting to:', response.data.data.callback_url)
               // Rediriger vers l'URL de callback avec le token SSO
               window.location.href = response.data.data.callback_url
               return
+            } else {
+              console.error('Invalid response from SSO token generation:', response.data)
             }
           } catch (error) {
             console.error('Error generating SSO token:', error)
+            console.error('Error details:', error.response?.data || error.message)
             // En cas d'erreur, rediriger vers le dashboard
             router.push('/dashboard')
             return
           }
+        } else {
+          // Sinon, rediriger vers le dashboard seulement si pas de force_token
+          router.push('/dashboard')
         }
-        
-        // Sinon, rediriger vers le dashboard
-        router.push('/dashboard')
       }
     })
 
