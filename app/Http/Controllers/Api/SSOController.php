@@ -160,52 +160,54 @@ class SSOController extends Controller
                 'first_session_id' => $sessionsRaw->first()?->id
             ]);
             
-            $sessions = $sessionsRaw->map(function ($session) {
+            $sessions = collect([]);
+            
+            foreach ($sessionsRaw as $session) {
                 try {
                     // Convertir les dates en format ISO 8601 de manière sécurisée
                     $lastActivity = null;
                     if ($session->last_activity) {
-                        try {
-                            $lastActivity = $session->last_activity->format('c'); // ISO 8601 format
-                        } catch (\Exception $e) {
-                            $lastActivity = $session->last_activity ? (string)$session->last_activity : null;
+                        if (is_object($session->last_activity) && method_exists($session->last_activity, 'format')) {
+                            $lastActivity = $session->last_activity->format('c');
+                        } else {
+                            $lastActivity = (string)$session->last_activity;
                         }
                     } elseif ($session->created_at) {
-                        try {
+                        if (is_object($session->created_at) && method_exists($session->created_at, 'format')) {
                             $lastActivity = $session->created_at->format('c');
-                        } catch (\Exception $e) {
-                            $lastActivity = $session->created_at ? (string)$session->created_at : null;
+                        } else {
+                            $lastActivity = (string)$session->created_at;
                         }
                     }
                     
                     $createdAt = null;
                     if ($session->created_at) {
-                        try {
+                        if (is_object($session->created_at) && method_exists($session->created_at, 'format')) {
                             $createdAt = $session->created_at->format('c');
-                        } catch (\Exception $e) {
-                            $createdAt = $session->created_at ? (string)$session->created_at : null;
+                        } else {
+                            $createdAt = (string)$session->created_at;
                         }
                     }
                     
-                    return [
-                        'id' => $session->id ?? null,
-                        'device_name' => $session->device_name ?? 'Unknown Device',
-                        'platform' => $session->platform ?? 'Unknown',
-                        'browser' => $session->browser ?? 'Unknown',
-                        'ip_address' => $session->ip_address ?? 'Unknown',
+                    $sessions->push([
+                        'id' => (int)($session->id ?? 0),
+                        'device_name' => (string)($session->device_name ?? 'Unknown Device'),
+                        'platform' => (string)($session->platform ?? 'Unknown'),
+                        'browser' => (string)($session->browser ?? 'Unknown'),
+                        'ip_address' => (string)($session->ip_address ?? 'Unknown'),
                         'is_current' => (bool)($session->is_current ?? false),
                         'last_activity' => $lastActivity,
                         'created_at' => $createdAt,
-                    ];
+                    ]);
                 } catch (\Exception $e) {
                     \Log::error('Error mapping session', [
                         'session_id' => $session->id ?? 'unknown',
                         'error' => $e->getMessage(),
-                        'trace' => $e->getTraceAsString()
+                        'trace' => substr($e->getTraceAsString(), 0, 500)
                     ]);
-                    return null;
+                    // Continue avec les autres sessions même si une échoue
                 }
-            })->filter()->values(); // Retirer les valeurs null et réindexer
+            }
 
             \Log::info('Sessions loaded', [
                 'user_id' => $user->id,
