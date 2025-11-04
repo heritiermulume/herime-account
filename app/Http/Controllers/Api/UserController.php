@@ -97,8 +97,11 @@ class UserController extends Controller
                 $originalSize = $file->getSize();
                 
                 // Delete old avatar if exists (dans le dossier privé)
-                if ($user->avatar) {
-                    $oldAvatarPath = 'avatars/' . basename($user->avatar);
+                // Utiliser avatar_filename si disponible, sinon avatar (ancien format)
+                $oldAvatarToDelete = $user->avatar_filename ?? ($user->avatar && strpos($user->avatar, '/api/user/avatar/') === false ? $user->avatar : null);
+                
+                if ($oldAvatarToDelete) {
+                    $oldAvatarPath = 'avatars/' . basename($oldAvatarToDelete);
                     if (Storage::disk('private')->exists($oldAvatarPath)) {
                         Storage::disk('private')->delete($oldAvatarPath);
                     }
@@ -119,9 +122,7 @@ class UserController extends Controller
                 $data['avatar'] = $avatarUrl;
                 
                 // Stocker aussi le nom du fichier pour pouvoir le retrouver
-                if (isset($user->avatar_filename)) {
-                    $data['avatar_filename'] = $filename;
-                }
+                $data['avatar_filename'] = $filename;
                 
                 $finalSize = Storage::disk('private')->size($avatarPath);
                 
