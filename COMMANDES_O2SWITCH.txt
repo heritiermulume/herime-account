@@ -182,6 +182,12 @@ php artisan db:show
 # → Causes courantes : Clés Passport manquantes, DB inaccessible, caches corrompus
 # → Consultez RESOUDRE_ERREUR_CONNEXION.md pour le guide complet
 
+# Erreur "Personal access client not found" Passport
+# → Le client d'accès personnel Passport n'existe pas
+# → Solution : php artisan passport:client --personal --name="Herime SSO Personal Access Client"
+# → Vérifier : php artisan passport:client --list
+# → Consultez RESOUDRE_ERREUR_PASSPORT_CLIENT.md pour plus de détails
+
 # Voir les logs
 tail -f storage/logs/laravel.log
 

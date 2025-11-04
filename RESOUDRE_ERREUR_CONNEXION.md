@@ -43,6 +43,22 @@ ls -la storage/oauth-*.key
 php artisan passport:install --force
 ```
 
+### Cause 1b : Client d'accès personnel Passport manquant
+
+**Erreur typique :** `Personal access client not found for 'users' user provider`
+
+**Solution :**
+```bash
+# Créer le client d'accès personnel
+php artisan passport:client --personal --name="Herime SSO Personal Access Client"
+
+# Vérifier que le client existe
+php artisan passport:client --list
+
+# Si besoin, réinstaller Passport complètement
+php artisan passport:install --force
+```
+
 ### Cause 2 : Erreur lors de la création du token
 
 **Erreur typique :** `Call to undefined method` ou `createToken()`
