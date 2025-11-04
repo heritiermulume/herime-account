@@ -109,8 +109,11 @@ php artisan db:seed --class=AdminSeeder --force
 
 # 6. Réinitialiser la base (ATTENTION : supprime toutes les données)
 php artisan migrate:fresh --force
-php artisan db:seed --force
 php artisan passport:install --force
+php artisan db:seed --force
+
+# 7. Recréer TOUTES les migrations et seeders (méthode complète)
+# → Consultez RECREER_MIGRATIONS_SEEDERS.md pour le guide complet
 
 # 7. Vérifier que tout est OK
 php artisan migrate:status
