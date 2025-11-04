@@ -102,8 +102,47 @@ class SimpleAuthController extends Controller
     /**
      * Login user
      */
-    public function login(Request $request): JsonResponse
+    public function login(Request $request)
     {
+        // Vérifier si l'utilisateur est déjà connecté et qu'on demande un token SSO
+        if (Auth::check() && ($request->has('force_token') || $request->query('force_token'))) {
+            // Utilisateur déjà connecté, générer token SSO immédiatement
+            $user = Auth::user();
+            
+            if (!$user->isActive()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Votre compte a été désactivé. Veuillez contacter l\'administrateur.'
+                ], 403);
+            }
+
+            $token = $this->generateSSOToken($user);
+            
+            // Détecter l'origine de l'appel d'authentification
+            $redirectUrl = $this->determineRedirectUrl($request);
+            
+            // Si c'est une requête API (Accept: application/json), retourner JSON
+            if ($request->wantsJson() || $request->expectsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Token SSO généré avec succès',
+                    'data' => [
+                        'token' => $token,
+                        'callback_url' => $redirectUrl ? $redirectUrl . '?token=' . $token : null,
+                    ]
+                ]);
+            }
+            
+            // Sinon, rediriger (pour les requêtes web)
+            if ($redirectUrl) {
+                $redirectUrl .= (strpos($redirectUrl, '?') !== false ? '&' : '?') . 'token=' . $token;
+                return redirect($redirectUrl);
+            }
+            
+            // Par défaut, rediriger vers le dashboard local
+            return redirect('/dashboard');
+        }
+
         $validator = Validator::make($request->all(), [
             'email' => 'required|email',
             'password' => 'required|string',
@@ -188,6 +227,15 @@ class SimpleAuthController extends Controller
         // Create access token for API authentication
         $token = $user->createToken('API Token')->accessToken;
 
+        // Vérifier si on doit rediriger vers un domaine externe après connexion
+        $redirectUrl = $this->determineRedirectUrl($request);
+        if ($redirectUrl && !$request->wantsJson() && !$request->expectsJson()) {
+            // C'est une requête web depuis un domaine externe, générer un token SSO et rediriger
+            $ssoToken = $this->generateSSOToken($user);
+            $redirectUrl .= (strpos($redirectUrl, '?') !== false ? '&' : '?') . 'token=' . $ssoToken;
+            return redirect($redirectUrl);
+        }
+
         // Forcer l'inclusion de avatar_url et last_login_at
         $user->makeVisible(['avatar', 'avatar_url', 'last_login_at', 'is_active']);
         $userData = $user->load('currentSession')->toArray();
@@ -198,22 +246,32 @@ class SimpleAuthController extends Controller
             $userData['last_login_at'] = $user->last_login_at ? $user->last_login_at->toISOString() : null;
         }
         
+        // Si une redirection externe est nécessaire, l'inclure dans la réponse JSON
+        $responseData = [
+            'user' => $userData,
+            'authenticated' => true,
+            'access_token' => $token,
+            'token_type' => 'Bearer'
+        ];
+
+        if ($redirectUrl) {
+            $ssoToken = $this->generateSSOToken($user);
+            $responseData['sso_redirect_url'] = $redirectUrl . '?token=' . $ssoToken;
+            $responseData['sso_token'] = $ssoToken;
+        }
+        
         if (config('app.debug')) {
             \Log::debug('Login response', [
                 'user_id' => $user->id,
-                'has_last_login_at' => !empty($userData['last_login_at'])
+                'has_last_login_at' => !empty($userData['last_login_at']),
+                'redirect_url' => $redirectUrl
             ]);
         }
         
         return response()->json([
             'success' => true,
             'message' => 'Login successful',
-            'data' => [
-                'user' => $userData,
-                'authenticated' => true,
-                'access_token' => $token,
-                'token_type' => 'Bearer'
-            ]
+            'data' => $responseData
         ]);
     }
 
@@ -503,5 +561,73 @@ class SimpleAuthController extends Controller
             'browser' => $browser,
             'device_name' => $deviceName,
         ];
+    }
+
+    /**
+     * Generate SSO token for user
+     */
+    private function generateSSOToken(User $user): string
+    {
+        // Créer un token Passport pour le SSO
+        $token = $user->createToken('SSO Token', ['profile'])->accessToken;
+        return $token;
+    }
+
+    /**
+     * Determine the redirect URL based on the origin of the authentication request
+     */
+    private function determineRedirectUrl(Request $request): ?string
+    {
+        // 1. Priorité : paramètre 'redirect' explicite dans la requête
+        if ($request->has('redirect') || $request->query('redirect')) {
+            $redirect = $request->input('redirect') ?: $request->query('redirect');
+            if ($redirect && filter_var($redirect, FILTER_VALIDATE_URL)) {
+                return $redirect;
+            }
+        }
+
+        // 2. Vérifier le paramètre 'client_domain' pour construire l'URL de callback
+        if ($request->has('client_domain') || $request->query('client_domain')) {
+            $clientDomain = $request->input('client_domain') ?: $request->query('client_domain');
+            if ($clientDomain) {
+                // Construire l'URL de callback standard pour le domaine client
+                $scheme = $request->secure() ? 'https' : 'http';
+                $redirectPath = $request->query('redirect_path') ?: '/sso/callback';
+                return $scheme . '://' . $clientDomain . $redirectPath;
+            }
+        }
+
+        // 3. Détecter depuis le header Referer
+        $referer = $request->header('Referer');
+        if ($referer) {
+            $refererUrl = parse_url($referer);
+            $currentHost = parse_url(config('app.url'), PHP_URL_HOST);
+            
+            // Si le referer vient d'un autre domaine que compte.herime.com
+            if (isset($refererUrl['host']) && $refererUrl['host'] !== $currentHost) {
+                $scheme = $refererUrl['scheme'] ?? ($request->secure() ? 'https' : 'http');
+                $host = $refererUrl['host'];
+                $redirectPath = $request->query('redirect_path') ?: '/sso/callback';
+                return $scheme . '://' . $host . $redirectPath;
+            }
+        }
+
+        // 4. Détecter depuis le header Origin
+        $origin = $request->header('Origin');
+        if ($origin) {
+            $originUrl = parse_url($origin);
+            $currentHost = parse_url(config('app.url'), PHP_URL_HOST);
+            
+            // Si l'origin vient d'un autre domaine que compte.herime.com
+            if (isset($originUrl['host']) && $originUrl['host'] !== $currentHost) {
+                $scheme = $originUrl['scheme'] ?? ($request->secure() ? 'https' : 'http');
+                $host = $originUrl['host'];
+                $redirectPath = $request->query('redirect_path') ?: '/sso/callback';
+                return $scheme . '://' . $host . $redirectPath;
+            }
+        }
+
+        // 5. Si aucune origine externe détectée, retourner null pour rediriger vers le dashboard local
+        return null;
     }
 }
