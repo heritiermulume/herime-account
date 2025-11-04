@@ -11,6 +11,8 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
+use App\Services\NotificationService;
+use App\Mail\NewLoginMail;
 
 class SimpleAuthController extends Controller
 {
@@ -50,6 +52,19 @@ class SimpleAuthController extends Controller
 
         // Create user session
         $this->createUserSession($user, $request);
+
+        // Envoyer un email de nouvelle connexion si activé
+        try {
+            $parts = $user->name ? preg_split('/\s+/', trim($user->name)) : [];
+            $firstName = $parts[0] ?? null;
+            $lastName = isset($parts[1]) ? implode(' ', array_slice($parts, 1)) : null;
+            $device = $request->userAgent();
+            $ip = $request->ip();
+            $time = now()->toDateTimeString();
+            NotificationService::sendIfEnabled($user, new NewLoginMail($firstName, $lastName, $ip, $device, $time));
+        } catch (\Throwable $e) {
+            \Log::warning('Failed to queue new login email', ['error' => $e->getMessage()]);
+        }
 
         // Create access token for API authentication
         $token = $user->createToken('API Token')->accessToken;

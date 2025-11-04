@@ -10,6 +10,9 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Storage;
+use App\Services\NotificationService;
+use App\Mail\PasswordChangedMail;
+use App\Mail\AccountDeactivatedMail;
 
 class UserController extends Controller
 {
@@ -222,6 +225,12 @@ class UserController extends Controller
             'password' => Hash::make($request->password)
         ]);
 
+            // Envoyer une notification si activée
+            $parts = $user->name ? preg_split('/\s+/', trim($user->name)) : [];
+            $firstName = $parts[0] ?? null;
+            $lastName = isset($parts[1]) ? implode(' ', array_slice($parts, 1)) : null;
+            NotificationService::sendIfEnabled($user, new PasswordChangedMail($firstName, $lastName));
+
         return response()->json([
             'success' => true,
             'message' => 'Password changed successfully'
@@ -313,6 +322,12 @@ class UserController extends Controller
         // Revoke all tokens
         $user->tokens()->delete();
 
+            // Notifier la désactivation
+            $parts = $user->name ? preg_split('/\s+/', trim($user->name)) : [];
+            $firstName = $parts[0] ?? null;
+            $lastName = isset($parts[1]) ? implode(' ', array_slice($parts, 1)) : null;
+            NotificationService::sendIfEnabled($user, new AccountDeactivatedMail($firstName, $lastName));
+
         return response()->json([
             'success' => true,
             'message' => 'Account deactivated successfully'
@@ -362,6 +377,12 @@ class UserController extends Controller
 
         // Revoke all tokens
         $user->tokens()->delete();
+
+            // Notifier la désactivation (avec raison)
+            $parts = $user->name ? preg_split('/\s+/', trim($user->name)) : [];
+            $firstName = $parts[0] ?? null;
+            $lastName = isset($parts[1]) ? implode(' ', array_slice($parts, 1)) : null;
+            NotificationService::sendIfEnabled($user, new AccountDeactivatedMail($firstName, $lastName, $request->reason));
 
         \Log::info('Account deactivated by user', [
             'user_id' => $user->id,
