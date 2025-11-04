@@ -226,10 +226,16 @@ class SSOController extends Controller
                 ]);
             }
 
+            // Convertir la collection en tableau simple
+            $sessionsArray = [];
+            foreach ($sessions as $session) {
+                $sessionsArray[] = $session;
+            }
+            
             return response()->json([
                 'success' => true,
                 'data' => [
-                    'sessions' => $sessions->values()->toArray()
+                    'sessions' => $sessionsArray
                 ]
             ], 200, [], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         } catch (\Exception $e) {
