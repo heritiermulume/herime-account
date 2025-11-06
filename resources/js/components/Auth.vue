@@ -111,25 +111,30 @@ export default {
         const redirectUrl = route.query.redirect
         if (redirectUrl && typeof redirectUrl === 'string') {
           try {
-            const redirectHost = new URL(redirectUrl).hostname
+            // Décoder l'URL si nécessaire
+            let decodedUrl = redirectUrl
+            try {
+              decodedUrl = decodeURIComponent(redirectUrl)
+            } catch (e) {
+              // Si le décodage échoue, utiliser l'URL telle quelle
+            }
+            
+            const redirectHost = new URL(decodedUrl).hostname
             const currentHost = window.location.hostname
             
             if (redirectHost === currentHost || redirectHost === 'compte.herime.com') {
               console.error('[Auth] ⚠️ Redirect pointe vers le même domaine, risque de boucle!', {
                 redirectHost,
-                currentHost,
-                redirectUrl
+                currentHost
               })
               // Ne pas rediriger si ça pointe vers le même domaine
               return
             }
           } catch (e) {
-            // Ne pas logger redirectUrl car il peut contenir des informations sensibles
-            console.warn('[Auth] Impossible de parser redirect URL')
+            // Si le parsing échoue, continuer quand même (peut être une URL encodée)
+            console.warn('[Auth] Impossible de parser redirect URL, continuant quand même')
           }
         }
-        
-        // Ne pas logger redirect car il peut contenir des informations sensibles
         
         // Vérifier le token dans localStorage directement
         const token = localStorage.getItem('access_token')
