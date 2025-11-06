@@ -628,6 +628,18 @@ export default {
     }
 
     const handleVerify2FA = async () => {
+      // Vérifier si une redirection est déjà en cours
+      if (loading.value || isRedirectingSSO.value) {
+        console.log('[Login] 2FA déjà en cours ou redirection SSO en cours, ignoré')
+        return
+      }
+      
+      // Vérifier dans sessionStorage si une redirection SSO est déjà en cours
+      if (sessionStorage.getItem('sso_redirecting') === 'true') {
+        console.log('[Login] Redirection SSO déjà en cours (sessionStorage), ignoré')
+        return
+      }
+      
       if (!twoFactorCode.value || twoFactorCode.value.length !== 6) {
         errors.value = { two_factor_code: 'Veuillez entrer un code de 6 chiffres' }
         return
@@ -638,11 +650,30 @@ export default {
       error.value = ''
 
       try {
-        const result = await authStore.verifyTwoFactor(form.email, twoFactorCode.value)
-        console.log('2FA verification successful:', result)
+        const verifyData = {
+          email: form.email,
+          code: twoFactorCode.value
+        }
+        
+        // Récupérer les paramètres redirect et force_token de l'URL pour les passer à l'API
+        if (route.query.redirect) {
+          verifyData.redirect = route.query.redirect
+        }
+        if (route.query.force_token) {
+          verifyData.force_token = route.query.force_token
+        }
+        if (route.query.client_domain) {
+          verifyData.client_domain = route.query.client_domain
+        }
+        
+        const result = await authStore.verifyTwoFactor(form.email, twoFactorCode.value, verifyData)
+        console.log('[Login] 2FA verification successful:', result)
         
         // Vérifier s'il y a une redirection SSO vers un domaine externe
         if (result?.data?.sso_redirect_url) {
+          // Marquer dans sessionStorage pour éviter les doubles redirections
+          sessionStorage.setItem('sso_redirecting', 'true')
+          
           // L'authStore a déjà mis isSSORedirecting à true
           // Masquer immédiatement l'interface et rediriger
           isRedirectingSSO.value = true
