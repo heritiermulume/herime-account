@@ -531,18 +531,32 @@ class SSOController extends Controller
     /**
      * Validate token with SSO secret authentication
      * This endpoint is used by external services to validate JWT tokens
+     * 
+     * Accepts POST requests with:
+     * - token in request body (required)
+     * - Authorization: Bearer {ssoSecret} in headers (required)
+     * 
+     * Returns:
+     * - {"valid": true} if token is valid
+     * - {"valid": false} if token is invalid, expired, or user is inactive
      */
     public function validateTokenWithSecret(Request $request): JsonResponse
     {
-        // Validate request body
+        // Validate request method - only POST allowed
+        if (!$request->isMethod('post')) {
+            return response()->json([
+                'valid' => false
+            ], 405);
+        }
+
+        // Validate request body - token is required
         $validator = Validator::make($request->all(), [
             'token' => 'required|string',
         ]);
 
         if ($validator->fails()) {
             return response()->json([
-                'valid' => false,
-                'message' => 'Token is required'
+                'valid' => false
             ], 422);
         }
 
@@ -550,8 +564,7 @@ class SSOController extends Controller
         $authHeader = $request->header('Authorization');
         if (!$authHeader || !str_starts_with($authHeader, 'Bearer ')) {
             return response()->json([
-                'valid' => false,
-                'message' => 'Missing or invalid Authorization header'
+                'valid' => false
             ], 401);
         }
 
@@ -560,8 +573,7 @@ class SSOController extends Controller
 
         if (!$expectedSecret || $providedSecret !== $expectedSecret) {
             return response()->json([
-                'valid' => false,
-                'message' => 'Invalid SSO secret'
+                'valid' => false
             ], 401);
         }
 
@@ -580,9 +592,8 @@ class SSOController extends Controller
                 $parts = explode('.', $tokenString);
                 if (count($parts) !== 3) {
                     return response()->json([
-                        'valid' => false,
-                        'message' => 'Invalid token format'
-                    ], 401);
+                        'valid' => false
+                    ], 200);
                 }
 
                 // Decode JWT payload (without verification, as we'll verify via database)
@@ -590,9 +601,8 @@ class SSOController extends Controller
                 
                 if (!$payload || !isset($payload['sub'])) {
                     return response()->json([
-                        'valid' => false,
-                        'message' => 'Invalid token payload'
-                    ], 401);
+                        'valid' => false
+                    ], 200);
                 }
 
                 $userId = $payload['sub'];
@@ -601,9 +611,8 @@ class SSOController extends Controller
                 $user = User::find($userId);
                 if (!$user) {
                     return response()->json([
-                        'valid' => false,
-                        'message' => 'User not found'
-                    ], 401);
+                        'valid' => false
+                    ], 200);
                 }
 
                 // Check if token exists for this user (by checking all user tokens)
@@ -620,33 +629,34 @@ class SSOController extends Controller
                     }
                 }
 
-                // If still not found, the token might still be valid but not in our DB
-                // We'll trust the JWT payload if user exists and is active
-                // This handles cases where tokens are generated externally
-            } else {
-                $user = $accessToken->user;
+                // If still not found, token is invalid
+                if (!$accessToken) {
+                    return response()->json([
+                        'valid' => false
+                    ], 200);
+                }
             }
 
+            $user = $accessToken->user;
+
             // Check if token is expired
-            if ($accessToken && $accessToken->expires_at && $accessToken->expires_at->isPast()) {
+            if ($accessToken->expires_at && $accessToken->expires_at->isPast()) {
                 return response()->json([
-                    'valid' => false,
-                    'message' => 'Token has expired'
-                ], 401);
+                    'valid' => false
+                ], 200);
             }
 
             if (!$user) {
                 return response()->json([
-                    'valid' => false,
-                    'message' => 'User not found'
-                ], 401);
+                    'valid' => false
+                ], 200);
             }
 
+            // Check if user is active
             if (!$user->isActive()) {
                 return response()->json([
-                    'valid' => false,
-                    'message' => 'User account is inactive'
-                ], 401);
+                    'valid' => false
+                ], 200);
             }
 
             // Construire l'URL complète de l'avatar pour l'accès externe
@@ -657,6 +667,7 @@ class SSOController extends Controller
                 $avatarUrl = rtrim($baseUrl, '/') . '/' . ltrim($avatarUrl, '/');
             }
 
+            // Token is valid
             return response()->json([
                 'valid' => true,
                 'user' => [
@@ -668,12 +679,11 @@ class SSOController extends Controller
                     'is_verified' => !is_null($user->email_verified_at),
                     'is_active' => $user->is_active,
                 ]
-            ]);
+            ], 200);
         } catch (\Exception $e) {
             return response()->json([
-                'valid' => false,
-                'message' => 'Error validating token'
-            ], 500);
+                'valid' => false
+            ], 200);
         }
     }
 
