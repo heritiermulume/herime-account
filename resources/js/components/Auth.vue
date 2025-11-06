@@ -248,97 +248,104 @@ export default {
         }
         
         // Exécuter la génération du token et la redirection immédiatement
-        ;(async () => {
-            try {
-              console.log('[Auth] Appel API /sso/generate-token...', {
-                redirect: redirect,
-                token_present: !!token
-              })
+        // Utiliser une fonction async et l'exécuter immédiatement
+        const performRedirect = async () => {
+          try {
+            console.log('[Auth] Appel API /sso/generate-token...', {
+              redirect: redirect,
+              token_present: !!token
+            })
+            
+            const response = await axios.post('/sso/generate-token', {
+              redirect: redirect
+            })
+            
+            console.log('[Auth] SSO token response reçue:', {
+              status: response.status,
+              success: response.data?.success,
+              has_data: !!response.data?.data,
+              has_callback_url: !!response.data?.data?.callback_url,
+              full_response: response.data
+            })
+            
+            if (response.data && response.data.success && response.data.data && response.data.data.callback_url) {
+              const callbackUrl = response.data.data.callback_url
+              console.log('[Auth] Redirection vers:', callbackUrl)
               
-              const response = await axios.post('/sso/generate-token', {
-                redirect: redirect
-              })
-              
-              console.log('[Auth] SSO token response reçue:', {
-                status: response.status,
-                success: response.data?.success,
-                has_data: !!response.data?.data,
-                has_callback_url: !!response.data?.data?.callback_url,
-                full_response: response.data
-              })
-              
-              if (response.data && response.data.success && response.data.data && response.data.data.callback_url) {
-                const callbackUrl = response.data.data.callback_url
-                console.log('[Auth] Redirection vers:', callbackUrl)
+              // Vérifier une dernière fois que callbackUrl ne pointe pas vers le même domaine
+              try {
+                const callbackHost = new URL(callbackUrl).hostname
+                const currentHost = window.location.hostname
                 
-                // Vérifier une dernière fois que callbackUrl ne pointe pas vers le même domaine
-                try {
-                  const callbackHost = new URL(callbackUrl).hostname
-                  const currentHost = window.location.hostname
-                  
-                  if (callbackHost === currentHost || callbackHost === 'compte.herime.com') {
-                    console.error('[Auth] ⚠️ Callback URL pointe vers le même domaine, ARRÊT!', {
-                      callbackHost,
-                      currentHost,
-                      callbackUrl
-                    })
-                    if (typeof window !== 'undefined') {
-                      sessionStorage.removeItem('sso_redirecting')
-                    }
-                    isRedirecting.value = false
-                    return
+                if (callbackHost === currentHost || callbackHost === 'compte.herime.com') {
+                  console.error('[Auth] ⚠️ Callback URL pointe vers le même domaine, ARRÊT!', {
+                    callbackHost,
+                    currentHost,
+                    callbackUrl
+                  })
+                  if (typeof window !== 'undefined') {
+                    sessionStorage.removeItem('sso_redirecting')
                   }
-                } catch (e) {
-                  console.warn('[Auth] Impossible de parser callback URL:', callbackUrl, e)
+                  isRedirecting.value = false
+                  authStore.isSSORedirecting = false
+                  return
                 }
-                
-                // IMPORTANT: S'assurer que les flags sont bien à true avant la redirection
-                if (typeof window !== 'undefined') {
-                  sessionStorage.setItem('sso_redirecting', 'true')
-                }
-                isRedirecting.value = true
-                authStore.isSSORedirecting = true
-                
-                // Redirection immédiate et définitive
-                // IMPORTANT: Ne PAS utiliser window.stop() car cela peut bloquer la redirection
-                console.log('[Auth] Exécution de window.location.replace vers:', callbackUrl)
-                // Utiliser window.location.replace() pour une redirection immédiate et définitive
-                window.location.replace(callbackUrl)
-                
-                // Cette ligne ne sera jamais exécutée car window.location.replace() redirige
-                return
-              } else {
-                console.error('[Auth] Structure de réponse invalide ou callback_url manquant:', {
-                  response_data: response.data,
-                  has_success: !!response.data?.success,
-                  has_data: !!response.data?.data,
-                  has_callback_url: !!response.data?.data?.callback_url
-                })
-                if (typeof window !== 'undefined') {
-                  sessionStorage.removeItem('sso_redirecting')
-                }
-                isRedirecting.value = false
-                return
+              } catch (e) {
+                console.warn('[Auth] Impossible de parser callback URL:', callbackUrl, e)
               }
-            } catch (error) {
-              console.error('[Auth] Erreur lors de la génération du token SSO:', {
-                message: error.message,
-                response: error.response?.data,
-                status: error.response?.status,
-                config: {
-                  url: error.config?.url,
-                  method: error.config?.method,
-                  headers: error.config?.headers
-                },
-                stack: error.stack
+              
+              // IMPORTANT: S'assurer que les flags sont bien à true avant la redirection
+              if (typeof window !== 'undefined') {
+                sessionStorage.setItem('sso_redirecting', 'true')
+              }
+              isRedirecting.value = true
+              authStore.isSSORedirecting = true
+              
+              // Redirection immédiate et définitive
+              console.log('[Auth] Exécution de window.location.replace vers:', callbackUrl)
+              window.location.replace(callbackUrl)
+              
+              // Cette ligne ne sera jamais exécutée
+              return
+            } else {
+              console.error('[Auth] Structure de réponse invalide ou callback_url manquant:', {
+                response_data: response.data,
+                has_success: !!response.data?.success,
+                has_data: !!response.data?.data,
+                has_callback_url: !!response.data?.data?.callback_url
               })
               if (typeof window !== 'undefined') {
                 sessionStorage.removeItem('sso_redirecting')
               }
               isRedirecting.value = false
+              authStore.isSSORedirecting = false
               return
             }
-          })()
+          } catch (error) {
+            console.error('[Auth] Erreur lors de la génération du token SSO:', {
+              message: error.message,
+              response: error.response?.data,
+              status: error.response?.status,
+              config: {
+                url: error.config?.url,
+                method: error.config?.method,
+                headers: error.config?.headers
+              },
+              stack: error.stack
+            })
+            if (typeof window !== 'undefined') {
+              sessionStorage.removeItem('sso_redirecting')
+            }
+            isRedirecting.value = false
+            authStore.isSSORedirecting = false
+            return
+          }
+        }
+        
+        // Exécuter immédiatement et stocker la promesse pour éviter les doubles exécutions
+        if (!redirectPromise.value) {
+          redirectPromise.value = performRedirect()
+        }
         
         // Ne pas continuer, la redirection est en cours
         return
@@ -394,9 +401,33 @@ export default {
               isRedirecting.value = false
               authStore.isSSORedirecting = false
             } else {
-              console.log('[Auth] Utilisateur authentifié avec paramètres SSO, redirection en cours')
-              // La redirection sera gérée par onBeforeMount
-              isRedirecting.value = true
+              console.log('[Auth] Utilisateur authentifié avec paramètres SSO, déclencher redirection si pas déjà en cours')
+              // Si la redirection n'a pas déjà été déclenchée dans onBeforeMount, la déclencher ici
+              if (!redirectPromise.value && route.query.redirect) {
+                console.log('[Auth] Déclencher redirection depuis onMounted...')
+                isRedirecting.value = true
+                const performRedirect = async () => {
+                  try {
+                    const response = await axios.post('/sso/generate-token', {
+                      redirect: route.query.redirect
+                    })
+                    
+                    if (response.data?.success && response.data?.data?.callback_url) {
+                      const callbackUrl = response.data.data.callback_url
+                      console.log('[Auth] Redirection depuis onMounted vers:', callbackUrl)
+                      window.location.replace(callbackUrl)
+                    }
+                  } catch (error) {
+                    console.error('[Auth] Erreur lors de la redirection depuis onMounted:', error)
+                    sessionStorage.removeItem('sso_redirecting')
+                    isRedirecting.value = false
+                    authStore.isSSORedirecting = false
+                  }
+                }
+                redirectPromise.value = performRedirect()
+              } else {
+                isRedirecting.value = true
+              }
               return
             }
           }
