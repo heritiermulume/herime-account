@@ -363,28 +363,39 @@ export default {
     // Détecter si l'utilisateur vient d'un site externe
     const externalSiteUrl = computed(() => {
       const redirectParam = route.query.redirect
+      console.log('[Login] externalSiteUrl computed - redirectParam:', redirectParam)
+      
       if (!redirectParam || typeof redirectParam !== 'string') {
+        console.log('[Login] No redirect param or not string')
         return null
       }
       
       try {
-        // Décoder l'URL si nécessaire
+        // Décoder l'URL si nécessaire (peut être double-encodé)
         let redirectUrl = redirectParam
-        try {
-          const decoded = decodeURIComponent(redirectParam)
-          // Vérifier si le décodage a produit une URL valide
+        
+        // Essayer de décoder plusieurs fois si nécessaire
+        for (let i = 0; i < 3; i++) {
           try {
-            new URL(decoded)
-            redirectUrl = decoded
+            const decoded = decodeURIComponent(redirectUrl)
+            if (decoded === redirectUrl) break // Plus de décodage nécessaire
+            // Vérifier si c'est une URL valide
+            try {
+              new URL(decoded)
+              redirectUrl = decoded
+            } catch (e) {
+              break // Garder la dernière URL valide
+            }
           } catch (e) {
-            // Si le décodage ne produit pas une URL valide, garder l'original
+            break // Erreur de décodage, garder ce qu'on a
           }
-        } catch (e) {
-          // Ignorer les erreurs de décodage
         }
+        
+        console.log('[Login] Decoded redirectUrl:', redirectUrl)
         
         // Vérifier si c'est une URL valide
         if (!redirectUrl || !redirectUrl.startsWith('http')) {
+          console.log('[Login] Redirect URL is not valid HTTP URL')
           return null
         }
         
@@ -392,25 +403,119 @@ export default {
         const url = new URL(redirectUrl)
         const currentHost = window.location.hostname
         
+        console.log('[Login] URL parsed:', {
+          protocol: url.protocol,
+          hostname: url.hostname,
+          pathname: url.pathname,
+          search: url.search,
+          currentHost: currentHost
+        })
+        
         // Normaliser les hostnames (enlever www. si présent)
         const urlHost = url.hostname.replace(/^www\./, '')
         const currentHostNormalized = currentHost.replace(/^www\./, '')
         
+        console.log('[Login] Host comparison:', {
+          urlHost,
+          currentHostNormalized,
+          isExternal: urlHost !== currentHostNormalized && urlHost !== 'compte.herime.com'
+        })
+        
         // Vérifier si c'est un domaine externe
         if (urlHost !== currentHostNormalized && urlHost !== 'compte.herime.com') {
-          // Retourner l'URL de base du site externe (sans les paramètres de query)
-          return `${url.protocol}//${url.hostname}${url.pathname}`
+          // Retourner l'URL de base du site externe
+          // Si pathname est /sso/callback, on retourne juste la racine du site
+          let returnPath = url.pathname
+          if (returnPath === '/sso/callback' || returnPath.startsWith('/sso/')) {
+            returnPath = '/'
+          }
+          
+          const returnUrl = `${url.protocol}//${url.hostname}${returnPath}`
+          console.log('[Login] External site URL detected:', returnUrl)
+          return returnUrl
         }
+        
+        console.log('[Login] Not an external site')
       } catch (e) {
-        console.error('Error parsing redirect URL:', e)
+        console.error('[Login] Error parsing redirect URL:', e)
       }
       
       return null
     })
     
     const handleReturnToSite = () => {
+      console.log('[Login] handleReturnToSite called', {
+        externalSiteUrl: externalSiteUrl.value,
+        redirectParam: route.query.redirect
+      })
+      
+      // Utiliser directement le computed si disponible
       if (externalSiteUrl.value) {
-        window.location.href = externalSiteUrl.value
+        console.log('[Login] Redirecting to computed URL:', externalSiteUrl.value)
+        window.location.replace(externalSiteUrl.value)
+        return
+      }
+      
+      // Fallback: traiter directement le paramètre redirect
+      const redirectParam = route.query.redirect
+      if (!redirectParam || typeof redirectParam !== 'string') {
+        console.warn('[Login] No redirect parameter found')
+        return
+      }
+      
+      try {
+        // Décoder l'URL si nécessaire (peut être double-encodé)
+        let redirectUrl = redirectParam
+        for (let i = 0; i < 3; i++) {
+          try {
+            const decoded = decodeURIComponent(redirectUrl)
+            if (decoded === redirectUrl) break
+            try {
+              new URL(decoded)
+              redirectUrl = decoded
+            } catch (e) {
+              break
+            }
+          } catch (e) {
+            break
+          }
+        }
+        
+        console.log('[Login] Decoded redirectUrl:', redirectUrl)
+        
+        // Vérifier si c'est une URL valide
+        if (!redirectUrl || !redirectUrl.startsWith('http')) {
+          console.error('[Login] Invalid redirect URL:', redirectUrl)
+          return
+        }
+        
+        // Extraire l'URL de base
+        const url = new URL(redirectUrl)
+        const currentHost = window.location.hostname.replace(/^www\./, '')
+        const urlHost = url.hostname.replace(/^www\./, '')
+        
+        console.log('[Login] Host comparison:', {
+          urlHost,
+          currentHost,
+          isExternal: urlHost !== currentHost && urlHost !== 'compte.herime.com'
+        })
+        
+        // Vérifier si c'est un domaine externe
+        if (urlHost !== currentHost && urlHost !== 'compte.herime.com') {
+          // Si pathname est /sso/callback, retourner à la racine
+          let returnPath = url.pathname
+          if (returnPath === '/sso/callback' || returnPath.startsWith('/sso/')) {
+            returnPath = '/'
+          }
+          
+          const returnUrl = `${url.protocol}//${url.hostname}${returnPath}`
+          console.log('[Login] Redirecting to external site:', returnUrl)
+          window.location.replace(returnUrl)
+        } else {
+          console.warn('[Login] Not an external site, cannot redirect')
+        }
+      } catch (e) {
+        console.error('[Login] Error in handleReturnToSite:', e)
       }
     }
     const handleSwitchToRegister = async () => {
