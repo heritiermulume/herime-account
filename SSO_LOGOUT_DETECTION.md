@@ -41,15 +41,26 @@ La méthode la plus simple et la plus fiable consiste à vérifier périodiqueme
 }
 ```
 
-#### Implémentation JavaScript (Exemple)
+#### Implémentation JavaScript (Exemple Optimisé)
 
 ```javascript
 class SSOSessionManager {
-    constructor(ssoToken, checkInterval = 30000) { // 30 secondes par défaut
+    constructor(ssoToken, checkInterval = 120000) { // 120 secondes (2 minutes) par défaut - OPTIMISÉ
         this.ssoToken = ssoToken;
         this.checkInterval = checkInterval;
         this.checkTimer = null;
         this.isValid = true;
+        this.isPageVisible = true;
+        
+        // Détecter quand la page devient inactive
+        document.addEventListener('visibilitychange', () => {
+            this.isPageVisible = !document.hidden;
+            if (!this.isPageVisible) {
+                this.stopPolling(); // Arrêter le polling quand la page est en arrière-plan
+            } else {
+                this.startPolling(); // Reprendre quand la page redevient active
+            }
+        });
     }
 
     startPolling() {
@@ -125,15 +136,20 @@ if (ssoToken) {
 }
 ```
 
-#### Implémentation avec Vue.js (Exemple)
+#### Implémentation avec Vue.js (Exemple Optimisé)
 
 ```javascript
 // Dans votre composant Vue ou store Pinia
 import { ref, onMounted, onUnmounted } from 'vue'
 
-export function useSSOSession(token) {
+export function useSSOSession(token, options = {}) {
     const isValid = ref(true)
     let checkTimer = null
+    const {
+        checkInterval = 120000, // 2 minutes par défaut (optimisé)
+        enablePolling = false, // Désactivé par défaut - utiliser validation avant actions
+        stopWhenInactive = true // Arrêter quand la page est inactive
+    } = options
 
     const checkToken = async () => {
         try {
@@ -153,6 +169,8 @@ export function useSSOSession(token) {
                 handleLogout()
             }
         } catch (error) {
+            // En cas d'erreur réseau, ne pas déconnecter immédiatement
+            // Attendre la prochaine vérification
             console.error('Erreur lors de la vérification du token SSO:', error)
         }
     }
@@ -163,9 +181,21 @@ export function useSSOSession(token) {
         window.location.href = '/login?message=session_expired'
     }
 
-    const startPolling = (interval = 30000) => {
+    const startPolling = (interval = checkInterval) => {
+        // Ne pas démarrer si la page est inactive
+        if (stopWhenInactive && document.hidden) {
+            return
+        }
+        
         checkToken() // Vérifier immédiatement
-        checkTimer = setInterval(checkToken, interval)
+        checkTimer = setInterval(() => {
+            // Vérifier si la page est toujours visible
+            if (stopWhenInactive && document.hidden) {
+                stopPolling()
+                return
+            }
+            checkToken()
+        }, interval)
     }
 
     const stopPolling = () => {
@@ -175,22 +205,59 @@ export function useSSOSession(token) {
         }
     }
 
+    // Détecter les changements de visibilité de la page
+    const handleVisibilityChange = () => {
+        if (document.hidden) {
+            stopPolling() // Arrêter quand la page est en arrière-plan
+        } else if (enablePolling) {
+            startPolling() // Reprendre quand la page redevient active
+        }
+    }
+
     onMounted(() => {
         if (token) {
-            startPolling(30000) // Vérifier toutes les 30 secondes
+            // Valider immédiatement au chargement
+            checkToken()
+            
+            // Démarrer le polling seulement si activé
+            if (enablePolling) {
+                startPolling()
+                document.addEventListener('visibilitychange', handleVisibilityChange)
+            }
         }
     })
 
     onUnmounted(() => {
         stopPolling()
+        document.removeEventListener('visibilitychange', handleVisibilityChange)
     })
+
+    // Fonction pour valider avant une action importante
+    const validateBeforeAction = async () => {
+        await checkToken()
+        return isValid.value
+    }
 
     return {
         isValid,
         checkToken,
+        validateBeforeAction, // Utiliser cette fonction avant les actions importantes
         startPolling,
         stopPolling
     }
+}
+
+// Utilisation recommandée (sans polling continu)
+const { validateBeforeAction } = useSSOSession(token, {
+    enablePolling: false // Pas de polling continu
+})
+
+// Valider seulement avant les actions importantes
+async function saveData() {
+    if (!await validateBeforeAction()) {
+        return // L'utilisateur sera déconnecté
+    }
+    // Procéder avec l'action...
 }
 ```
 
@@ -266,13 +333,107 @@ Pour obtenir les informations complètes de l'utilisateur, utilisez l'endpoint d
 }
 ```
 
-## ⚙️ Configuration Recommandée
+## ⚙️ Configuration Recommandée (Optimisée pour Performance)
 
-### Intervalle de Polling
+### ⚠️ IMPORTANT : Éviter la Surcharge du Serveur
 
-- **Développement :** 10-15 secondes (pour tester rapidement)
-- **Production :** 30-60 secondes (équilibre entre réactivité et charge serveur)
-- **Applications critiques :** 15-30 secondes (détection plus rapide)
+Pour éviter de surcharger le serveur SSO, suivez ces recommandations :
+
+### Intervalle de Polling (Recommandations Optimisées)
+
+- **Production standard :** 60-120 secondes (1-2 minutes) - **RECOMMANDÉ**
+- **Applications avec activité utilisateur :** 90-180 secondes (1.5-3 minutes)
+- **Applications peu actives :** 180-300 secondes (3-5 minutes)
+- **Développement/Test :** 30-60 secondes (uniquement pour les tests)
+- **Applications critiques :** 60 secondes maximum (si vraiment nécessaire)
+
+**⚠️ Ne jamais utiliser un intervalle inférieur à 30 secondes en production !**
+
+### Stratégie Recommandée : Polling Intelligent
+
+Au lieu d'un polling continu, utilisez un **polling intelligent** qui s'adapte à l'activité de l'utilisateur :
+
+```javascript
+class IntelligentSSOPolling {
+    constructor(token) {
+        this.token = token;
+        this.pollInterval = 120000; // 2 minutes par défaut
+        this.activeInterval = 60000; // 1 minute quand l'utilisateur est actif
+        this.idleInterval = 300000; // 5 minutes quand l'utilisateur est inactif
+        this.lastActivity = Date.now();
+        this.timer = null;
+    }
+
+    start() {
+        // Détecter l'activité de l'utilisateur
+        ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'].forEach(event => {
+            document.addEventListener(event, () => {
+                this.lastActivity = Date.now();
+                this.adjustPollingInterval();
+            }, { passive: true });
+        });
+
+        // Vérifier immédiatement
+        this.checkToken();
+        
+        // Démarrer le polling
+        this.scheduleNextCheck();
+    }
+
+    adjustPollingInterval() {
+        const timeSinceActivity = Date.now() - this.lastActivity;
+        const isActive = timeSinceActivity < 300000; // 5 minutes
+
+        // Arrêter le timer actuel
+        if (this.timer) {
+            clearTimeout(this.timer);
+        }
+
+        // Ajuster l'intervalle selon l'activité
+        this.pollInterval = isActive ? this.activeInterval : this.idleInterval;
+        
+        // Programmer la prochaine vérification
+        this.scheduleNextCheck();
+    }
+
+    scheduleNextCheck() {
+        this.timer = setTimeout(() => {
+            this.checkToken();
+            this.scheduleNextCheck();
+        }, this.pollInterval);
+    }
+
+    async checkToken() {
+        // Votre code de vérification...
+    }
+}
+```
+
+### Validation Avant Actions (Alternative Efficace)
+
+**Recommandation principale :** Utilisez la validation uniquement avant les actions importantes plutôt qu'un polling continu.
+
+**Avantages :**
+- ✅ Pas de requêtes inutiles
+- ✅ Détection immédiate lors des actions
+- ✅ Charge serveur minimale
+- ✅ Meilleure expérience utilisateur
+
+**Exemple :**
+```javascript
+// Au lieu de polling continu, valider seulement avant les actions
+async function saveImportantData(data) {
+    // Valider le token avant l'action
+    const isValid = await validateSSOToken();
+    if (!isValid) {
+        handleLogout();
+        return;
+    }
+    
+    // Procéder avec l'action
+    await api.save(data);
+}
+```
 
 ### Gestion des Erreurs
 
@@ -306,23 +467,72 @@ Pour obtenir les informations complètes de l'utilisateur, utilisez l'endpoint d
 | Server-Sent Events | Immédiate | Moyenne | Complexe | ⭐⭐ |
 | WebSockets | Immédiate | Élevée | Très complexe | ⭐ |
 
-## 🎯 Recommandation
+## 🎯 Recommandation (Optimisée pour Performance)
 
-**Utilisez une combinaison de :**
-1. **Polling périodique** (30-60 secondes) pour la détection automatique
-2. **Validation avant actions importantes** pour une sécurité maximale
+### ⭐ Approche Recommandée : Validation Avant Actions
 
-Cette approche offre un bon équilibre entre réactivité, performance et simplicité d'implémentation.
+**Pour éviter de surcharger le serveur, utilisez principalement :**
 
-## 📝 Exemple Complet d'Intégration
+1. **Validation avant actions importantes** (méthode principale)
+   - Valider le token uniquement avant les actions critiques
+   - Pas de requêtes inutiles
+   - Détection immédiate
+   - Charge serveur minimale
+
+2. **Polling intelligent optionnel** (si vraiment nécessaire)
+   - Intervalle de 60-120 secondes minimum
+   - S'arrêter quand l'utilisateur est inactif
+   - Reprendre quand l'utilisateur revient
+   - Utiliser uniquement pour les applications très critiques
+
+### 📊 Comparaison de Charge Serveur
+
+**Scénario : 1000 utilisateurs connectés simultanément**
+
+| Méthode | Requêtes/minute | Charge serveur | Recommandation |
+|---------|----------------|----------------|----------------|
+| Polling 30s | 2000 req/min | ⚠️ Élevée | ❌ Non recommandé |
+| Polling 60s | 1000 req/min | ⚠️ Moyenne | ⚠️ Acceptable si nécessaire |
+| Polling 120s | 500 req/min | ✅ Faible | ✅ Recommandé |
+| Validation avant action | ~50-100 req/min | ✅ Très faible | ⭐⭐⭐⭐⭐ Idéal |
+| Polling intelligent | ~200-400 req/min | ✅ Faible | ✅ Bon compromis |
+
+### 🎯 Stratégie Optimale
+
+**Pour la plupart des applications :**
+```javascript
+// 1. Valider le token au chargement de la page
+await validateTokenOnPageLoad();
+
+// 2. Valider avant chaque action importante
+async function performAction() {
+    if (!await checkTokenBeforeAction()) {
+        return; // Déconnexion gérée
+    }
+    // Action...
+}
+
+// 3. Polling optionnel uniquement si nécessaire (120s minimum)
+// Et seulement si l'utilisateur est actif
+```
+
+**Pour les applications critiques nécessitant une détection rapide :**
+- Polling intelligent avec intervalle adaptatif (60-180s)
+- Validation avant actions importantes
+- Arrêt du polling quand l'utilisateur est inactif
+
+## 📝 Exemple Complet d'Intégration (Optimisé)
 
 ```javascript
-// sso-manager.js
+// sso-manager.js - Version optimisée pour performance
 class SSOManager {
-    constructor() {
+    constructor(options = {}) {
         this.token = this.getTokenFromStorage();
-        this.pollingInterval = 30000; // 30 secondes
+        // Intervalle par défaut : 120 secondes (2 minutes) - OPTIMISÉ
+        this.pollingInterval = options.pollingInterval || 120000;
+        this.enablePolling = options.enablePolling || false; // Désactivé par défaut
         this.pollTimer = null;
+        this.isPageVisible = true;
     }
 
     init() {
@@ -338,8 +548,23 @@ class SSOManager {
                 return;
             }
 
-            // Démarrer le polling
-            this.startPolling();
+            // Démarrer le polling seulement si activé
+            if (this.enablePolling) {
+                this.setupVisibilityListener();
+                this.startPolling();
+            }
+        });
+    }
+
+    setupVisibilityListener() {
+        // Arrêter le polling quand la page est en arrière-plan
+        document.addEventListener('visibilitychange', () => {
+            this.isPageVisible = !document.hidden;
+            if (!this.isPageVisible) {
+                this.stopPolling();
+            } else if (this.enablePolling) {
+                this.startPolling();
+            }
         });
     }
 
@@ -370,7 +595,20 @@ class SSOManager {
     }
 
     startPolling() {
+        // Ne pas démarrer si la page est inactive
+        if (!this.isPageVisible) {
+            return;
+        }
+
+        // Arrêter le timer existant si présent
+        this.stopPolling();
+
         this.pollTimer = setInterval(async () => {
+            // Ne pas vérifier si la page est inactive
+            if (!this.isPageVisible) {
+                return;
+            }
+
             const valid = await this.validateToken();
             if (!valid) {
                 this.handleLogout();
@@ -407,11 +645,13 @@ class SSOManager {
     }
 }
 
-// Utilisation
-const ssoManager = new SSOManager();
+// Utilisation RECOMMANDÉE (sans polling continu)
+const ssoManager = new SSOManager({
+    enablePolling: false // Pas de polling continu - OPTIMISÉ
+});
 ssoManager.init();
 
-// Avant une action importante
+// Avant une action importante - VALIDATION UNIQUEMENT AVANT ACTIONS
 async function saveData(data) {
     if (!await ssoManager.checkBeforeAction()) {
         return; // L'utilisateur sera redirigé
@@ -420,6 +660,13 @@ async function saveData(data) {
     // Procéder avec l'action
     // ...
 }
+
+// Utilisation AVEC polling (seulement si vraiment nécessaire)
+const ssoManagerWithPolling = new SSOManager({
+    enablePolling: true,
+    pollingInterval: 120000 // 2 minutes minimum
+});
+ssoManagerWithPolling.init();
 ```
 
 ## 🔐 Sécurité
@@ -428,6 +675,64 @@ async function saveData(data) {
 - **Validation côté serveur** : Ne jamais faire confiance uniquement au token côté client
 - **Gestion des erreurs** : Ne pas exposer d'informations sensibles dans les messages d'erreur
 - **Rate limiting** : Le serveur peut limiter le nombre de requêtes de vérification par IP/token
+
+## ⚡ Optimisation et Performance
+
+### Bonnes Pratiques pour Éviter la Surcharge
+
+1. **Utiliser la validation avant actions plutôt que le polling continu**
+   - ✅ Réduit drastiquement le nombre de requêtes
+   - ✅ Détection immédiate lors des actions
+   - ✅ Meilleure expérience utilisateur
+
+2. **Si polling nécessaire, utiliser des intervalles longs**
+   - ✅ Minimum 60 secondes (recommandé : 120 secondes)
+   - ✅ Arrêter le polling quand la page est inactive
+   - ✅ Reprendre seulement quand l'utilisateur revient
+
+3. **Implémenter un système de backoff en cas d'erreur**
+   ```javascript
+   let retryDelay = 60000; // 1 minute
+   const maxDelay = 300000; // 5 minutes maximum
+   
+   async function checkTokenWithBackoff() {
+       try {
+           await checkToken();
+           retryDelay = 60000; // Réinitialiser en cas de succès
+       } catch (error) {
+           // En cas d'erreur, augmenter le délai progressivement
+           retryDelay = Math.min(retryDelay * 2, maxDelay);
+           setTimeout(checkTokenWithBackoff, retryDelay);
+       }
+   }
+   ```
+
+4. **Ne pas vérifier si la page est en arrière-plan**
+   ```javascript
+   if (document.hidden) {
+       // Page en arrière-plan, ne pas vérifier
+       return;
+   }
+   ```
+
+5. **Utiliser l'endpoint `/api/sso/check-token` au lieu de `/api/sso/validate-token`**
+   - ✅ Plus léger (pas de chargement des données utilisateur)
+   - ✅ Plus rapide
+   - ✅ Moins de charge serveur
+
+### Calcul de Charge Serveur
+
+**Exemple avec 1000 utilisateurs :**
+
+| Configuration | Requêtes/heure | Impact |
+|--------------|----------------|--------|
+| Polling 30s | 120,000 req/h | ⚠️⚠️⚠️ Très élevé |
+| Polling 60s | 60,000 req/h | ⚠️⚠️ Élevé |
+| Polling 120s | 30,000 req/h | ⚠️ Modéré |
+| Validation avant action | ~3,000-6,000 req/h | ✅ Faible |
+| Polling intelligent (120s, arrêt si inactif) | ~10,000-15,000 req/h | ✅✅ Très faible |
+
+**Recommandation :** Utiliser la validation avant actions pour réduire la charge de 90-95% !
 
 ## 📚 Ressources
 
