@@ -41,7 +41,11 @@ axios.interceptors.response.use(
         try {
           const { useAuthStore } = await import('./stores/auth')
           const authStore = useAuthStore()
-          authStore.logout().catch(() => {})
+          if (typeof authStore.forceLogout === 'function') {
+            authStore.forceLogout()
+          } else {
+            authStore.logout().catch(() => {})
+          }
           setTimeout(() => {
             if (window.location.pathname !== '/login' && window.location.pathname !== '/register') {
               window.location.replace('/login')

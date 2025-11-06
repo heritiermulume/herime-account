@@ -209,26 +209,33 @@ export const useAuthStore = defineStore('auth', {
       }
     },
 
+    resetAuthState() {
+      this.user = null
+      this.authenticated = false
+      this.error = null
+      this.isSSORedirecting = false
+
+      localStorage.removeItem('user')
+      localStorage.removeItem('authenticated')
+      localStorage.removeItem('access_token')
+    },
+
     async logout() {
       this.loading = true
 
       try {
         await axios.post('/logout')
       } catch (error) {
+        // Ignorer les erreurs (ex: 401 si le token est déjà invalide)
       } finally {
-        // Clear state regardless of API call success
-        this.user = null
-        this.authenticated = false
-        this.error = null
-        this.isSSORedirecting = false // Réinitialiser le flag SSO
-        
-        // Remove from localStorage
-        localStorage.removeItem('user')
-        localStorage.removeItem('authenticated')
-        localStorage.removeItem('access_token')
-        
+        this.resetAuthState()
         this.loading = false
       }
+    },
+
+    forceLogout() {
+      this.resetAuthState()
+      this.loading = false
     },
 
     async checkAuth() {
@@ -266,7 +273,7 @@ export const useAuthStore = defineStore('auth', {
         } catch (error) {
           // Si l'erreur est 401 (unauthorized), le token est invalide
           if (error.response?.status === 401) {
-            this.logout()
+            this.forceLogout()
             return false
           }
           // Pour les autres erreurs, garder l'utilisateur connecté
@@ -285,20 +292,20 @@ export const useAuthStore = defineStore('auth', {
           localStorage.setItem('authenticated', 'true')
           return true
         } else {
-          this.logout()
+          this.forceLogout()
           return false
         }
       } catch (error) {
         // Si 401, le token est invalide, déconnecter
         if (error.response?.status === 401) {
-          this.logout()
+          this.forceLogout()
           return false
         }
         // Pour les autres erreurs (network, 500, etc.), essayer de garder l'utilisateur si on a déjà un user en cache
         if (this.user) {
           return true
         }
-        this.logout()
+        this.forceLogout()
         return false
       }
     },
