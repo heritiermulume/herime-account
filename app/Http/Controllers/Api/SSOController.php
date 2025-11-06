@@ -66,6 +66,14 @@ class SSOController extends Controller
         // Log the SSO access
         $this->logSSOAccess($user, $clientDomain, $request);
 
+        // Construire l'URL complète de l'avatar pour l'accès externe
+        $avatarUrl = $user->avatar_url;
+        // S'assurer que l'URL est complète avec le domaine
+        if ($avatarUrl && !str_starts_with($avatarUrl, 'http')) {
+            $baseUrl = config('app.url');
+            $avatarUrl = rtrim($baseUrl, '/') . '/' . ltrim($avatarUrl, '/');
+        }
+
         return response()->json([
             'success' => true,
             'data' => [
@@ -73,7 +81,7 @@ class SSOController extends Controller
                     'id' => $user->id,
                     'name' => $user->name,
                     'email' => $user->email,
-                    'avatar' => $user->avatar_url,
+                    'avatar' => $avatarUrl,
                     'phone' => $user->phone,
                     'company' => $user->company,
                     'position' => $user->position,
@@ -591,12 +599,21 @@ class SSOController extends Controller
                 ], 401);
             }
 
+            // Construire l'URL complète de l'avatar pour l'accès externe
+            $avatarUrl = $user->avatar_url;
+            // S'assurer que l'URL est complète avec le domaine
+            if ($avatarUrl && !str_starts_with($avatarUrl, 'http')) {
+                $baseUrl = config('app.url');
+                $avatarUrl = rtrim($baseUrl, '/') . '/' . ltrim($avatarUrl, '/');
+            }
+
             return response()->json([
                 'valid' => true,
                 'user' => [
                     'id' => $user->id,
                     'email' => $user->email,
                     'name' => $user->name,
+                    'avatar' => $avatarUrl,
                     'role' => $user->role ?? 'user',
                     'is_verified' => !is_null($user->email_verified_at),
                     'is_active' => $user->is_active,
