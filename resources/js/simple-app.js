@@ -1,4 +1,3 @@
-console.log('Simple app starting...');
 
 // Test basic functionality
 document.addEventListener('DOMContentLoaded', function() {

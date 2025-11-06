@@ -1,4 +1,3 @@
-console.log('Test script loaded');
 
 // Test if Vue is available
 if (typeof Vue !== 'undefined') {

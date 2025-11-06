@@ -5,7 +5,6 @@ import App from './components/App.vue';
 import router from './router';
 import { setRouter } from './bootstrap';
 
-console.log('Starting app.js...');
 
 try {
     console.log('Creating Vue app...');

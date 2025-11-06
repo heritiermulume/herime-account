@@ -1,4 +1,3 @@
-console.log('Simple Vue app starting...');
 
 // Simple Vue app without complex imports
 document.addEventListener('DOMContentLoaded', function() {
