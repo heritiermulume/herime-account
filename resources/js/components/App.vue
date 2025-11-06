@@ -118,6 +118,25 @@ export default {
     const shouldShowSSOOverlay = computed(() => {
       if (typeof window === 'undefined') return false
       
+      // Vérification SYNCHRONE : si on est sur /login avec paramètres SSO et qu'on a un token
+      // Marquer immédiatement les flags pour afficher l'overlay AVANT même checkAuth()
+      if (route && route.path === '/login') {
+        const hasRedirectParams = route.query && (route.query.redirect || route.query.force_token)
+        if (hasRedirectParams) {
+          // Vérifier si on a un token de manière synchrone
+          const token = localStorage.getItem('access_token')
+          if (token) {
+            // Si on a un token ET des paramètres SSO, marquer immédiatement (synchrone)
+            // Cela affichera l'overlay avant même que checkAuth() ne soit appelé
+            if (sessionStorage.getItem('sso_redirecting') !== 'true') {
+              sessionStorage.setItem('sso_redirecting', 'true')
+              authStore.isSSORedirecting = true
+            }
+            return true
+          }
+        }
+      }
+      
       // Vérifier sessionStorage directement pour une détection immédiate
       const ssoRedirecting = sessionStorage.getItem('sso_redirecting') === 'true'
       if (!ssoRedirecting) return false
@@ -247,18 +266,21 @@ export default {
       console.log('Current route:', route?.path)
       console.log('SSO redirecting:', typeof window !== 'undefined' ? sessionStorage.getItem('sso_redirecting') : 'N/A')
       
-      // Vérification IMMÉDIATE avant tout autre rendu : si on est sur /login avec paramètres SSO et utilisateur authentifié
+      // Vérification SYNCHRONE IMMÉDIATE avant tout autre rendu : si on est sur /login avec paramètres SSO et token présent
+      // Cette vérification est SYNCHRONE pour éviter que Vue ne rende l'interface
       if (typeof window !== 'undefined' && route && route.path === '/login') {
         const hasRedirectParams = route.query && (route.query.redirect || route.query.force_token)
         if (hasRedirectParams) {
-          // Vérifier si l'utilisateur est authentifié
-          const isAuth = await authStore.checkAuth()
-          if (isAuth) {
-            console.log('[App] Utilisateur authentifié sur /login avec paramètres SSO, déclencher redirection immédiate')
-            // Marquer immédiatement pour afficher l'overlay
+          // Vérifier si on a un token de manière SYNCHRONE (pas await)
+          const token = localStorage.getItem('access_token')
+          if (token) {
+            console.log('[App] Token détecté sur /login avec paramètres SSO, marquer flags immédiatement (synchrone)')
+            // Marquer IMMÉDIATEMENT et SYNCHRONEMENT pour afficher l'overlay
+            // Cela empêchera Vue de rendre l'interface
             sessionStorage.setItem('sso_redirecting', 'true')
             authStore.isSSORedirecting = true
             // Ne pas continuer le rendu, la redirection sera gérée par Auth.vue
+            // L'overlay s'affichera grâce au computed shouldShowSSOOverlay
             return
           }
         }

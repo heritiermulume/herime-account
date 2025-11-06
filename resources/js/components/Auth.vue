@@ -37,6 +37,26 @@ export default {
     // Vérifier directement sessionStorage pour une réactivité immédiate
     const shouldShowSSOOverlay = computed(() => {
       if (typeof window === 'undefined') return false
+      
+      // Vérification SYNCHRONE : si on est sur /login avec paramètres SSO et qu'on a un token
+      // Marquer immédiatement les flags pour afficher l'overlay AVANT même checkAuth()
+      if (route && route.path === '/login') {
+        const hasRedirectParams = route.query && (route.query.redirect || route.query.force_token)
+        if (hasRedirectParams) {
+          // Vérifier si on a un token de manière synchrone
+          const token = localStorage.getItem('access_token')
+          if (token) {
+            // Si on a un token ET des paramètres SSO, marquer immédiatement (synchrone)
+            // Cela affichera l'overlay avant même que checkAuth() ne soit appelé
+            if (sessionStorage.getItem('sso_redirecting') !== 'true') {
+              sessionStorage.setItem('sso_redirecting', 'true')
+              authStore.isSSORedirecting = true
+            }
+            return true
+          }
+        }
+      }
+      
       const ssoRedirecting = sessionStorage.getItem('sso_redirecting') === 'true'
       if (!ssoRedirecting) return false
       // Vérifier qu'on a bien les paramètres nécessaires
