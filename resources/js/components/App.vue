@@ -1,11 +1,11 @@
 <template>
   <div id="app" class="min-h-screen bg-gray-50 dark:bg-gray-900">
 
-    <!-- Loading State - Masquer l'interface si redirection SSO en cours -->
-    <div v-if="loading || ((isSSORedirecting || authStore.isSSORedirecting) && (route.query.redirect || route.query.force_token))" class="fixed inset-0 z-[99999] flex items-center justify-center bg-gray-50 dark:bg-gray-900" style="position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; z-index: 99999 !important;">
+    <!-- Loading State -->
+    <div v-if="loading" class="min-h-screen flex items-center justify-center">
       <div class="bg-white dark:bg-gray-800 rounded-lg p-6 flex items-center space-x-3">
         <div class="animate-spin rounded-full h-6 w-6 border-b-2" style="border-color: #003366;"></div>
-        <span class="text-gray-700 dark:text-gray-300">{{ isSSORedirecting || authStore.isSSORedirecting ? 'Redirection en cours...' : 'Chargement...' }}</span>
+        <span class="text-gray-700 dark:text-gray-300">Chargement...</span>
       </div>
     </div>
 
@@ -112,42 +112,6 @@ export default {
     const toastContainer = ref(null)
 
     const user = computed(() => authStore.user)
-    const isSSORedirecting = computed(() => authStore.isSSORedirecting)
-    
-    // Vérifier si on est en train de rediriger vers un site externe
-    const checkSSORedirect = () => {
-      const redirectParam = route.query.redirect
-      if (redirectParam && typeof redirectParam === 'string') {
-        try {
-          // Décoder l'URL
-          let decoded = redirectParam
-          for (let i = 0; i < 3; i++) {
-            try {
-              const temp = decodeURIComponent(decoded)
-              if (temp === decoded) break
-              decoded = temp
-            } catch (e) {
-              break
-            }
-          }
-          
-          if (decoded.startsWith('http')) {
-            const url = new URL(decoded)
-            const currentHost = window.location.hostname.replace(/^www\./, '').toLowerCase()
-            const urlHost = url.hostname.replace(/^www\./, '').toLowerCase()
-            
-            // Si c'est un domaine externe et qu'on est authentifié, on va rediriger
-            // Le flag isSSORedirecting est déjà géré par l'authStore
-            if (urlHost !== currentHost && urlHost !== 'compte.herime.com' && authStore.authenticated) {
-              return true
-            }
-          }
-        } catch (e) {
-          // Ignorer les erreurs
-        }
-      }
-      return false
-    }
 
     // Notification service
     const notify = {
@@ -233,11 +197,6 @@ export default {
       console.log('Initial authenticated:', authStore.authenticated)
       console.log('Current route:', route?.path)
       
-      // Vérifier si on doit masquer l'interface pour une redirection SSO
-      if (route.path === '/login' || route.path === '/register') {
-        checkSSORedirect()
-      }
-      
       // Check for saved dark mode preference
       const savedDarkMode = localStorage.getItem('darkMode')
       if (savedDarkMode !== null) {
@@ -305,8 +264,7 @@ export default {
       authStore,
       toastContainer,
       getAvatarUrl,
-      handleImageError,
-      isSSORedirecting
+      handleImageError
     }
   }
 }
