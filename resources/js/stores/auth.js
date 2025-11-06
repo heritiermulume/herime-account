@@ -70,6 +70,15 @@ export const useAuthStore = defineStore('auth', {
           if (response.data.data?.sso_redirect_url) {
             this.isSSORedirecting = true
             if (import.meta.env.DEV) console.log('AuthStore: SSO redirect detected, setting flag')
+            
+            // Stocker le token et les données utilisateur temporairement
+            // mais NE PAS mettre authenticated = true pour éviter le rendu
+            const token = response.data.data.access_token
+            localStorage.setItem('access_token', token)
+            // Ne pas mettre à jour user et authenticated maintenant
+            // La redirection se fera avant que Vue ne puisse rendre
+            if (import.meta.env.DEV) console.log('AuthStore: SSO redirect - delaying state update')
+            return response.data
           }
           
           this.user = response.data.data.user
@@ -141,6 +150,16 @@ export const useAuthStore = defineStore('auth', {
           if (response.data.data?.sso_redirect_url) {
             this.isSSORedirecting = true
             if (import.meta.env.DEV) console.log('AuthStore: SSO redirect detected (2FA), setting flag')
+            
+            // Stocker le token temporairement
+            // mais NE PAS mettre authenticated = true pour éviter le rendu
+            const token = response.data.data.access_token
+            localStorage.setItem('access_token', token)
+            this.twoFactorToken = null
+            // Ne pas mettre à jour user et authenticated maintenant
+            // La redirection se fera avant que Vue ne puisse rendre
+            if (import.meta.env.DEV) console.log('AuthStore: SSO redirect (2FA) - delaying state update')
+            return response.data
           }
           
           this.user = response.data.data.user
