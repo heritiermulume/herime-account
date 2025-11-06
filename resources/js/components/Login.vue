@@ -12,7 +12,7 @@
         <img 
           src="/logo-principal.png" 
           alt="HERIME Logo" 
-          class="h-12 w-auto mx-auto mb-4"
+          class="h-20 md:h-24 w-auto mx-auto mb-4"
         />
       </div>
       
