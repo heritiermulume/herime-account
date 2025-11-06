@@ -268,14 +268,28 @@
             </button>
           </p>
         </div>
+        
+        <!-- Bouton retour au site externe -->
+        <div v-if="externalSiteUrl" class="text-center mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+          <button
+            type="button"
+            @click.prevent="handleReturnToSite"
+            class="inline-flex items-center text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors cursor-pointer"
+          >
+            <svg class="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+            </svg>
+            Retour au site
+          </button>
+        </div>
       </div>
     </div>
   </div>
 </template>
 
 <script>
-import { ref, reactive, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, reactive, computed, onMounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 
 export default {
@@ -283,6 +297,7 @@ export default {
   emits: ['switch-to-login'],
   setup(props, { emit }) {
     const router = useRouter()
+    const route = useRoute()
     const authStore = useAuthStore()
     
     // Initialiser le thème sombre si nécessaire
@@ -370,6 +385,122 @@ export default {
     const showPasswordConfirmation = ref(false)
     const registrationDisabled = ref(false)
     const checkingRegistration = ref(true)
+    
+    // Fonction helper pour décoder une URL (peut être multi-encodée)
+    const decodeUrl = (urlString) => {
+      if (!urlString || typeof urlString !== 'string') return null
+      
+      let decoded = urlString
+      let lastDecoded = null
+      
+      // Décoder jusqu'à ce qu'il n'y ait plus de changement
+      for (let i = 0; i < 5; i++) {
+        try {
+          lastDecoded = decoded
+          decoded = decodeURIComponent(decoded)
+          if (decoded === lastDecoded) break
+        } catch (e) {
+          // Si erreur de décodage, retourner la dernière valeur valide
+          return lastDecoded || urlString
+        }
+      }
+      
+      return decoded
+    }
+    
+    // Fonction helper pour extraire l'URL de base du site externe
+    const getExternalSiteBaseUrl = (redirectUrl) => {
+      try {
+        // Décoder l'URL
+        const decodedUrl = decodeUrl(redirectUrl)
+        if (!decodedUrl) return null
+        
+        // Vérifier si c'est une URL HTTP valide
+        if (!decodedUrl.startsWith('http://') && !decodedUrl.startsWith('https://')) {
+          return null
+        }
+        
+        // Parser l'URL
+        let url
+        try {
+          url = new URL(decodedUrl)
+        } catch (e) {
+          // Si l'URL contient des caractères invalides, essayer de la nettoyer
+          console.warn('[Register] Invalid URL format, attempting to fix:', decodedUrl)
+          return null
+        }
+        
+        const currentHost = window.location.hostname.replace(/^www\./, '').toLowerCase()
+        const urlHost = url.hostname.replace(/^www\./, '').toLowerCase()
+        
+        // Vérifier si c'est un domaine externe
+        if (urlHost !== currentHost && urlHost !== 'compte.herime.com') {
+          // Si pathname est /sso/callback ou commence par /sso/, retourner à la racine
+          let returnPath = url.pathname
+          if (returnPath === '/sso/callback' || returnPath.startsWith('/sso/')) {
+            returnPath = '/'
+          }
+          
+          return `${url.protocol}//${url.hostname}${returnPath}`
+        }
+        
+        return null
+      } catch (e) {
+        console.error('[Register] Error in getExternalSiteBaseUrl:', e)
+        return null
+      }
+    }
+    
+    // Détecter si l'utilisateur vient d'un site externe
+    const externalSiteUrl = computed(() => {
+      const redirectParam = route.query.redirect
+      
+      if (!redirectParam || typeof redirectParam !== 'string') {
+        return null
+      }
+      
+      return getExternalSiteBaseUrl(redirectParam)
+    })
+    
+    const handleReturnToSite = (event) => {
+      // Empêcher tout comportement par défaut
+      if (event) {
+        event.preventDefault()
+        event.stopPropagation()
+      }
+      
+      const redirectParam = route.query.redirect
+      
+      console.log('[Register] handleReturnToSite called', {
+        redirectParam,
+        computedValue: externalSiteUrl.value,
+        windowLocation: window.location.href
+      })
+      
+      // Obtenir l'URL de base du site externe
+      let returnUrl = externalSiteUrl.value
+      
+      // Si le computed n'a pas fonctionné, essayer directement
+      if (!returnUrl && redirectParam) {
+        console.log('[Register] Computed value not available, trying direct extraction')
+        returnUrl = getExternalSiteBaseUrl(redirectParam)
+      }
+      
+      if (returnUrl) {
+        console.log('[Register] Redirecting to external site:', returnUrl)
+        // Utiliser window.location.href pour forcer la navigation
+        // Utiliser setTimeout pour s'assurer que le code s'exécute complètement
+        setTimeout(() => {
+          window.location.href = returnUrl
+        }, 100)
+      } else {
+        console.error('[Register] Cannot determine external site URL', {
+          redirectParam,
+          computedValue: externalSiteUrl.value,
+          routeQuery: route.query
+        })
+      }
+    }
 
     const handleRegister = async () => {
       // Bloquer si l'inscription est désactivée
@@ -414,7 +545,9 @@ export default {
       showPasswordConfirmation,
       handleRegister,
       registrationDisabled,
-      checkingRegistration
+      checkingRegistration,
+      externalSiteUrl,
+      handleReturnToSite
     }
   }
 }
