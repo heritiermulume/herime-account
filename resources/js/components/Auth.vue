@@ -1,5 +1,11 @@
 <template>
-  <div class="fixed inset-0 z-50 bg-gray-50 dark:bg-gray-900 overflow-y-auto">
+  <div v-if="isRedirecting" class="fixed inset-0 z-50 bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+    <div class="text-center">
+      <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4" style="border-color: #003366;"></div>
+      <p class="text-gray-600 dark:text-gray-400">Redirection en cours...</p>
+    </div>
+  </div>
+  <div v-else class="fixed inset-0 z-50 bg-gray-50 dark:bg-gray-900 overflow-y-auto">
     <Login v-if="currentView === 'login'" @switch-to-register="currentView = 'register'" />
     <Register v-else @switch-to-login="currentView = 'login'" />
   </div>

@@ -1,5 +1,11 @@
 <template>
-  <div :class="['flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-gray-50 dark:bg-gray-900', requiresTwoFactor ? 'min-h-screen overflow-y-auto' : 'h-screen overflow-hidden']">
+  <div v-if="isRedirectingSSO" class="fixed inset-0 z-50 bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+    <div class="text-center">
+      <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4" style="border-color: #003366;"></div>
+      <p class="text-gray-600 dark:text-gray-400">Redirection en cours...</p>
+    </div>
+  </div>
+  <div v-else :class="['flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-gray-50 dark:bg-gray-900', requiresTwoFactor ? 'min-h-screen overflow-y-auto' : 'h-screen overflow-hidden']">
     <div class="max-w-lg w-full">
       <!-- Logo -->
       <div class="text-center mb-8">
@@ -346,6 +352,7 @@ export default {
     const showPassword = ref(false)
     const requiresTwoFactor = ref(false)
     const twoFactorCode = ref('')
+    const isRedirectingSSO = ref(false)
     
     // Forgot password
     const showForgotPassword = ref(false)
@@ -543,8 +550,13 @@ export default {
         
         // Vérifier s'il y a une redirection SSO vers un domaine externe
         if (result?.data?.sso_redirect_url) {
-          // Rediriger vers le domaine externe avec le token SSO
-          window.location.href = result.data.sso_redirect_url
+          // Masquer immédiatement l'interface et rediriger
+          isRedirectingSSO.value = true
+          
+          // Redirection immédiate vers le domaine externe avec le token SSO
+          // Utiliser window.location.replace pour éviter d'ajouter à l'historique
+          console.log('[Login] Redirection SSO immédiate vers:', result.data.sso_redirect_url)
+          window.location.replace(result.data.sso_redirect_url)
           return
         }
         
@@ -608,8 +620,13 @@ export default {
         
         // Vérifier s'il y a une redirection SSO vers un domaine externe
         if (result?.data?.sso_redirect_url) {
-          // Rediriger vers le domaine externe avec le token SSO
-          window.location.href = result.data.sso_redirect_url
+          // Masquer immédiatement l'interface et rediriger
+          isRedirectingSSO.value = true
+          
+          // Redirection immédiate vers le domaine externe avec le token SSO
+          // Utiliser window.location.replace pour éviter d'ajouter à l'historique
+          console.log('[Login] Redirection SSO immédiate (2FA) vers:', result.data.sso_redirect_url)
+          window.location.replace(result.data.sso_redirect_url)
           return
         }
         
@@ -687,6 +704,7 @@ export default {
       showPassword,
       requiresTwoFactor,
       twoFactorCode,
+      isRedirectingSSO,
       handleLogin,
       handleVerify2FA,
       showForgotPassword,

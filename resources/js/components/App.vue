@@ -10,7 +10,7 @@
     </div>
 
     <!-- Main Content -->
-    <div v-else class="min-h-screen">
+    <div v-else-if="!isSSORedirecting" class="min-h-screen">
         <!-- Sidebar - Hide on login/register pages -->
         <Sidebar v-if="user && route && route.path !== '/login' && route.path !== '/register'" />
       
@@ -110,8 +110,44 @@ export default {
     const loading = ref(false)
     const isDarkMode = ref(false)
     const toastContainer = ref(null)
+    const isSSORedirecting = ref(false)
 
     const user = computed(() => authStore.user)
+    
+    // Vérifier si on est en train de rediriger vers un site externe
+    const checkSSORedirect = () => {
+      const redirectParam = route.query.redirect
+      if (redirectParam && typeof redirectParam === 'string') {
+        try {
+          // Décoder l'URL
+          let decoded = redirectParam
+          for (let i = 0; i < 3; i++) {
+            try {
+              const temp = decodeURIComponent(decoded)
+              if (temp === decoded) break
+              decoded = temp
+            } catch (e) {
+              break
+            }
+          }
+          
+          if (decoded.startsWith('http')) {
+            const url = new URL(decoded)
+            const currentHost = window.location.hostname.replace(/^www\./, '').toLowerCase()
+            const urlHost = url.hostname.replace(/^www\./, '').toLowerCase()
+            
+            // Si c'est un domaine externe et qu'on est authentifié, on va rediriger
+            if (urlHost !== currentHost && urlHost !== 'compte.herime.com' && authStore.authenticated) {
+              isSSORedirecting.value = true
+              return true
+            }
+          }
+        } catch (e) {
+          // Ignorer les erreurs
+        }
+      }
+      return false
+    }
 
     // Notification service
     const notify = {
@@ -197,6 +233,11 @@ export default {
       console.log('Initial authenticated:', authStore.authenticated)
       console.log('Current route:', route?.path)
       
+      // Vérifier si on doit masquer l'interface pour une redirection SSO
+      if (route.path === '/login' || route.path === '/register') {
+        checkSSORedirect()
+      }
+      
       // Check for saved dark mode preference
       const savedDarkMode = localStorage.getItem('darkMode')
       if (savedDarkMode !== null) {
@@ -264,7 +305,8 @@ export default {
       authStore,
       toastContainer,
       getAvatarUrl,
-      handleImageError
+      handleImageError,
+      isSSORedirecting
     }
   }
 }
