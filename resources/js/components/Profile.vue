@@ -414,34 +414,144 @@ export default {
       avatarInput.value?.click()
     }
 
-    const handleAvatarChange = (event) => {
-      const file = event.target.files[0]
-      if (file) {
-        // Vérifier la taille (max 5MB avant compression - sera compressé à 1MB si nécessaire)
-        if (file.size > 5 * 1024 * 1024) {
-          notify.error('Erreur', 'La photo ne doit pas dépasser 5MB (elle sera compressée automatiquement)')
-          return
-        }
+    // Fonction pour compresser une image
+    const compressImage = (file, maxWidth = 1024, maxHeight = 1024, maxSizeMB = 1, quality = 0.9) => {
+      return new Promise((resolve, reject) => {
         // Vérifier le type
         if (!file.type.startsWith('image/')) {
-          notify.error('Erreur', 'Le fichier doit être une image')
+          reject(new Error('Le fichier doit être une image'))
           return
         }
-        form.avatar_file = file
-        
-        // Afficher un aperçu immédiat avec data URL
+
         const reader = new FileReader()
         reader.onload = (e) => {
-          // Stocker l'aperçu dans un champ séparé pour l'affichage
-          form.avatar_preview = e.target.result
-          form.avatar_url = e.target.result // Pour l'affichage immédiat
+          const img = new Image()
+          img.onload = () => {
+            // Créer un canvas
+            const canvas = document.createElement('canvas')
+            let width = img.width
+            let height = img.height
+
+            // Redimensionner si nécessaire (maintenir le ratio)
+            if (width > maxWidth || height > maxHeight) {
+              if (width > height) {
+                if (width > maxWidth) {
+                  height = (height * maxWidth) / width
+                  width = maxWidth
+                }
+              } else {
+                if (height > maxHeight) {
+                  width = (width * maxHeight) / height
+                  height = maxHeight
+                }
+              }
+            }
+
+            canvas.width = width
+            canvas.height = height
+
+            // Dessiner l'image redimensionnée
+            const ctx = canvas.getContext('2d')
+            ctx.drawImage(img, 0, 0, width, height)
+
+            // Fonction récursive pour compresser jusqu'à atteindre la taille max
+            const tryCompress = (currentQuality) => {
+              canvas.toBlob(
+                (blob) => {
+                  if (!blob) {
+                    reject(new Error('Erreur lors de la compression'))
+                    return
+                  }
+
+                  const sizeMB = blob.size / (1024 * 1024)
+
+                  // Si la taille est acceptable ou la qualité est trop basse, accepter
+                  if (sizeMB <= maxSizeMB || currentQuality <= 0.1) {
+                    // Créer un nouveau File avec le même nom
+                    const compressedFile = new File(
+                      [blob],
+                      file.name.replace(/\.[^/.]+$/, '.jpg'), // Changer l'extension en .jpg
+                      {
+                        type: 'image/jpeg',
+                        lastModified: Date.now()
+                      }
+                    )
+                    resolve(compressedFile)
+                  } else {
+                    // Réduire la qualité et réessayer
+                    tryCompress(currentQuality - 0.1)
+                  }
+                },
+                'image/jpeg',
+                currentQuality
+              )
+            }
+
+            // Démarrer la compression
+            tryCompress(quality)
+          }
+          img.onerror = () => {
+            reject(new Error('Erreur lors du chargement de l\'image'))
+          }
+          img.src = e.target.result
+        }
+        reader.onerror = () => {
+          reject(new Error('Erreur lors de la lecture du fichier'))
         }
         reader.readAsDataURL(file)
-        
-        // Afficher un message si le fichier est > 1MB
-        if (file.size > 1024 * 1024) {
-          notify.info('Information', 'La photo sera automatiquement compressée pour optimiser l\'espace')
+      })
+    }
+
+    const handleAvatarChange = async (event) => {
+      const file = event.target.files[0]
+      if (!file) return
+
+      // Vérifier le type
+      if (!file.type.startsWith('image/')) {
+        notify.error('Erreur', 'Le fichier doit être une image')
+        event.target.value = '' // Réinitialiser l'input
+        return
+      }
+
+      // Vérifier la taille maximale avant compression (10MB pour permettre la compression)
+      if (file.size > 10 * 1024 * 1024) {
+        notify.error('Erreur', 'La photo ne doit pas dépasser 10MB')
+        event.target.value = '' // Réinitialiser l'input
+        return
+      }
+
+      try {
+        // Afficher un message de compression
+        const isLarge = file.size > 1024 * 1024
+        if (isLarge) {
+          notify.info('Information', 'Compression de la photo en cours...')
         }
+
+        // Compresser l'image (max 1MB, max dimensions 1024x1024)
+        const compressedFile = await compressImage(file, 1024, 1024, 1, 0.9)
+
+        // Stocker le fichier compressé
+        form.avatar_file = compressedFile
+
+        // Afficher l'aperçu de l'image compressée
+        const reader = new FileReader()
+        reader.onload = (e) => {
+          form.avatar_preview = e.target.result
+          form.avatar_url = e.target.result
+        }
+        reader.readAsDataURL(compressedFile)
+
+        // Afficher un message de succès si la compression a réduit la taille
+        if (isLarge && compressedFile.size < file.size) {
+          const originalSizeMB = (file.size / (1024 * 1024)).toFixed(2)
+          const compressedSizeMB = (compressedFile.size / (1024 * 1024)).toFixed(2)
+          notify.success('Succès', `Photo compressée: ${originalSizeMB}MB → ${compressedSizeMB}MB`)
+        }
+      } catch (error) {
+        notify.error('Erreur', error.message || 'Erreur lors de la compression de la photo')
+        event.target.value = '' // Réinitialiser l'input
+        form.avatar_file = null
+        form.avatar_preview = null
       }
     }
 
