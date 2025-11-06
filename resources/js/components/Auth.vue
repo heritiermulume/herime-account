@@ -30,7 +30,9 @@ export default {
     // Protection contre les boucles de redirection
     const checkForRedirectLoop = () => {
       const redirectingKey = 'sso_redirecting'
+      const checkingKey = 'sso_checking'
       const redirectingTimestamp = sessionStorage.getItem(redirectingKey)
+      const checkingTimestamp = sessionStorage.getItem(checkingKey)
       
       // Vérifier si on a force_token dans l'URL - si oui, c'est une demande SSO légitime
       const hasForceToken = route.query.force_token === '1' || 
@@ -45,14 +47,41 @@ export default {
         // Vérifier que le redirect pointe vers un domaine externe
         try {
           const redirectUrl = route.query.redirect
-          const decodedUrl = decodeURIComponent(redirectUrl)
+          let decodedUrl = redirectUrl
+          try {
+            decodedUrl = decodeURIComponent(redirectUrl)
+          } catch (e) {
+            // Si le décodage échoue, utiliser l'URL telle quelle
+          }
+          
           const redirectHost = new URL(decodedUrl).hostname
           const currentHost = window.location.hostname
           
           // Si le redirect pointe vers un domaine externe, ce n'est pas une boucle
           if (redirectHost !== currentHost && redirectHost !== 'compte.herime.com') {
-            // Nettoyer le timestamp pour permettre la redirection
+            // Si on est en train de vérifier (< 5 secondes), c'est normal, ne pas bloquer
+            if (checkingTimestamp) {
+              const now = Date.now()
+              const elapsed = now - parseInt(checkingTimestamp, 10)
+              if (elapsed < 5000) {
+                // C'est normal, on est en train de vérifier l'authentification
+                return false
+              }
+            }
+            
+            // Si on est en train de rediriger (< 10 secondes), c'est normal, ne pas bloquer
+            if (redirectingTimestamp) {
+              const now = Date.now()
+              const elapsed = now - parseInt(redirectingTimestamp, 10)
+              if (elapsed < 10000) {
+                // C'est normal, on est en train de rediriger
+                return false
+              }
+            }
+            
+            // Plus de 10 secondes, nettoyer et considérer comme une nouvelle tentative
             sessionStorage.removeItem(redirectingKey)
+            sessionStorage.removeItem(checkingKey)
             return false
           }
         } catch (e) {
@@ -75,6 +104,7 @@ export default {
               currentHost
             })
             sessionStorage.removeItem(redirectingKey)
+            sessionStorage.removeItem(checkingKey)
             return false
           }
         } catch (e) {
@@ -82,28 +112,30 @@ export default {
         }
       }
       
-      if (redirectingTimestamp) {
+      // Si on a un timestamp de redirection mais pas de force_token, c'est suspect
+      if (redirectingTimestamp && !hasForceToken) {
         const now = Date.now()
         const elapsed = now - parseInt(redirectingTimestamp, 10)
         
-        // Si moins de 3 secondes se sont écoulées et qu'on est sur la même page, on est probablement dans une boucle
-        // Mais seulement si on n'a pas force_token (ce qui indiquerait une demande SSO légitime)
-        if (elapsed < 3000 && !hasForceToken) {
+        // Si moins de 2 secondes se sont écoulées, on est probablement dans une boucle
+        if (elapsed < 2000) {
           console.error('[Auth] ⚠️ BOUCLE DE REDIRECTION DÉTECTÉE!', {
             elapsed,
             timestamp: redirectingTimestamp,
             referer: document.referer,
-            currentUrl: window.location.href
+            currentUrl: window.location.href,
+            has_force_token: hasForceToken
           })
           // Nettoyer et arrêter
           sessionStorage.removeItem(redirectingKey)
+          sessionStorage.removeItem(checkingKey)
           
           // Rediriger vers dashboard pour arrêter la boucle
           console.log('[Auth] Redirection vers dashboard pour arrêter la boucle')
           router.push('/dashboard')
           return true
         }
-        // Plus de 3 secondes ou demande SSO légitime, considérer que c'est une nouvelle tentative
+        // Plus de 2 secondes, considérer que c'est une nouvelle tentative
         sessionStorage.removeItem(redirectingKey)
       }
       
