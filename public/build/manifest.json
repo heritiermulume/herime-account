@@ -1,6 +1,6 @@
 {
   "node_modules/vue/dist/vue.runtime.esm-bundler.js": {
-    "file": "assets/vue.runtime.esm-bundler-CvU8-ifL.js",
+    "file": "assets/vue.runtime.esm-bundler-D8pHuMgu.js",
     "name": "vue.runtime.esm-bundler",
     "src": "node_modules/vue/dist/vue.runtime.esm-bundler.js",
     "isDynamicEntry": true,
@@ -17,7 +17,7 @@
     ]
   },
   "resources/js/app.js": {
-    "file": "assets/app-DZQUFiYD.js",
+    "file": "assets/app-rplcTSmD.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,
