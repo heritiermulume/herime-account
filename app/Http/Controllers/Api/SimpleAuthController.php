@@ -428,15 +428,23 @@ class SimpleAuthController extends Controller
             // Forcer l'inclusion de avatar_url et last_login_at
             $user->makeVisible(['avatar', 'avatar_url', 'last_login_at', 'is_active']);
             
-            // Charger la session actuelle si elle existe
-            $user->load('currentSession');
+            // Charger la session actuelle si elle existe (sans erreur si elle n'existe pas)
+            try {
+                $user->load('currentSession');
+            } catch (\Exception $e) {
+                // Ignorer les erreurs de chargement de session
+            }
             
             $userData = $user->toArray();
             $userData['avatar_url'] = $user->avatar_url;
             
             // S'assurer que last_login_at est bien formaté
             if ($user->last_login_at) {
-                $userData['last_login_at'] = $user->last_login_at->toISOString();
+                try {
+                    $userData['last_login_at'] = $user->last_login_at->toISOString();
+                } catch (\Exception $e) {
+                    $userData['last_login_at'] = $user->last_login_at ? $user->last_login_at->format('Y-m-d\TH:i:s.u\Z') : null;
+                }
             } else {
                 $userData['last_login_at'] = null;
             }
