@@ -394,9 +394,14 @@ class SimpleAuthController extends Controller
     {
         $user = $request->user();
         
-        // Mark current session as inactive
-        if ($user && $user->currentSession) {
-            $user->currentSession->update(['is_current' => false]);
+        if ($user) {
+            // Marquer la session comme inactive
+            if ($user->currentSession) {
+                $user->currentSession->update(['is_current' => false]);
+            }
+            
+            // Révoquer TOUS les tokens Passport de l'utilisateur pour déconnecter tous les sites externes
+            $user->tokens()->update(['revoked' => true]);
         }
 
         return response()->json([

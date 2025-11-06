@@ -130,12 +130,14 @@ class AuthController extends Controller
     {
         $user = $request->user();
         
-        // Revoke current token
-        $user->token()->revoke();
-        
-        // Mark current session as inactive
-        if ($user->currentSession) {
-            $user->currentSession->update(['is_current' => false]);
+        if ($user) {
+            // Révoquer TOUS les tokens Passport de l'utilisateur pour déconnecter tous les sites externes
+            $user->tokens()->update(['revoked' => true]);
+            
+            // Mark current session as inactive
+            if ($user->currentSession) {
+                $user->currentSession->update(['is_current' => false]);
+            }
         }
 
         return response()->json([

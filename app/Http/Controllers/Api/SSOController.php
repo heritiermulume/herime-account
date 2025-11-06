@@ -34,10 +34,46 @@ class SSOController extends Controller
         $token = $request->token;
         $clientDomain = $request->client_domain;
 
-        // Find the token in the database
-        $accessToken = \Laravel\Passport\Token::where('id', $token)
+        // Passport stores token IDs as SHA-256 hash of the JWT token
+        // Try to find the token by its hash first
+        $tokenHash = hash('sha256', $token);
+        $accessToken = \Laravel\Passport\Token::where('id', $tokenHash)
             ->where('revoked', false)
             ->first();
+
+        // If not found by hash, try to decode JWT and get user_id from payload
+        // This handles cases where the token format might be different
+        if (!$accessToken) {
+            try {
+                $parts = explode('.', $token);
+                if (count($parts) === 3) {
+                    // Decode JWT payload (without verification, as we'll verify via database)
+                    $payload = json_decode(base64_decode(strtr($parts[1], '-_', '+/')), true);
+                    
+                    if ($payload && isset($payload['sub'])) {
+                        $userId = $payload['sub'];
+                        
+                        // Find user and check if they have any valid tokens
+                        $user = User::find($userId);
+                        if ($user) {
+                            // Check if token exists for this user (by checking all user tokens)
+                            $userTokens = \Laravel\Passport\Token::where('user_id', $userId)
+                                ->where('revoked', false)
+                                ->get();
+                            
+                            foreach ($userTokens as $tokenObj) {
+                                if (hash('sha256', $token) === $tokenObj->id) {
+                                    $accessToken = $tokenObj;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch (\Exception $e) {
+                // Ignore JWT parsing errors
+            }
+        }
 
         if (!$accessToken) {
             return response()->json([
