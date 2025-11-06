@@ -3,10 +3,10 @@
     <!-- Loading State - Masquer l'interface si redirection SSO en cours -->
     <!-- IMPORTANT: Vérifier sessionStorage directement dans le template pour réactivité immédiate -->
     <!-- Utiliser une fonction inline pour vérifier sessionStorage directement -->
-    <div v-if="loading || isSSORedirecting || shouldShowSSOOverlay || initialSSOCheck || (typeof window !== 'undefined' && window.sessionStorage && window.sessionStorage.getItem('sso_redirecting') === 'true' && route && route.query && (route.query.redirect || route.query.force_token))" class="fixed inset-0 z-[99999] flex items-center justify-center bg-gray-50 dark:bg-gray-900" style="position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; z-index: 99999 !important; background-color: rgb(249 250 251) !important;">
-      <div class="bg-white dark:bg-gray-800 rounded-lg p-6 flex items-center space-x-3">
-        <div class="animate-spin rounded-full h-6 w-6 border-b-2" style="border-color: #003366;"></div>
-        <span class="text-gray-700 dark:text-gray-300">{{ (isSSORedirecting || shouldShowSSOOverlay || initialSSOCheck || (typeof window !== 'undefined' && window.sessionStorage && window.sessionStorage.getItem('sso_redirecting') === 'true')) ? 'Redirection en cours...' : 'Chargement...' }}</span>
+    <div v-if="loading || isSSORedirecting || shouldShowSSOOverlay || initialSSOCheck || (typeof window !== 'undefined' && window.sessionStorage && window.sessionStorage.getItem('sso_redirecting') === 'true' && route && route.query && (route.query.redirect || route.query.force_token))" class="fixed inset-0 z-[99999] flex items-center justify-center" style="position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; z-index: 99999 !important; background-color: #003366 !important;">
+      <div class="rounded-lg p-8 flex flex-col items-center space-y-4" style="background-color: rgba(255, 255, 255, 0.95);">
+        <div class="animate-spin rounded-full h-12 w-12 border-4 border-t-transparent" style="border-color: #ffcc33;"></div>
+        <span class="text-lg font-medium" style="color: #003366;">{{ (isSSORedirecting || shouldShowSSOOverlay || initialSSOCheck || (typeof window !== 'undefined' && window.sessionStorage && window.sessionStorage.getItem('sso_redirecting') === 'true')) ? 'Redirection en cours...' : 'Chargement...' }}</span>
       </div>
     </div>
 
