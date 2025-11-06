@@ -302,18 +302,38 @@ export default {
         ssoRedirecting: sessionStorage.getItem('sso_redirecting')
       })
       
-      // Si une redirection SSO est en cours, ne pas continuer
-      if (sessionStorage.getItem('sso_redirecting') === 'true') {
-        console.log('[Auth] Redirection SSO en cours (onMounted), arrêt du montage')
-        return
-      }
-      
       // Réinitialiser le flag SSO si on arrive sur la page sans paramètre redirect/force_token
       if (!route.query.redirect && !route.query.force_token) {
+        console.log('[Auth] Pas de paramètres redirect/force_token, réinitialisation des flags')
         authStore.isSSORedirecting = false
         isRedirecting.value = false
         redirectPromise.value = null
-        sessionStorage.removeItem('sso_redirecting')
+        if (typeof window !== 'undefined') {
+          sessionStorage.removeItem('sso_redirecting')
+        }
+      }
+      
+      // Si une redirection SSO est en cours ET qu'on a les paramètres, vérifier si c'est vraiment nécessaire
+      if (typeof window !== 'undefined' && sessionStorage.getItem('sso_redirecting') === 'true') {
+        // Si on n'a pas de paramètres redirect/force_token, nettoyer le flag
+        if (!route.query.redirect && !route.query.force_token) {
+          console.log('[Auth] Flag SSO présent mais pas de paramètres, nettoyage')
+          sessionStorage.removeItem('sso_redirecting')
+          isRedirecting.value = false
+          authStore.isSSORedirecting = false
+        } else {
+          // On a les paramètres, vérifier si l'utilisateur est authentifié
+          const isAuthenticated = await authStore.checkAuth()
+          if (!isAuthenticated) {
+            console.log('[Auth] Utilisateur non authentifié, nettoyage du flag SSO')
+            sessionStorage.removeItem('sso_redirecting')
+            isRedirecting.value = false
+            authStore.isSSORedirecting = false
+          } else {
+            console.log('[Auth] Redirection SSO en cours (onMounted), arrêt du montage')
+            return
+          }
+        }
       }
       
       // Si on est en train de rediriger, ne pas continuer

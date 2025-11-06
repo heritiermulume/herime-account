@@ -565,9 +565,19 @@ export default {
         console.log('[Login] Calling authStore.login...', loginData)
         const result = await authStore.login(loginData)
         console.log('[Login] Login successful:', result)
+        console.log('[Login] Full result structure:', JSON.stringify(result, null, 2))
+        console.log('[Login] Checking for sso_redirect_url:', {
+          has_result: !!result,
+          has_data: !!result?.data,
+          has_sso_redirect_url: !!result?.data?.sso_redirect_url,
+          sso_redirect_url: result?.data?.sso_redirect_url,
+          result_keys: result ? Object.keys(result) : [],
+          data_keys: result?.data ? Object.keys(result.data) : []
+        })
         
         // Vérifier s'il y a une redirection SSO vers un domaine externe
         if (result?.data?.sso_redirect_url) {
+          console.log('[Login] SSO redirect URL found:', result.data.sso_redirect_url)
           // Marquer dans sessionStorage pour éviter les doubles redirections
           sessionStorage.setItem('sso_redirecting', 'true')
           
@@ -581,6 +591,27 @@ export default {
           // Utiliser window.location.replace pour éviter d'ajouter à l'historique
           window.location.replace(result.data.sso_redirect_url)
           return
+        } else {
+          console.warn('[Login] No sso_redirect_url found in response. Redirect URL param:', route.query.redirect)
+          // Si pas de sso_redirect_url mais qu'on a un redirect dans l'URL, essayer de générer le token SSO manuellement
+          if (route.query.redirect && route.query.force_token) {
+            console.log('[Login] Attempting to generate SSO token manually...')
+            try {
+              const response = await axios.post('/sso/generate-token', {
+                redirect: route.query.redirect
+              })
+              console.log('[Login] SSO token generated:', response.data)
+              if (response.data?.success && response.data?.data?.callback_url) {
+                sessionStorage.setItem('sso_redirecting', 'true')
+                isRedirectingSSO.value = true
+                console.log('[Login] Redirecting to:', response.data.data.callback_url)
+                window.location.replace(response.data.data.callback_url)
+                return
+              }
+            } catch (error) {
+              console.error('[Login] Error generating SSO token manually:', error)
+            }
+          }
         }
         
         // Sinon, rediriger vers le dashboard local
