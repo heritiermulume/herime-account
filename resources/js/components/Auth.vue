@@ -166,16 +166,23 @@ export default {
         
         if (isAuthenticated) {
           // Vérifier à nouveau si une redirection est déjà en cours (double vérification)
-          if (sessionStorage.getItem('sso_redirecting') === 'true') {
-            console.log('[Auth] Redirection SSO déjà en cours (double vérification), ignoré')
+          if (typeof window !== 'undefined' && sessionStorage.getItem('sso_redirecting') === 'true') {
+            console.log('[Auth] Redirection SSO déjà en cours (double vérification), masquer interface')
+            isRedirecting.value = true
             return
           }
           
           console.log('[Auth] Utilisateur authentifié, génération token SSO...')
+          
+          // Marquer IMMÉDIATEMENT qu'on est en train de rediriger AVANT toute autre opération
+          // Cela empêchera App.vue de rendre l'interface
+          if (typeof window !== 'undefined') {
+            sessionStorage.setItem('sso_redirecting', 'true')
+          }
           isRedirecting.value = true
           
-          // Marquer qu'on est en train de rediriger AVANT de faire l'appel API
-          sessionStorage.setItem('sso_redirecting', 'true')
+          // Forcer un re-render pour afficher l'overlay immédiatement
+          await new Promise(resolve => setTimeout(resolve, 0))
           
           // Créer une promesse de redirection pour éviter les redirections multiples
           if (!redirectPromise.value) {
