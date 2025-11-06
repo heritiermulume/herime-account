@@ -120,52 +120,70 @@ class SSOController extends Controller
         $redirectUrl = $request->input('redirect') ?? $request->query('redirect');
         
         // Decode if needed (with limit to prevent DoS)
-        if ($redirectUrl) {
+        if ($redirectUrl && is_string($redirectUrl)) {
             $decoded = urldecode($redirectUrl);
             // Limiter le décodage pour éviter les boucles infinies
-            if ($decoded !== $redirectUrl && strlen($decoded) < 2000 && filter_var($decoded, FILTER_VALIDATE_URL)) {
-                $redirectUrl = $decoded;
+            if ($decoded !== $redirectUrl && strlen($decoded) <= 2000) {
+                $testParts = @parse_url($decoded);
+                if ($testParts && isset($testParts['scheme']) && isset($testParts['host'])) {
+                    $redirectUrl = $decoded;
+                }
             }
         }
         
         // If no redirect URL, determine from request
-        if (!$redirectUrl || !filter_var($redirectUrl, FILTER_VALIDATE_URL)) {
+        if (!$redirectUrl || !is_string($redirectUrl) || strlen($redirectUrl) > 2000) {
             // Try to determine from request
             if ($request->has('client_domain') || $request->query('client_domain')) {
                 $clientDomain = $request->input('client_domain') ?: $request->query('client_domain');
                 
-                // Validate client_domain format to prevent injection
-                if (!preg_match('/^[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?)*$/', $clientDomain)) {
-                    return response()->json([
-                        'success' => false,
-                        'message' => 'Invalid client domain format'
-                    ], 422);
+                if ($clientDomain && is_string($clientDomain) && strlen($clientDomain) <= 255 && preg_match('/^[a-zA-Z0-9\.\-]+$/', $clientDomain)) {
+                    // S'assurer que ce n'est pas le même domaine
+                    $currentHost = preg_replace('/^www\./', '', strtolower($request->getHost()));
+                    $clientDomainNormalized = preg_replace('/^www\./', '', strtolower($clientDomain));
+                    
+                    if ($clientDomainNormalized !== $currentHost && $clientDomainNormalized !== 'compte.herime.com') {
+                        $scheme = $request->secure() ? 'https' : 'http';
+                        $redirectPath = $request->query('redirect_path') ?: '/sso/callback';
+                        
+                        // Validate redirect_path to prevent directory traversal
+                        $redirectPath = ltrim($redirectPath, '/');
+                        if (empty($redirectPath) || !preg_match('/^[a-zA-Z0-9\/\-_\.]+$/', $redirectPath)) {
+                            $redirectPath = 'sso/callback';
+                        }
+                        
+                        $redirectUrl = $scheme . '://' . $clientDomain . '/' . $redirectPath;
+                    }
                 }
-                
-                $scheme = $request->secure() ? 'https' : 'http';
-                $redirectPath = $request->query('redirect_path') ?: '/sso/callback';
-                
-                // Validate redirect_path to prevent directory traversal
-                $redirectPath = ltrim($redirectPath, '/');
-                if (!preg_match('/^[a-zA-Z0-9\/\-_\.]+$/', $redirectPath)) {
-                    $redirectPath = 'sso/callback';
-                }
-                
-                $redirectUrl = $scheme . '://' . $clientDomain . '/' . $redirectPath;
             }
         }
 
-        // Validate URL format and length
-        if (!$redirectUrl || !filter_var($redirectUrl, FILTER_VALIDATE_URL) || strlen($redirectUrl) > 2000) {
+        // Validate URL format and length - utiliser parse_url au lieu de filter_var
+        if (!$redirectUrl || !is_string($redirectUrl) || strlen($redirectUrl) > 2000) {
             return response()->json([
                 'success' => false,
                 'message' => 'Invalid or missing redirect URL'
             ], 422);
         }
         
+        // Valider que c'est une URL valide avec parse_url
+        if (!(strpos($redirectUrl, 'http://') === 0 || strpos($redirectUrl, 'https://') === 0)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid URL format. Must start with http:// or https://'
+            ], 422);
+        }
+        
+        $urlParts = @parse_url($redirectUrl);
+        if (!$urlParts || !isset($urlParts['scheme']) || !isset($urlParts['host'])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid URL format'
+            ], 422);
+        }
+        
         // Validate URL scheme (only http/https)
-        $urlParts = parse_url($redirectUrl);
-        if (!isset($urlParts['scheme']) || !in_array(strtolower($urlParts['scheme']), ['http', 'https'])) {
+        if (!in_array(strtolower($urlParts['scheme']), ['http', 'https'])) {
             return response()->json([
                 'success' => false,
                 'message' => 'Invalid URL scheme. Only HTTP and HTTPS are allowed.'
