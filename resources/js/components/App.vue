@@ -247,6 +247,23 @@ export default {
       console.log('Current route:', route?.path)
       console.log('SSO redirecting:', typeof window !== 'undefined' ? sessionStorage.getItem('sso_redirecting') : 'N/A')
       
+      // Vérification IMMÉDIATE avant tout autre rendu : si on est sur /login avec paramètres SSO et utilisateur authentifié
+      if (typeof window !== 'undefined' && route && route.path === '/login') {
+        const hasRedirectParams = route.query && (route.query.redirect || route.query.force_token)
+        if (hasRedirectParams) {
+          // Vérifier si l'utilisateur est authentifié
+          const isAuth = await authStore.checkAuth()
+          if (isAuth) {
+            console.log('[App] Utilisateur authentifié sur /login avec paramètres SSO, déclencher redirection immédiate')
+            // Marquer immédiatement pour afficher l'overlay
+            sessionStorage.setItem('sso_redirecting', 'true')
+            authStore.isSSORedirecting = true
+            // Ne pas continuer le rendu, la redirection sera gérée par Auth.vue
+            return
+          }
+        }
+      }
+      
       // Nettoyer le flag SSO si on n'est pas sur une route avec redirect/force_token
       if (typeof window !== 'undefined') {
         const hasRedirectParams = route && route.query && (route.query.redirect || route.query.force_token)
