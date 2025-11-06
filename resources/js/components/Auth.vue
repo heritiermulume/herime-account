@@ -104,11 +104,7 @@ export default {
                            route.query.force_token === 'yes' ||
                            route.query.force_token === 'on'
       
-      console.log('[Auth] hasForceToken check:', {
-        hasForceToken,
-        force_token_value: route.query.force_token,
-        redirect: route.query.redirect
-      })
+      // Ne pas logger redirect car il peut contenir des informations sensibles
       
       if (hasForceToken) {
         // Vérifier que le redirect ne pointe pas vers compte.herime.com (éviter boucle)
@@ -128,19 +124,16 @@ export default {
               return
             }
           } catch (e) {
-            console.warn('[Auth] Impossible de parser redirect URL:', redirectUrl)
+            // Ne pas logger redirectUrl car il peut contenir des informations sensibles
+            console.warn('[Auth] Impossible de parser redirect URL')
           }
         }
         
-        console.log('[Auth] force_token détecté dans onBeforeMount', {
-          force_token: route.query.force_token,
-          redirect: route.query.redirect,
-          path: route.path
-        })
+        // Ne pas logger redirect car il peut contenir des informations sensibles
         
         // Vérifier le token dans localStorage directement
         const token = localStorage.getItem('access_token')
-        console.log('[Auth] Token dans localStorage:', token ? token.substring(0, 20) + '...' : 'AUCUN')
+        // Ne pas logger le token (même partiel) pour des raisons de sécurité
         
         if (!token) {
           console.log('[Auth] Pas de token, affichage du formulaire de login')
@@ -170,7 +163,7 @@ export default {
             redirectPromise.value = (async () => {
               try {
                 const redirect = route.query.redirect
-                console.log('[Auth] Redirect URL extraite:', redirect)
+                // Ne pas logger redirect car il peut contenir des informations sensibles
                 
                 if (!redirect) {
                   console.error('[Auth] No redirect URL provided')
@@ -178,25 +171,16 @@ export default {
                   return false
                 }
                 
-                console.log('[Auth] Appel API /sso/generate-token...', {
-                  redirect: redirect,
-                  token_present: !!token
-                })
+                // Ne pas logger les URLs qui peuvent contenir des tokens
                 
                 const response = await axios.post('/sso/generate-token', {
                   redirect: redirect
                 })
                 
-                console.log('[Auth] SSO token response reçue:', {
-                  status: response.status,
-                  success: response.data?.success,
-                  has_data: !!response.data?.data,
-                  has_callback_url: !!response.data?.data?.callback_url
-                })
+                // Ne pas logger les URLs de callback car elles contiennent des tokens
                 
                 if (response.data && response.data.success && response.data.data && response.data.data.callback_url) {
                   const callbackUrl = response.data.data.callback_url
-                  console.log('[Auth] Redirection vers:', callbackUrl)
                   
                   // Vérifier une dernière fois que callbackUrl ne pointe pas vers le même domaine
                   try {
@@ -204,44 +188,39 @@ export default {
                     const currentHost = window.location.hostname
                     
                     if (callbackHost === currentHost || callbackHost === 'compte.herime.com') {
+                      // Ne pas logger l'URL complète car elle contient un token
                       console.error('[Auth] ⚠️ Callback URL pointe vers le même domaine, ARRÊT!', {
                         callbackHost,
-                        currentHost,
-                        callbackUrl
+                        currentHost
                       })
                       sessionStorage.removeItem('sso_redirecting')
                       return false
                     }
                   } catch (e) {
-                    console.warn('[Auth] Impossible de parser callback URL:', callbackUrl)
+                    // Ne pas logger l'URL car elle peut contenir un token
+                    console.warn('[Auth] Impossible de parser callback URL')
                   }
                   
-                  // Redirection immédiate et définitive - utiliser setTimeout pour être sûr que c'est après le rendu
+                  // Redirection immédiate et définitive
                   setTimeout(() => {
-                    console.log('[Auth] Exécution de window.location.replace...')
                     // Nettoyer sessionStorage après un délai (si la redirection échoue)
                     setTimeout(() => {
                       sessionStorage.removeItem('sso_redirecting')
                     }, 10000)
                     window.location.replace(callbackUrl)
-                  }, 100) // Petit délai pour laisser les logs s'afficher
+                  }, 100)
                   
                   return true
                 } else {
-                  console.error('[Auth] Structure de réponse invalide:', response.data)
+                  console.error('[Auth] Structure de réponse invalide')
                   sessionStorage.removeItem('sso_redirecting')
                   return false
                 }
               } catch (error) {
+                // Ne pas logger les données de réponse qui peuvent contenir des tokens
                 console.error('[Auth] Erreur lors de la génération du token SSO:', {
                   message: error.message,
-                  response: error.response?.data,
-                  status: error.response?.status,
-                  config: {
-                    url: error.config?.url,
-                    method: error.config?.method,
-                    headers: error.config?.headers
-                  }
+                  status: error.response?.status
                 })
                 sessionStorage.removeItem('sso_redirecting')
                 return false

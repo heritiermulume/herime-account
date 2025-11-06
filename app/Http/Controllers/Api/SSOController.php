@@ -19,8 +19,8 @@ class SSOController extends Controller
     public function validateToken(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [
-            'token' => 'required|string',
-            'client_domain' => 'required|string',
+            'token' => 'required|string|max:500', // Limiter la longueur pour éviter les attaques
+            'client_domain' => 'required|string|max:255|regex:/^[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?)*$/',
         ]);
 
         if ($validator->fails()) {
@@ -34,7 +34,16 @@ class SSOController extends Controller
         $token = $request->token;
         $clientDomain = $request->client_domain;
 
-        // Find the token in the database
+        // Sanitize token (remove any potential SQL injection attempts)
+        $token = trim($token);
+        if (strlen($token) > 500) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid token format'
+            ], 422);
+        }
+
+        // Find the token in the database (Passport uses prepared statements, so safe)
         $accessToken = \Laravel\Passport\Token::where('id', $token)
             ->where('revoked', false)
             ->first();
@@ -110,10 +119,11 @@ class SSOController extends Controller
         // Get redirect URL from request
         $redirectUrl = $request->input('redirect') ?? $request->query('redirect');
         
-        // Decode if needed
+        // Decode if needed (with limit to prevent DoS)
         if ($redirectUrl) {
             $decoded = urldecode($redirectUrl);
-            if ($decoded !== $redirectUrl && filter_var($decoded, FILTER_VALIDATE_URL)) {
+            // Limiter le décodage pour éviter les boucles infinies
+            if ($decoded !== $redirectUrl && strlen($decoded) < 2000 && filter_var($decoded, FILTER_VALIDATE_URL)) {
                 $redirectUrl = $decoded;
             }
         }
@@ -123,16 +133,42 @@ class SSOController extends Controller
             // Try to determine from request
             if ($request->has('client_domain') || $request->query('client_domain')) {
                 $clientDomain = $request->input('client_domain') ?: $request->query('client_domain');
+                
+                // Validate client_domain format to prevent injection
+                if (!preg_match('/^[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?)*$/', $clientDomain)) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Invalid client domain format'
+                    ], 422);
+                }
+                
                 $scheme = $request->secure() ? 'https' : 'http';
                 $redirectPath = $request->query('redirect_path') ?: '/sso/callback';
-                $redirectUrl = $scheme . '://' . $clientDomain . $redirectPath;
+                
+                // Validate redirect_path to prevent directory traversal
+                $redirectPath = ltrim($redirectPath, '/');
+                if (!preg_match('/^[a-zA-Z0-9\/\-_\.]+$/', $redirectPath)) {
+                    $redirectPath = 'sso/callback';
+                }
+                
+                $redirectUrl = $scheme . '://' . $clientDomain . '/' . $redirectPath;
             }
         }
 
-        if (!$redirectUrl || !filter_var($redirectUrl, FILTER_VALIDATE_URL)) {
+        // Validate URL format and length
+        if (!$redirectUrl || !filter_var($redirectUrl, FILTER_VALIDATE_URL) || strlen($redirectUrl) > 2000) {
             return response()->json([
                 'success' => false,
                 'message' => 'Invalid or missing redirect URL'
+            ], 422);
+        }
+        
+        // Validate URL scheme (only http/https)
+        $urlParts = parse_url($redirectUrl);
+        if (!isset($urlParts['scheme']) || !in_array(strtolower($urlParts['scheme']), ['http', 'https'])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid URL scheme. Only HTTP and HTTPS are allowed.'
             ], 422);
         }
 
@@ -146,10 +182,10 @@ class SSOController extends Controller
             $currentHost = preg_replace('/^www\./', '', $currentHost);
             
             if ($redirectHost === $currentHost || $redirectHost === 'compte.herime.com') {
+                // Ne pas logger redirect_url car elle peut contenir des informations sensibles
                 \Log::warning('SSO redirect blocked: same domain', [
                     'redirect_host' => $redirectHost,
                     'current_host' => $currentHost,
-                    'redirect_url' => $redirectUrl
                 ]);
                 
                 return response()->json([
@@ -160,9 +196,9 @@ class SSOController extends Controller
                 ], 422);
             }
         } catch (\Exception $e) {
+            // Ne pas logger redirect_url car elle peut contenir des informations sensibles
             \Log::warning('Error parsing redirect URL host', [
                 'error' => $e->getMessage(),
-                'redirect_url' => $redirectUrl
             ]);
         }
 
@@ -178,10 +214,10 @@ class SSOController extends Controller
             $callbackHost = preg_replace('/^www\./', '', $callbackHost);
             
             if ($callbackHost === $currentHost || $callbackHost === 'compte.herime.com') {
+                // Ne pas logger callback_url car elle contient un token
                 \Log::error('SSO callback URL points to same domain after construction', [
                     'callback_host' => $callbackHost,
                     'current_host' => $currentHost,
-                    'callback_url' => $callbackUrl
                 ]);
                 
                 return response()->json([
@@ -192,16 +228,16 @@ class SSOController extends Controller
                 ], 500);
             }
         } catch (\Exception $e) {
+            // Ne pas logger callback_url car elle contient un token
             \Log::warning('Error parsing callback URL host', [
                 'error' => $e->getMessage(),
-                'callback_url' => $callbackUrl
             ]);
         }
 
+        // Ne pas logger les URLs qui contiennent des tokens
         \Log::info('SSO Token generated via API', [
             'user_id' => $user->id,
-            'redirect_url' => $redirectUrl,
-            'callback_url' => $callbackUrl
+            'redirect_host' => parse_url($redirectUrl, PHP_URL_HOST),
         ]);
 
         return response()->json([
@@ -221,8 +257,8 @@ class SSOController extends Controller
     public function createSession(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [
-            'client_domain' => 'required|string',
-            'redirect_url' => 'required|url',
+            'client_domain' => 'required|string|max:255|regex:/^[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?)*$/',
+            'redirect_url' => 'required|url|max:2000',
         ]);
 
         if ($validator->fails()) {
@@ -236,6 +272,15 @@ class SSOController extends Controller
         $user = $request->user();
         $clientDomain = $request->client_domain;
         $redirectUrl = $request->redirect_url;
+        
+        // Valider le schéma de l'URL (seulement http/https)
+        $urlParts = parse_url($redirectUrl);
+        if (!isset($urlParts['scheme']) || !in_array(strtolower($urlParts['scheme']), ['http', 'https'])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid URL scheme. Only HTTP and HTTPS are allowed.'
+            ], 422);
+        }
 
         // Create a new token for the client domain
         $token = $user->createToken("SSO for {$clientDomain}", ['profile'])->accessToken;
@@ -478,7 +523,7 @@ class SSOController extends Controller
     {
         // Validate request body
         $validator = Validator::make($request->all(), [
-            'token' => 'required|string',
+            'token' => 'required|string|max:500', // Limiter la longueur
         ]);
 
         if ($validator->fails()) {
@@ -498,9 +543,18 @@ class SSOController extends Controller
         }
 
         $providedSecret = substr($authHeader, 7); // Remove 'Bearer ' prefix
+        
+        // Limiter la longueur du secret pour éviter les attaques
+        if (strlen($providedSecret) > 500) {
+            return response()->json([
+                'valid' => false,
+                'message' => 'Invalid SSO secret'
+            ], 401);
+        }
+        
         $expectedSecret = config('services.sso.secret', env('SSO_SECRET'));
 
-        if (!$expectedSecret || $providedSecret !== $expectedSecret) {
+        if (!$expectedSecret || !hash_equals($expectedSecret, $providedSecret)) {
             return response()->json([
                 'valid' => false,
                 'message' => 'Invalid SSO secret'
@@ -508,6 +562,15 @@ class SSOController extends Controller
         }
 
         $tokenString = $request->input('token');
+        
+        // Sanitize token
+        $tokenString = trim($tokenString);
+        if (strlen($tokenString) > 500) {
+            return response()->json([
+                'valid' => false,
+                'message' => 'Invalid token format'
+            ], 422);
+        }
 
         try {
             // Passport stores token IDs as SHA-256 hash of the JWT token

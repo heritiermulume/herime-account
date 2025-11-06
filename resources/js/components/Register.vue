@@ -471,34 +471,24 @@ export default {
       
       const redirectParam = route.query.redirect
       
-      console.log('[Register] handleReturnToSite called', {
-        redirectParam,
-        computedValue: externalSiteUrl.value,
-        windowLocation: window.location.href
-      })
+      // Ne pas logger les URLs qui peuvent contenir des tokens
       
       // Obtenir l'URL de base du site externe
       let returnUrl = externalSiteUrl.value
       
       // Si le computed n'a pas fonctionné, essayer directement
       if (!returnUrl && redirectParam) {
-        console.log('[Register] Computed value not available, trying direct extraction')
         returnUrl = getExternalSiteBaseUrl(redirectParam)
       }
       
       if (returnUrl) {
-        console.log('[Register] Redirecting to external site:', returnUrl)
         // Utiliser window.location.href pour forcer la navigation
         // Utiliser setTimeout pour s'assurer que le code s'exécute complètement
         setTimeout(() => {
           window.location.href = returnUrl
         }, 100)
       } else {
-        console.error('[Register] Cannot determine external site URL', {
-          redirectParam,
-          computedValue: externalSiteUrl.value,
-          routeQuery: route.query
-        })
+        console.error('[Register] Cannot determine external site URL')
       }
     }
 

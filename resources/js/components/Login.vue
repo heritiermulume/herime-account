@@ -446,34 +446,24 @@ export default {
       
       const redirectParam = route.query.redirect
       
-      console.log('[Login] handleReturnToSite called', {
-        redirectParam,
-        computedValue: externalSiteUrl.value,
-        windowLocation: window.location.href
-      })
+      // Ne pas logger les URLs qui peuvent contenir des tokens
       
       // Obtenir l'URL de base du site externe
       let returnUrl = externalSiteUrl.value
       
       // Si le computed n'a pas fonctionné, essayer directement
       if (!returnUrl && redirectParam) {
-        console.log('[Login] Computed value not available, trying direct extraction')
         returnUrl = getExternalSiteBaseUrl(redirectParam)
       }
       
       if (returnUrl) {
-        console.log('[Login] Redirecting to external site:', returnUrl)
         // Utiliser window.location.href pour forcer la navigation
         // Utiliser setTimeout pour s'assurer que le code s'exécute complètement
         setTimeout(() => {
           window.location.href = returnUrl
         }, 100)
       } else {
-        console.error('[Login] Cannot determine external site URL', {
-          redirectParam,
-          computedValue: externalSiteUrl.value,
-          routeQuery: route.query
-        })
+        console.error('[Login] Cannot determine external site URL')
       }
     }
     const handleSwitchToRegister = async () => {
@@ -518,7 +508,7 @@ export default {
     }
 
     const handleLogin = async () => {
-      console.log('Login attempt started', form)
+      // Ne pas logger le formulaire car il contient le mot de passe
       loading.value = true
       errors.value = {}
       error.value = ''
@@ -537,9 +527,9 @@ export default {
           loginData.client_domain = route.query.client_domain
         }
         
-        console.log('Calling authStore.login...', loginData)
+        // Ne pas logger loginData car il contient le mot de passe
         const result = await authStore.login(loginData)
-        console.log('Login successful:', result)
+        // Ne pas logger result car il peut contenir des tokens
         
         // Vérifier s'il y a une redirection SSO vers un domaine externe
         if (result?.data?.sso_redirect_url) {
@@ -551,24 +541,17 @@ export default {
         // Sinon, rediriger vers le dashboard local
         router.push('/dashboard')
       } catch (err) {
-        console.error('Login error:', err)
-        console.log('Error requiresTwoFactor:', err.requiresTwoFactor)
-        console.log('Error response data:', err.response?.data)
-        console.log('Error response requires_two_factor:', err.response?.data?.requires_two_factor)
+        // Ne pas logger les détails de l'erreur qui peuvent contenir des données sensibles
+        console.error('Login error:', err.message || 'Authentication failed')
         
         // Vérifier si la 2FA est requise - vérifier plusieurs endroits
         const needs2FA = err.requiresTwoFactor === true || 
                         err.response?.data?.requires_two_factor === true ||
                         (err.response?.status === 200 && err.response?.data?.requires_two_factor)
         
-        console.log('Needs 2FA:', needs2FA)
-        
         if (needs2FA) {
-          console.log('Setting requiresTwoFactor to true')
           requiresTwoFactor.value = true
           error.value = err.response?.data?.message || err.message || 'Veuillez entrer le code d\'authentification à deux facteurs.'
-          console.log('requiresTwoFactor.value after setting:', requiresTwoFactor.value)
-          console.log('Error message set:', error.value)
           loading.value = false
           return
         }
@@ -604,7 +587,7 @@ export default {
 
       try {
         const result = await authStore.verifyTwoFactor(form.email, twoFactorCode.value)
-        console.log('2FA verification successful:', result)
+        // Ne pas logger result car il peut contenir des tokens
         
         // Vérifier s'il y a une redirection SSO vers un domaine externe
         if (result?.data?.sso_redirect_url) {
@@ -616,7 +599,8 @@ export default {
         // Sinon, rediriger vers le dashboard local
         router.push('/dashboard')
       } catch (err) {
-        console.error('2FA verification error:', err)
+        // Ne pas logger les détails de l'erreur qui peuvent contenir des données sensibles
+        console.error('2FA verification error:', err.message || 'Verification failed')
         if (err.response?.data?.errors) {
           errors.value = err.response.data.errors
         } else if (err.response?.data?.message) {

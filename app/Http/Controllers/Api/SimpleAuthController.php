@@ -593,19 +593,39 @@ class SimpleAuthController extends Controller
         // 1. Priorité : paramètre 'redirect' explicite dans la requête
         if ($request->has('redirect') || $request->query('redirect')) {
             $redirect = $request->input('redirect') ?: $request->query('redirect');
-            if ($redirect && filter_var($redirect, FILTER_VALIDATE_URL)) {
-                return $redirect;
+            
+            // Décoder si nécessaire (avec limite)
+            $decoded = urldecode($redirect);
+            if ($decoded !== $redirect && strlen($decoded) < 2000 && filter_var($decoded, FILTER_VALIDATE_URL)) {
+                $redirect = $decoded;
+            }
+            
+            // Valider l'URL avec longueur et schéma
+            if ($redirect && strlen($redirect) <= 2000 && filter_var($redirect, FILTER_VALIDATE_URL)) {
+                $urlParts = parse_url($redirect);
+                if (isset($urlParts['scheme']) && in_array(strtolower($urlParts['scheme']), ['http', 'https'])) {
+                    return $redirect;
+                }
             }
         }
 
         // 2. Vérifier le paramètre 'client_domain' pour construire l'URL de callback
         if ($request->has('client_domain') || $request->query('client_domain')) {
             $clientDomain = $request->input('client_domain') ?: $request->query('client_domain');
-            if ($clientDomain) {
+            
+            // Valider le format du domaine pour éviter les injections
+            if ($clientDomain && preg_match('/^[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?)*$/', $clientDomain)) {
                 // Construire l'URL de callback standard pour le domaine client
                 $scheme = $request->secure() ? 'https' : 'http';
                 $redirectPath = $request->query('redirect_path') ?: '/sso/callback';
-                return $scheme . '://' . $clientDomain . $redirectPath;
+                
+                // Valider redirect_path pour éviter les directory traversal
+                $redirectPath = ltrim($redirectPath, '/');
+                if (!preg_match('/^[a-zA-Z0-9\/\-_\.]+$/', $redirectPath)) {
+                    $redirectPath = 'sso/callback';
+                }
+                
+                return $scheme . '://' . $clientDomain . '/' . $redirectPath;
             }
         }
 

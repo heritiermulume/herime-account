@@ -120,14 +120,11 @@ router.beforeEach(async (to, from, next) => {
                        to.query.force_token === 'on'
   
   if (hasForceToken && to.path === '/login') {
-    console.log('[Router] force_token détecté sur /login, vérification auth...', {
-      force_token: to.query.force_token,
-      redirect: to.query.redirect
-    })
+    // Ne pas logger redirect car il peut contenir des informations sensibles
     
     // Vérifier le token dans localStorage directement
     const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null
-    console.log('[Router] Token dans localStorage:', token ? 'PRÉSENT (' + token.substring(0, 20) + '...)' : 'AUCUN')
+    // Ne pas logger le token (même partiel) pour des raisons de sécurité
     
     // Vérifier l'authentification
     await authStore.checkAuth()
