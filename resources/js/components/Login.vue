@@ -726,9 +726,14 @@ export default {
           authStore.isSSORedirecting = true
           isRedirectingSSO.value = true
           
+          // Arrêter tout chargement en cours pour éviter que Vue ne rende
+          if (typeof window !== 'undefined' && window.stop) {
+            window.stop()
+          }
+          
           // Redirection SYNCHRONE immédiate - ne PAS attendre
           console.log('[Login] Redirection SSO immédiate (2FA) vers:', result.data.sso_redirect_url)
-          window.location.replace(result.data.sso_redirect_url)
+          window.location.href = result.data.sso_redirect_url
           
           // Cette ligne ne sera jamais exécutée
           return
