@@ -245,6 +245,7 @@ export const useAuthStore = defineStore('auth', {
         this.user = null
         this.authenticated = false
         this.error = null
+        this.isSSORedirecting = false // Réinitialiser le flag SSO
         
         // Remove from localStorage
         localStorage.removeItem('user')

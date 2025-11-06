@@ -2,7 +2,7 @@
   <div id="app" class="min-h-screen bg-gray-50 dark:bg-gray-900">
 
     <!-- Loading State - Masquer l'interface si redirection SSO en cours -->
-    <div v-if="loading || isSSORedirecting || authStore.isSSORedirecting" class="fixed inset-0 z-[99999] flex items-center justify-center bg-gray-50 dark:bg-gray-900" style="position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; z-index: 99999 !important;">
+    <div v-if="loading || ((isSSORedirecting || authStore.isSSORedirecting) && (route.query.redirect || route.query.force_token))" class="fixed inset-0 z-[99999] flex items-center justify-center bg-gray-50 dark:bg-gray-900" style="position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; z-index: 99999 !important;">
       <div class="bg-white dark:bg-gray-800 rounded-lg p-6 flex items-center space-x-3">
         <div class="animate-spin rounded-full h-6 w-6 border-b-2" style="border-color: #003366;"></div>
         <span class="text-gray-700 dark:text-gray-300">{{ isSSORedirecting || authStore.isSSORedirecting ? 'Redirection en cours...' : 'Chargement...' }}</span>
@@ -10,7 +10,7 @@
     </div>
 
     <!-- Main Content -->
-    <div v-else-if="!isSSORedirecting && !authStore.isSSORedirecting" class="min-h-screen">
+    <div v-else class="min-h-screen">
         <!-- Sidebar - Hide on login/register pages -->
         <Sidebar v-if="user && route && route.path !== '/login' && route.path !== '/register'" />
       
