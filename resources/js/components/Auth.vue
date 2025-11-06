@@ -151,6 +151,21 @@ export default {
         referer: document.referer
       })
       
+      // Vérifier si on est déjà en train de rediriger (pour éviter les appels multiples)
+      const redirectingKey = 'sso_redirecting'
+      const checkingKey = 'sso_checking'
+      const redirectingTimestamp = sessionStorage.getItem(redirectingKey)
+      if (redirectingTimestamp && redirectPromise.value) {
+        // On est déjà en train de rediriger, ne pas recommencer
+        console.log('[Auth] Redirection déjà en cours, attente...')
+        try {
+          await redirectPromise.value
+        } catch (e) {
+          // Ignorer les erreurs
+        }
+        return
+      }
+      
       // Vérifier si on est dans une boucle (AVANT toute autre vérification)
       if (checkForRedirectLoop()) {
         console.error('[Auth] Boucle détectée, arrêt de la redirection SSO et redirection vers dashboard')
@@ -206,6 +221,9 @@ export default {
           return
         }
         
+        // Marquer qu'on va vérifier l'authentification (pour éviter les appels multiples)
+        sessionStorage.setItem(checkingKey, Date.now().toString())
+        
         // Vérifier l'authentification
         console.log('[Auth] Vérification de l\'authentification...')
         let isAuthenticated = false
@@ -215,14 +233,18 @@ export default {
           console.log('[Auth] Résultat checkAuth:', isAuthenticated)
         } catch (error) {
           console.error('[Auth] Erreur lors de checkAuth:', error)
+          sessionStorage.removeItem(checkingKey)
+          return
+        } finally {
+          sessionStorage.removeItem(checkingKey)
         }
         
         if (isAuthenticated) {
           console.log('[Auth] Utilisateur authentifié, génération token SSO...')
           isRedirecting.value = true
           
-          // Marquer qu'on est en train de rediriger
-          sessionStorage.setItem('sso_redirecting', Date.now().toString())
+          // Marquer qu'on est en train de rediriger (AVANT de créer la promesse)
+          sessionStorage.setItem(redirectingKey, Date.now().toString())
           
           // Créer une promesse de redirection pour éviter les redirections multiples
           if (!redirectPromise.value) {
@@ -233,7 +255,8 @@ export default {
                 
                 if (!redirect) {
                   console.error('[Auth] No redirect URL provided')
-                  sessionStorage.removeItem('sso_redirecting')
+                  sessionStorage.removeItem(redirectingKey)
+                  redirectPromise.value = null
                   return false
                 }
                 
@@ -259,46 +282,62 @@ export default {
                         callbackHost,
                         currentHost
                       })
-                      sessionStorage.removeItem('sso_redirecting')
+                      sessionStorage.removeItem(redirectingKey)
+                      redirectPromise.value = null
                       return false
                     }
                   } catch (e) {
                     // Ne pas logger l'URL car elle peut contenir un token
                     console.warn('[Auth] Impossible de parser callback URL')
+                    sessionStorage.removeItem(redirectingKey)
+                    redirectPromise.value = null
+                    return false
                   }
                   
-                  // Redirection immédiate et définitive
-                  setTimeout(() => {
-                    // Nettoyer sessionStorage après un délai (si la redirection échoue)
-                    setTimeout(() => {
-                      sessionStorage.removeItem('sso_redirecting')
-                    }, 10000)
-                    window.location.replace(callbackUrl)
-                  }, 100)
+                  // Redirection immédiate et définitive (sans setTimeout pour éviter les problèmes)
+                  console.log('[Auth] Redirection vers domaine externe...')
+                  sessionStorage.removeItem(redirectingKey)
+                  window.location.replace(callbackUrl)
                   
+                  // Ne jamais arriver ici car window.location.replace fait une navigation
                   return true
                 } else {
-                  console.error('[Auth] Structure de réponse invalide')
-                  sessionStorage.removeItem('sso_redirecting')
+                  console.error('[Auth] Structure de réponse invalide', {
+                    has_data: !!response.data,
+                    has_success: !!response.data?.success,
+                    has_data_data: !!response.data?.data,
+                    has_callback_url: !!response.data?.data?.callback_url
+                  })
+                  sessionStorage.removeItem(redirectingKey)
+                  redirectPromise.value = null
                   return false
                 }
               } catch (error) {
                 // Ne pas logger les données de réponse qui peuvent contenir des tokens
                 console.error('[Auth] Erreur lors de la génération du token SSO:', {
                   message: error.message,
-                  status: error.response?.status
+                  status: error.response?.status,
+                  response_data: error.response?.data?.message
                 })
-                sessionStorage.removeItem('sso_redirecting')
+                sessionStorage.removeItem(redirectingKey)
+                redirectPromise.value = null
                 return false
               }
             })()
           }
           
           // Attendre la redirection
-          const redirected = await redirectPromise.value
-          if (redirected) {
-            console.log('[Auth] Redirection en cours...')
-            return // Ne pas continuer
+          try {
+            const redirected = await redirectPromise.value
+            if (redirected) {
+              console.log('[Auth] Redirection en cours...')
+              // Ne pas continuer, la redirection va se faire
+              return
+            }
+          } catch (error) {
+            console.error('[Auth] Erreur lors de la redirection:', error)
+            redirectPromise.value = null
+            sessionStorage.removeItem(redirectingKey)
           }
         } else {
           console.log('[Auth] User not authenticated, will show login form')
