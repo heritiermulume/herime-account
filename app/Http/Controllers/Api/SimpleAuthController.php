@@ -590,14 +590,14 @@ class SimpleAuthController extends Controller
      */
     private function determineRedirectUrl(Request $request): ?string
     {
-        // 1. Priorité : paramètre 'redirect' explicite dans la requête
-        if ($request->has('redirect') || $request->query('redirect')) {
-            $redirect = $request->input('redirect') ?: $request->query('redirect');
-            
-            if (!$redirect || !is_string($redirect)) {
-                return null;
-            }
-            
+        // 1. Priorité : paramètre 'redirect' explicite dans la requête (body ou query)
+        // Vérifier d'abord dans le body (pour les requêtes POST), puis dans les query params
+        $redirect = $request->input('redirect');
+        if (!$redirect) {
+            $redirect = $request->query('redirect');
+        }
+        
+        if ($redirect && is_string($redirect)) {
             // Laravel décode déjà automatiquement les paramètres, mais on peut avoir un double encodage
             // Essayer de décoder une fois si nécessaire
             $decoded = urldecode($redirect);
@@ -606,40 +606,46 @@ class SimpleAuthController extends Controller
                 if (filter_var($decoded, FILTER_VALIDATE_URL)) {
                     $urlParts = parse_url($decoded);
                     if (isset($urlParts['scheme']) && in_array(strtolower($urlParts['scheme']), ['http', 'https'])) {
-                        // Vérifier que c'est un domaine externe
-                        $host = $urlParts['host'] ?? null;
-                        if ($host && $host !== $request->getHost() && $host !== 'compte.herime.com') {
-                            return $decoded;
-                        }
+                        $redirect = $decoded;
                     }
                 }
             }
             
-            // Valider l'URL telle quelle (déjà décodée par Laravel)
+            // Valider l'URL (déjà décodée par Laravel ou manuellement)
             if (strlen($redirect) <= 2000 && filter_var($redirect, FILTER_VALIDATE_URL)) {
                 $urlParts = parse_url($redirect);
                 if (isset($urlParts['scheme']) && in_array(strtolower($urlParts['scheme']), ['http', 'https'])) {
                     // Vérifier que c'est un domaine externe
                     $host = $urlParts['host'] ?? null;
-                    if ($host && $host !== $request->getHost() && $host !== 'compte.herime.com') {
-                        return $redirect;
+                    if ($host) {
+                        $currentHost = preg_replace('/^www\./', '', $request->getHost());
+                        $redirectHost = preg_replace('/^www\./', '', $host);
+                        
+                        // Ne rediriger que si c'est un domaine externe
+                        if ($redirectHost !== $currentHost && $redirectHost !== 'compte.herime.com') {
+                            return $redirect;
+                        }
                     }
                 }
             }
         }
 
         // 2. Vérifier le paramètre 'client_domain' pour construire l'URL de callback
-        if ($request->has('client_domain') || $request->query('client_domain')) {
-            $clientDomain = $request->input('client_domain') ?: $request->query('client_domain');
+        // Vérifier d'abord dans le body (pour les requêtes POST), puis dans les query params
+        $clientDomain = $request->input('client_domain');
+        if (!$clientDomain) {
+            $clientDomain = $request->query('client_domain');
+        }
+        
+        if ($clientDomain) {
             
             if (!$clientDomain || !is_string($clientDomain)) {
                 return null;
             }
             
-            // Valider le format du domaine pour éviter les injections
-            // Permettre les domaines comme academie.herime.com, www.example.com, etc.
-            // Format: label.label.label... (chaque label peut contenir lettres, chiffres, tirets)
-            if (preg_match('/^([a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$/', $clientDomain)) {
+            // Validation plus simple : juste vérifier que ce n'est pas vide et qu'il contient des caractères valides
+            // Ne pas être trop strict avec la regex pour éviter de bloquer des domaines valides
+            if (strlen($clientDomain) > 0 && strlen($clientDomain) <= 255 && preg_match('/^[a-zA-Z0-9\.\-]+$/', $clientDomain)) {
                 // S'assurer que ce n'est pas le même domaine
                 $currentHost = preg_replace('/^www\./', '', $request->getHost());
                 $clientDomainNormalized = preg_replace('/^www\./', '', $clientDomain);
@@ -649,9 +655,9 @@ class SimpleAuthController extends Controller
                     $scheme = $request->secure() ? 'https' : 'http';
                     $redirectPath = $request->query('redirect_path') ?: '/sso/callback';
                     
-                    // Valider redirect_path pour éviter les directory traversal
+                    // Valider redirect_path pour éviter les directory traversal (mais plus permissif)
                     $redirectPath = ltrim($redirectPath, '/');
-                    if (!preg_match('/^[a-zA-Z0-9\/\-_\.]+$/', $redirectPath)) {
+                    if (empty($redirectPath) || !preg_match('/^[a-zA-Z0-9\/\-_\.]+$/', $redirectPath)) {
                         $redirectPath = 'sso/callback';
                     }
                     
@@ -675,7 +681,7 @@ class SimpleAuthController extends Controller
                     $host = $refererUrl['host'];
                     $redirectPath = $request->query('redirect_path') ?: '/sso/callback';
                     $redirectPath = ltrim($redirectPath, '/');
-                    if (!preg_match('/^[a-zA-Z0-9\/\-_\.]+$/', $redirectPath)) {
+                    if (empty($redirectPath) || !preg_match('/^[a-zA-Z0-9\/\-_\.]+$/', $redirectPath)) {
                         $redirectPath = 'sso/callback';
                     }
                     return $scheme . '://' . $host . '/' . $redirectPath;
@@ -698,7 +704,7 @@ class SimpleAuthController extends Controller
                     $host = $originUrl['host'];
                     $redirectPath = $request->query('redirect_path') ?: '/sso/callback';
                     $redirectPath = ltrim($redirectPath, '/');
-                    if (!preg_match('/^[a-zA-Z0-9\/\-_\.]+$/', $redirectPath)) {
+                    if (empty($redirectPath) || !preg_match('/^[a-zA-Z0-9\/\-_\.]+$/', $redirectPath)) {
                         $redirectPath = 'sso/callback';
                     }
                     return $scheme . '://' . $host . '/' . $redirectPath;
