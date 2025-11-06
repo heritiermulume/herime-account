@@ -262,7 +262,6 @@ export default {
           stats.value = response.data.data.stats
         }
       } catch (err) {
-        console.error('Error fetching dashboard data:', err)
         error.value = 'Erreur lors du chargement des données'
       } finally {
         loading.value = false

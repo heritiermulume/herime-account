@@ -244,7 +244,6 @@ export default {
           throw new Error(response.data.message || 'Erreur lors de la réinitialisation')
         }
       } catch (err) {
-        console.error('Reset password error:', err)
         if (err.response?.data?.errors) {
           errors.value = err.response.data.errors
         } else if (err.response?.data?.message) {

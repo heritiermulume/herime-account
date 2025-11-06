@@ -461,7 +461,6 @@ export default {
           authStore.updateUser({ preferences: updated })
         }
       } catch (error) {
-        console.error('Error saving notifications:', error)
         if (error.response?.data?.message) {
           notify.error('Erreur', error.response.data.message)
         } else {
@@ -510,7 +509,6 @@ export default {
           }
         }
       } catch (e) {
-        console.error('Failed to load preferences:', e)
       }
     })
 

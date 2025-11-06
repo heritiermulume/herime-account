@@ -132,7 +132,6 @@ export default {
           sessions.value = response.data.data.sessions
         }
       } catch (error) {
-        console.error('Error loading sessions:', error)
       }
     }
 
@@ -148,7 +147,6 @@ export default {
           await loadSessions() // Reload sessions
         }
       } catch (error) {
-        console.error('Error revoking session:', error)
         alert('Erreur lors de la déconnexion de la session')
       } finally {
         loading.value = false
@@ -167,7 +165,6 @@ export default {
           await loadSessions() // Reload sessions
         }
       } catch (error) {
-        console.error('Error revoking all sessions:', error)
         alert('Erreur lors de la déconnexion des sessions')
       } finally {
         loading.value = false

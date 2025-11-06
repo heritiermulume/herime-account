@@ -192,7 +192,6 @@ export default {
           Object.assign(settings, response.data.data)
         }
       } catch (err) {
-        console.error('Error fetching settings:', err)
         error.value = 'Erreur lors du chargement des paramètres'
       } finally {
         loading.value = false
@@ -213,7 +212,6 @@ export default {
           }, 3000)
         }
       } catch (err) {
-        console.error('Error updating settings:', err)
         error.value = 'Erreur lors de la mise à jour des paramètres'
       }
     }

@@ -238,8 +238,6 @@ export default {
           formData.append('avatar', avatarFile.value)
         }
 
-        console.log('🔄 Updating profile with FormData')
-        console.log('   Form values:', { name: form.name, phone: form.phone, company: form.company, position: form.position })
         
         const response = await axios.post('/user/profile', formData, {
           headers: {
@@ -247,7 +245,6 @@ export default {
           }
         })
         
-        console.log('✅ Profile update response:', response.data)
 
         if (response.data.success) {
           // Update user in store
@@ -297,7 +294,6 @@ export default {
     }
 
     const handleImageError = (event) => {
-      console.error('❌ Image load error in ProfileModal:', event.target.src)
     }
 
     const close = () => {

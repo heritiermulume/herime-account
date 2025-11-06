@@ -190,7 +190,6 @@ export default {
           sessions.value = response.data.data.data || response.data.data
         }
       } catch (err) {
-        console.error('Error fetching sessions:', err)
         error.value = 'Erreur lors du chargement des sessions'
       } finally {
         loading.value = false
@@ -217,7 +216,6 @@ export default {
           revokeError.value = response.data.message || 'Révocation échouée'
         }
       } catch (err) {
-        console.error('Error revoking session:', err)
         revokeError.value = 'Erreur lors de la révocation de la session'
       } finally {
         revokeLoading.value = false

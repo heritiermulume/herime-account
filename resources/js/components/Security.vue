@@ -502,7 +502,6 @@ export default {
           confirm_password: ''
         })
       } catch (error) {
-        console.error('Error updating password:', error)
         if (error.response?.data?.message) {
           notify.error('Erreur', error.response.data.message)
         } else {
@@ -527,13 +526,10 @@ export default {
     const load2FAStatus = async () => {
       try {
         const response = await axios.get('/user/two-factor/status')
-        console.log('2FA Status API response:', response.data)
         if (response.data.success) {
           twoFactorEnabled.value = response.data.data.enabled
-          console.log('2FA status updated:', twoFactorEnabled.value)
         }
       } catch (error) {
-        console.error('Error loading 2FA status:', error)
       }
     }
 
@@ -556,7 +552,6 @@ export default {
             twoFactorPassword.value = ''
           }
         } catch (error) {
-          console.error('Error generating 2FA QR code:', error)
           if (error.response?.data?.message) {
             notify.error('Erreur', error.response.data.message)
           } else {
@@ -594,7 +589,6 @@ export default {
           notify.success('Succès', 'Authentification à deux facteurs activée avec succès!')
         }
       } catch (error) {
-        console.error('Error confirming 2FA:', error)
         if (error.response?.data?.message) {
           twoFactorError.value = error.response.data.message
         } else {
@@ -625,7 +619,6 @@ export default {
           notify.success('Succès', 'Authentification à deux facteurs désactivée avec succès!')
         }
       } catch (error) {
-        console.error('Error disabling 2FA:', error)
         if (error.response?.data?.message) {
           twoFactorError.value = error.response.data.message
         } else {
@@ -653,7 +646,6 @@ export default {
         revokeDeviceTarget.value = null
         notify.success('Succès', 'Appareil révoqué avec succès!')
       } catch (error) {
-        console.error('Error revoking device:', error)
         if (error.response?.data?.message) {
           revokeDeviceError.value = error.response.data.message
         } else {
@@ -682,17 +674,14 @@ export default {
           devices.value = response.data.data.sessions
         }
       } catch (error) {
-        console.error('Error loading devices:', error)
         notify.error('Erreur', 'Erreur lors du chargement des appareils')
       }
     }
 
     const loadLoginHistory = async () => {
       try {
-        console.log('🔄 Loading login history from API...')
         // Use the same sessions data for login history since we don't have a separate endpoint
         const response = await axios.get('/sso/sessions')
-        console.log('✅ Login history API response:', response.status, response.data)
         
         if (response.data && response.data.success && response.data.data && Array.isArray(response.data.data.sessions)) {
           loginHistory.value = response.data.data.sessions.map(session => {
@@ -708,30 +697,20 @@ export default {
               last_activity: session.last_activity || session.created_at || null
             }
           }).filter(session => session.id !== null) // Filtrer les sessions invalides
-          console.log('📊 Login history loaded:', loginHistory.value.length, 'entries')
         } else {
-          console.warn('⚠️ Login history response not successful or missing data:', response.data)
           loginHistory.value = []
           // Ne pas afficher d'erreur si c'est juste qu'il n'y a pas de sessions
           if (response.data && response.data.success && (!response.data.data || !response.data.data.sessions || response.data.data.sessions.length === 0)) {
-            console.log('   No sessions available (normal for new users)')
           } else {
             notify.warning('Avertissement', 'Impossible de charger l\'historique de connexion')
           }
         }
       } catch (error) {
-        console.error('❌ Error loading login history:', error)
-        console.error('   Status:', error.response?.status)
-        console.error('   Message:', error.response?.data?.message || error.message)
-        console.error('   Data:', error.response?.data)
-        console.error('   Error details:', error)
         
         // Ne pas afficher l'erreur si c'est juste qu'il n'y a pas de sessions ou si l'utilisateur n'est pas autorisé
         if (error.response?.status === 404 || error.response?.status === 401) {
-          console.warn('   No sessions found or unauthorized')
           loginHistory.value = []
         } else if (error.response?.status === 500) {
-          console.error('   Server error - check logs')
           notify.error('Erreur serveur', 'Erreur lors du chargement de l\'historique de connexion. Veuillez réessayer.')
           loginHistory.value = []
         } else {

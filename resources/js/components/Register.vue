@@ -352,7 +352,6 @@ export default {
           }
         }
       } catch (e) {
-        console.error('Registration setting check failed', e)
         // En cas d'erreur, vérifier le cache comme fallback
         const cached = localStorage.getItem('registration_enabled')
         if (cached === 'false') {
@@ -426,7 +425,6 @@ export default {
           url = new URL(decodedUrl)
         } catch (e) {
           // Si l'URL contient des caractères invalides, essayer de la nettoyer
-          console.warn('[Register] Invalid URL format, attempting to fix:', decodedUrl)
           return null
         }
         
@@ -446,7 +444,6 @@ export default {
         
         return null
       } catch (e) {
-        console.error('[Register] Error in getExternalSiteBaseUrl:', e)
         return null
       }
     }
@@ -471,34 +468,22 @@ export default {
       
       const redirectParam = route.query.redirect
       
-      console.log('[Register] handleReturnToSite called', {
-        redirectParam,
-        computedValue: externalSiteUrl.value,
-        windowLocation: window.location.href
-      })
       
       // Obtenir l'URL de base du site externe
       let returnUrl = externalSiteUrl.value
       
       // Si le computed n'a pas fonctionné, essayer directement
       if (!returnUrl && redirectParam) {
-        console.log('[Register] Computed value not available, trying direct extraction')
         returnUrl = getExternalSiteBaseUrl(redirectParam)
       }
       
       if (returnUrl) {
-        console.log('[Register] Redirecting to external site:', returnUrl)
         // Utiliser window.location.href pour forcer la navigation
         // Utiliser setTimeout pour s'assurer que le code s'exécute complètement
         setTimeout(() => {
           window.location.href = returnUrl
         }, 100)
       } else {
-        console.error('[Register] Cannot determine external site URL', {
-          redirectParam,
-          computedValue: externalSiteUrl.value,
-          routeQuery: route.query
-        })
       }
     }
 
@@ -517,7 +502,6 @@ export default {
         // Redirect to dashboard after successful registration
         router.push('/dashboard')
       } catch (err) {
-        console.error('Register error:', err)
         if (err.response?.data?.errors) {
           errors.value = err.response.data.errors
         } else if (err.response?.data?.message) {

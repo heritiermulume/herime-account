@@ -403,26 +403,18 @@ export default {
 
     const fetchUsers = async (page = 1) => {
       try {
-        console.log('=== FETCH USERS START ===')
         loading.value = true
         const params = {
           page,
           per_page: 15,
           ...filters
         }
-        console.log('Fetching users with params:', params)
         
         const response = await axios.get('/admin/users', { params })
-        console.log('Users response:', response.status, response.data)
         
-        console.log('Checking response.data.success:', response.data.success)
-        console.log('Response.data structure:', Object.keys(response.data))
-        console.log('Response.data.data structure:', Object.keys(response.data.data || {}))
         
         if (response.data.success) {
           users.value = response.data.data.data
-          console.log('Users loaded:', users.value.length, 'users')
-          console.log('Users content:', users.value)
           pagination.value = {
             current_page: response.data.data.current_page,
             last_page: response.data.data.last_page,
@@ -432,21 +424,13 @@ export default {
             prev_page_url: response.data.data.prev_page_url,
             next_page_url: response.data.data.next_page_url
           }
-          console.log('Pagination:', pagination.value)
         } else {
-          console.error('API returned success=false:', response.data)
           error.value = 'Réponse inattendue du serveur'
         }
       } catch (err) {
-        console.error('=== FETCH USERS ERROR ===')
-        console.error('Error fetching users:', err)
-        console.error('Error response:', err.response?.data)
-        console.error('Error status:', err.response?.status)
-        console.error('Error headers:', err.response?.headers)
         error.value = 'Erreur lors du chargement des utilisateurs'
       } finally {
         loading.value = false
-        console.log('=== FETCH USERS END ===')
       }
     }
 
@@ -495,7 +479,6 @@ export default {
         await axios.put(`/admin/users/${u.id}/role`, { role: targetRole })
         await fetchUsers(pagination.value?.current_page || 1)
       } catch (err) {
-        console.error('Error toggling admin role:', err)
       }
     }
 
@@ -523,7 +506,6 @@ export default {
         showEdit.value = false
         await fetchUsers(pagination.value?.current_page || 1)
       } catch (err) {
-        console.error('Error updating user:', err)
       }
     }
 
@@ -537,7 +519,6 @@ export default {
           user.is_active = !user.is_active
         }
       } catch (err) {
-        console.error('Error toggling user status:', err)
         error.value = 'Erreur lors de la modification du statut'
       }
     }
@@ -562,7 +543,6 @@ export default {
           deleteError.value = response.data.message || 'Suppression échouée'
         }
       } catch (err) {
-        console.error('Error deleting user:', err)
         deleteError.value = 'Erreur lors de la suppression de l\'utilisateur'
       } finally {
         deleteLoading.value = false
