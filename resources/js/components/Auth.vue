@@ -157,12 +157,26 @@ export default {
           path: route.path
         })
         
+        // Marquer IMMÉDIATEMENT les flags AVANT toute vérification
+        // Cela empêche App.vue de rendre l'interface même pendant la vérification
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem('sso_redirecting', 'true')
+        }
+        isRedirecting.value = true
+        authStore.isSSORedirecting = true
+        
         // Vérifier le token dans localStorage directement
         const token = localStorage.getItem('access_token')
         console.log('[Auth] Token dans localStorage:', token ? token.substring(0, 20) + '...' : 'AUCUN')
         
         if (!token) {
-          console.log('[Auth] Pas de token, affichage du formulaire de login')
+          console.log('[Auth] Pas de token, nettoyer les flags et afficher le formulaire de login')
+          // Nettoyer les flags si pas de token
+          if (typeof window !== 'undefined') {
+            sessionStorage.removeItem('sso_redirecting')
+          }
+          isRedirecting.value = false
+          authStore.isSSORedirecting = false
           return
         }
         
@@ -175,51 +189,46 @@ export default {
           console.log('[Auth] Résultat checkAuth:', isAuthenticated)
         } catch (error) {
           console.error('[Auth] Erreur lors de checkAuth:', error)
+          // En cas d'erreur, nettoyer les flags
+          if (typeof window !== 'undefined') {
+            sessionStorage.removeItem('sso_redirecting')
+          }
+          isRedirecting.value = false
+          authStore.isSSORedirecting = false
+          return
         }
         
-        if (isAuthenticated) {
-          // Vérifier à nouveau si une redirection est déjà en cours (double vérification)
-          if (typeof window !== 'undefined' && sessionStorage.getItem('sso_redirecting') === 'true') {
-            console.log('[Auth] Redirection SSO déjà en cours (double vérification), masquer interface')
-            isRedirecting.value = true
-            return
-          }
-          
-          console.log('[Auth] Utilisateur authentifié, génération token SSO...')
-          
-          // Marquer IMMÉDIATEMENT qu'on est en train de rediriger AVANT toute autre opération
-          // Cela empêchera App.vue de rendre l'interface
-          // IMPORTANT: Faire cela SYNCHRONEMENT avant toute opération asynchrone
+        if (!isAuthenticated) {
+          console.log('[Auth] Utilisateur non authentifié, nettoyer les flags et afficher le formulaire de login')
+          // Nettoyer les flags si l'utilisateur n'est pas authentifié
           if (typeof window !== 'undefined') {
-            sessionStorage.setItem('sso_redirecting', 'true')
+            sessionStorage.removeItem('sso_redirecting')
           }
-          isRedirecting.value = true
-          authStore.isSSORedirecting = true
-          
-          // Forcer Vue à mettre à jour le DOM immédiatement
-          // Utiliser nextTick pour s'assurer que Vue a mis à jour le DOM
-          await import('vue').then(vue => {
-            vue.nextTick(() => {
-              // Forcer un re-render
-            })
-          })
-          
-          // Générer le token SSO et rediriger immédiatement
-          // Exécuter la fonction async immédiatement
-          const redirect = route.query.redirect
-          console.log('[Auth] Redirect URL extraite:', redirect)
-          
-          if (!redirect) {
-            console.error('[Auth] No redirect URL provided')
-            if (typeof window !== 'undefined') {
-              sessionStorage.removeItem('sso_redirecting')
-            }
-            isRedirecting.value = false
-            return
+          isRedirecting.value = false
+          authStore.isSSORedirecting = false
+          return
+        }
+        
+        // Utilisateur authentifié, continuer avec la génération du token SSO
+        // Les flags sont déjà marqués au début, pas besoin de les remettre
+        console.log('[Auth] Utilisateur authentifié, génération token SSO...')
+        
+        // Générer le token SSO et rediriger immédiatement
+        // Exécuter la fonction async immédiatement
+        const redirect = route.query.redirect
+        console.log('[Auth] Redirect URL extraite:', redirect)
+        
+        if (!redirect) {
+          console.error('[Auth] No redirect URL provided')
+          if (typeof window !== 'undefined') {
+            sessionStorage.removeItem('sso_redirecting')
           }
-          
-          // Exécuter la génération du token et la redirection immédiatement
-          ;(async () => {
+          isRedirecting.value = false
+          return
+        }
+        
+        // Exécuter la génération du token et la redirection immédiatement
+        ;(async () => {
             try {
               console.log('[Auth] Appel API /sso/generate-token...', {
                 redirect: redirect,
@@ -313,12 +322,9 @@ export default {
               return
             }
           })()
-          
-          // Ne pas continuer, la redirection est en cours
-          return
-        } else {
-          console.log('[Auth] User not authenticated, will show login form')
-        }
+        
+        // Ne pas continuer, la redirection est en cours
+        return
       } else {
         console.log('[Auth] Pas de force_token, comportement normal')
       }
