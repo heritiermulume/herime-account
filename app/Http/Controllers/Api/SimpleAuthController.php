@@ -227,47 +227,8 @@ class SimpleAuthController extends Controller
         // Create access token for API authentication
         $token = $user->createToken('API Token')->accessToken;
 
-        // Log de débogage AVANT determineRedirectUrl
-        // IMPORTANT: Ne pas logger les données sensibles comme les mots de passe
-        $requestData = $request->all();
-        $safeRequestData = [];
-        foreach ($requestData as $key => $value) {
-            if ($key !== 'password' && $key !== 'password_confirmation') {
-                $safeRequestData[$key] = $value;
-            } else {
-                $safeRequestData[$key] = '[REDACTED]';
-            }
-        }
-        
-        \Log::info('Login - Before determineRedirectUrl', [
-            'user_id' => $user->id,
-            'request_all_keys' => array_keys($requestData),
-            'request_all_safe' => $safeRequestData,
-            'request_query' => $request->query(),
-            'has_redirect_in_all' => isset($requestData['redirect']),
-            'has_redirect_in_query' => $request->query('redirect') !== null,
-            'redirect_from_input' => $request->input('redirect'),
-            'redirect_from_query' => $request->query('redirect'),
-            'content_type' => $request->header('Content-Type'),
-            'wants_json' => $request->wantsJson(),
-            'expects_json' => $request->expectsJson(),
-        ]);
-        
         // Vérifier si on doit rediriger vers un domaine externe après connexion
         $redirectUrl = $this->determineRedirectUrl($request);
-        
-        // Log pour déboguer
-        \Log::info('Login - determineRedirectUrl result', [
-            'user_id' => $user->id,
-            'redirect_url' => $redirectUrl,
-            'has_redirect_param' => $request->has('redirect'),
-            'redirect_param' => $request->input('redirect') ?: $request->query('redirect'),
-            'has_client_domain' => $request->has('client_domain'),
-            'client_domain' => $request->input('client_domain') ?: $request->query('client_domain'),
-            'wants_json' => $request->wantsJson(),
-            'expects_json' => $request->expectsJson(),
-        ]);
-        
         if ($redirectUrl && !$request->wantsJson() && !$request->expectsJson()) {
             // C'est une requête web depuis un domaine externe, générer un token SSO et rediriger
             $ssoToken = $this->generateSSOToken($user);
@@ -294,25 +255,16 @@ class SimpleAuthController extends Controller
         ];
 
         if ($redirectUrl) {
-            try {
-                $ssoToken = $this->generateSSOToken($user);
-                $responseData['sso_redirect_url'] = $redirectUrl . '?token=' . $ssoToken;
-                $responseData['sso_token'] = $ssoToken;
-                \Log::info('Login - SSO redirect URL added', [
-                    'user_id' => $user->id,
-                    'redirect_url_host' => parse_url($redirectUrl, PHP_URL_HOST),
-                ]);
-            } catch (\Exception $e) {
-                \Log::error('Login - Error generating SSO token', [
-                    'user_id' => $user->id,
-                    'error' => $e->getMessage(),
-                ]);
-            }
-        } else {
-            \Log::warning('Login - No redirect URL determined', [
+            $ssoToken = $this->generateSSOToken($user);
+            $responseData['sso_redirect_url'] = $redirectUrl . '?token=' . $ssoToken;
+            $responseData['sso_token'] = $ssoToken;
+        }
+        
+        if (config('app.debug')) {
+            \Log::debug('Login response', [
                 'user_id' => $user->id,
-                'has_redirect_param' => $request->has('redirect'),
-                'redirect_param' => $request->input('redirect') ?: $request->query('redirect'),
+                'has_last_login_at' => !empty($userData['last_login_at']),
+                'redirect_url' => $redirectUrl
             ]);
         }
         
@@ -638,84 +590,22 @@ class SimpleAuthController extends Controller
      */
     private function determineRedirectUrl(Request $request): ?string
     {
-        // 1. Priorité : paramètre 'redirect' explicite dans la requête (body ou query)
-        // Vérifier d'abord dans le body (pour les requêtes POST), puis dans les query params
-        $redirect = $request->input('redirect');
-        if (!$redirect) {
-            $redirect = $request->query('redirect');
-        }
-        
-        if ($redirect && is_string($redirect)) {
-            // Laravel décode déjà automatiquement les paramètres, mais on peut avoir un double encodage
-            // Essayer de décoder une fois si nécessaire
-            $decoded = urldecode($redirect);
-            if ($decoded !== $redirect && strlen($decoded) <= 2000) {
-                // Vérifier si le décodage donne une URL valide
-                $testParts = @parse_url($decoded);
-                if ($testParts && isset($testParts['scheme']) && isset($testParts['host'])) {
-                    $redirect = $decoded;
-                }
-            }
-            
-            // Valider l'URL (déjà décodée par Laravel ou manuellement)
-            // Simplifier la validation - accepter si l'URL commence par http:// ou https:// et contient un host
-            if (strlen($redirect) <= 2000 && (strpos($redirect, 'http://') === 0 || strpos($redirect, 'https://') === 0)) {
-                $urlParts = @parse_url($redirect);
-                if ($urlParts && isset($urlParts['host']) && isset($urlParts['scheme'])) {
-                    $scheme = strtolower($urlParts['scheme']);
-                    if (in_array($scheme, ['http', 'https'])) {
-                        // Vérifier que c'est un domaine externe
-                        $host = $urlParts['host'];
-                        $currentHost = preg_replace('/^www\./', '', strtolower($request->getHost()));
-                        $redirectHost = preg_replace('/^www\./', '', strtolower($host));
-                        
-                        // Ne rediriger que si c'est un domaine externe
-                        if ($redirectHost !== $currentHost && $redirectHost !== 'compte.herime.com') {
-                            \Log::info('determineRedirectUrl - External redirect found', [
-                                'redirect_host' => $redirectHost,
-                                'current_host' => $currentHost,
-                            ]);
-                            return $redirect;
-                        } else {
-                            \Log::warning('determineRedirectUrl - Same domain redirect blocked', [
-                                'redirect_host' => $redirectHost,
-                                'current_host' => $currentHost,
-                            ]);
-                        }
-                    }
-                }
+        // 1. Priorité : paramètre 'redirect' explicite dans la requête
+        if ($request->has('redirect') || $request->query('redirect')) {
+            $redirect = $request->input('redirect') ?: $request->query('redirect');
+            if ($redirect && filter_var($redirect, FILTER_VALIDATE_URL)) {
+                return $redirect;
             }
         }
 
         // 2. Vérifier le paramètre 'client_domain' pour construire l'URL de callback
-        // Vérifier d'abord dans le body (pour les requêtes POST), puis dans les query params
-        $clientDomain = $request->input('client_domain');
-        if (!$clientDomain) {
-            $clientDomain = $request->query('client_domain');
-        }
-        
-        if ($clientDomain && is_string($clientDomain)) {
-            
-            // Validation plus simple : juste vérifier que ce n'est pas vide et qu'il contient des caractères valides
-            // Ne pas être trop strict avec la regex pour éviter de bloquer des domaines valides
-            if (strlen($clientDomain) > 0 && strlen($clientDomain) <= 255 && preg_match('/^[a-zA-Z0-9\.\-]+$/', $clientDomain)) {
-                // S'assurer que ce n'est pas le même domaine
-                $currentHost = preg_replace('/^www\./', '', $request->getHost());
-                $clientDomainNormalized = preg_replace('/^www\./', '', $clientDomain);
-                
-                if ($clientDomainNormalized !== $currentHost && $clientDomainNormalized !== 'compte.herime.com') {
-                    // Construire l'URL de callback standard pour le domaine client
-                    $scheme = $request->secure() ? 'https' : 'http';
-                    $redirectPath = $request->query('redirect_path') ?: '/sso/callback';
-                    
-                    // Valider redirect_path pour éviter les directory traversal (mais plus permissif)
-                    $redirectPath = ltrim($redirectPath, '/');
-                    if (empty($redirectPath) || !preg_match('/^[a-zA-Z0-9\/\-_\.]+$/', $redirectPath)) {
-                        $redirectPath = 'sso/callback';
-                    }
-                    
-                    return $scheme . '://' . $clientDomain . '/' . $redirectPath;
-                }
+        if ($request->has('client_domain') || $request->query('client_domain')) {
+            $clientDomain = $request->input('client_domain') ?: $request->query('client_domain');
+            if ($clientDomain) {
+                // Construire l'URL de callback standard pour le domaine client
+                $scheme = $request->secure() ? 'https' : 'http';
+                $redirectPath = $request->query('redirect_path') ?: '/sso/callback';
+                return $scheme . '://' . $clientDomain . $redirectPath;
             }
         }
 
@@ -724,21 +614,13 @@ class SimpleAuthController extends Controller
         if ($referer) {
             $refererUrl = parse_url($referer);
             $currentHost = parse_url(config('app.url'), PHP_URL_HOST);
-            $currentHost = preg_replace('/^www\./', '', $currentHost);
             
             // Si le referer vient d'un autre domaine que compte.herime.com
-            if (isset($refererUrl['host'])) {
-                $refererHost = preg_replace('/^www\./', '', $refererUrl['host']);
-                if ($refererHost !== $currentHost && $refererHost !== 'compte.herime.com') {
-                    $scheme = $refererUrl['scheme'] ?? ($request->secure() ? 'https' : 'http');
-                    $host = $refererUrl['host'];
-                    $redirectPath = $request->query('redirect_path') ?: '/sso/callback';
-                    $redirectPath = ltrim($redirectPath, '/');
-                    if (empty($redirectPath) || !preg_match('/^[a-zA-Z0-9\/\-_\.]+$/', $redirectPath)) {
-                        $redirectPath = 'sso/callback';
-                    }
-                    return $scheme . '://' . $host . '/' . $redirectPath;
-                }
+            if (isset($refererUrl['host']) && $refererUrl['host'] !== $currentHost) {
+                $scheme = $refererUrl['scheme'] ?? ($request->secure() ? 'https' : 'http');
+                $host = $refererUrl['host'];
+                $redirectPath = $request->query('redirect_path') ?: '/sso/callback';
+                return $scheme . '://' . $host . $redirectPath;
             }
         }
 
@@ -747,21 +629,13 @@ class SimpleAuthController extends Controller
         if ($origin) {
             $originUrl = parse_url($origin);
             $currentHost = parse_url(config('app.url'), PHP_URL_HOST);
-            $currentHost = preg_replace('/^www\./', '', $currentHost);
             
             // Si l'origin vient d'un autre domaine que compte.herime.com
-            if (isset($originUrl['host'])) {
-                $originHost = preg_replace('/^www\./', '', $originUrl['host']);
-                if ($originHost !== $currentHost && $originHost !== 'compte.herime.com') {
-                    $scheme = $originUrl['scheme'] ?? ($request->secure() ? 'https' : 'http');
-                    $host = $originUrl['host'];
-                    $redirectPath = $request->query('redirect_path') ?: '/sso/callback';
-                    $redirectPath = ltrim($redirectPath, '/');
-                    if (empty($redirectPath) || !preg_match('/^[a-zA-Z0-9\/\-_\.]+$/', $redirectPath)) {
-                        $redirectPath = 'sso/callback';
-                    }
-                    return $scheme . '://' . $host . '/' . $redirectPath;
-                }
+            if (isset($originUrl['host']) && $originUrl['host'] !== $currentHost) {
+                $scheme = $originUrl['scheme'] ?? ($request->secure() ? 'https' : 'http');
+                $host = $originUrl['host'];
+                $redirectPath = $request->query('redirect_path') ?: '/sso/callback';
+                return $scheme . '://' . $host . $redirectPath;
             }
         }
 

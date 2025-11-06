@@ -37,7 +37,12 @@ class UserController extends Controller
             $userData['last_login_at'] = null;
         }
         
-        // Ne pas logger les informations sensibles dans les logs
+        \Log::info('Profile API response', [
+            'user_id' => $user->id,
+            'avatar' => $user->avatar,
+            'avatar_url' => $userData['avatar_url'],
+            'last_login_at' => $userData['last_login_at']
+        ]);
         
         return response()->json([
             'success' => true,

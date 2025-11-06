@@ -120,13 +120,16 @@ router.beforeEach(async (to, from, next) => {
                        to.query.force_token === 'on'
   
   if (hasForceToken && to.path === '/login') {
-    // Ne pas logger redirect car il peut contenir des informations sensibles
+    console.log('[Router] force_token détecté sur /login, vérification auth...', {
+      force_token: to.query.force_token,
+      redirect: to.query.redirect
+    })
     
     // Vérifier le token dans localStorage directement
     const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null
-    // Ne pas logger le token (même partiel) pour des raisons de sécurité
-    
-    // Vérifier l'authentification
+    console.log('[Router] Token dans localStorage:', token ? 'PRÉSENT (' + token.substring(0, 20) + '...)' : 'AUCUN')
+  
+  // Vérifier l'authentification
     await authStore.checkAuth()
     const isAuthenticated = authStore.authenticated
     
@@ -182,21 +185,6 @@ router.beforeEach(async (to, from, next) => {
   
   // Vérifier les routes qui nécessitent d'être un invité (non authentifié)
   if (to.meta.requiresGuest && isAuthenticated) {
-    // Vérifier si force_token est présent (même si on n'est pas sur /login, au cas où)
-    const hasForceToken = to.query.force_token === '1' || 
-                         to.query.force_token === 1 || 
-                         to.query.force_token === true || 
-                         to.query.force_token === 'true' ||
-                         to.query.force_token === 'yes' ||
-                         to.query.force_token === 'on'
-    
-    if (hasForceToken) {
-      // Si force_token est présent, laisser Auth.vue gérer la redirection SSO
-      console.log('[Router] force_token présent, allowing access to guest route for SSO')
-      next()
-      return
-    }
-    
     // Si on arrive ici et que l'utilisateur est authentifié, mais pas de force_token
     // C'est une visite normale sur /login ou /register, rediriger vers dashboard
     console.log('[Router] User authenticated on guest route without force_token, redirecting to dashboard')

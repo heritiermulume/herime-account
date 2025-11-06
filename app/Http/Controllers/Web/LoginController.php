@@ -132,44 +132,35 @@ class LoginController extends Controller
             
             // Laravel décode automatiquement les paramètres d'URL une fois
             // Vérifier si l'URL est valide telle quelle
-            if ($redirect && strlen($redirect) <= 2000 && filter_var($redirect, FILTER_VALIDATE_URL)) {
-                // Valider le schéma (seulement http/https)
-                $urlParts = parse_url($redirect);
-                if (isset($urlParts['scheme']) && in_array(strtolower($urlParts['scheme']), ['http', 'https'])) {
-                    return $redirect;
-                }
+            if ($redirect && filter_var($redirect, FILTER_VALIDATE_URL)) {
+                \Log::info('SSO Redirect detected (direct)', ['redirect_url' => $redirect]);
+                return $redirect;
             }
             
             // Si pas valide, essayer de décoder une fois de plus (cas double encodage)
             $decodedRedirect = urldecode($redirect);
-            if ($decodedRedirect !== $redirect && strlen($decodedRedirect) <= 2000 && filter_var($decodedRedirect, FILTER_VALIDATE_URL)) {
-                // Valider le schéma
-                $urlParts = parse_url($decodedRedirect);
-                if (isset($urlParts['scheme']) && in_array(strtolower($urlParts['scheme']), ['http', 'https'])) {
-                    return $decodedRedirect;
-                }
+            if ($decodedRedirect !== $redirect && filter_var($decodedRedirect, FILTER_VALIDATE_URL)) {
+                \Log::info('SSO Redirect detected (decoded)', ['redirect_url' => $decodedRedirect, 'original' => $redirect]);
+                return $decodedRedirect;
             }
             
-            // Ne pas logger les URLs invalides car elles peuvent contenir des données sensibles
+            // Log si aucune URL valide n'a été trouvée
+            \Log::warning('SSO Redirect URL invalid', [
+                'redirect' => $redirect,
+                'decoded' => $decodedRedirect,
+                'is_valid_direct' => filter_var($redirect, FILTER_VALIDATE_URL),
+                'is_valid_decoded' => filter_var($decodedRedirect, FILTER_VALIDATE_URL)
+            ]);
         }
 
         // 2. Vérifier le paramètre 'client_domain' pour construire l'URL de callback
         if ($request->has('client_domain') || $request->query('client_domain')) {
             $clientDomain = $request->input('client_domain') ?: $request->query('client_domain');
-            
-            // Valider le format du domaine pour éviter les injections
-            if ($clientDomain && preg_match('/^[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?)*$/', $clientDomain)) {
+            if ($clientDomain) {
                 // Construire l'URL de callback standard pour le domaine client
                 $scheme = $request->secure() ? 'https' : 'http';
                 $redirectPath = $request->query('redirect_path') ?: '/sso/callback';
-                
-                // Valider redirect_path pour éviter les directory traversal
-                $redirectPath = ltrim($redirectPath, '/');
-                if (!preg_match('/^[a-zA-Z0-9\/\-_\.]+$/', $redirectPath)) {
-                    $redirectPath = 'sso/callback';
-                }
-                
-                return $scheme . '://' . $clientDomain . '/' . $redirectPath;
+                return $scheme . '://' . $clientDomain . $redirectPath;
             }
         }
 

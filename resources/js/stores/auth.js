@@ -32,8 +32,6 @@ export const useAuthStore = defineStore('auth', {
 
       try {
         if (import.meta.env.DEV) console.log('Making login request...')
-        // Log des credentials sans le mot de passe
-        if (import.meta.env.DEV) console.log('Login credentials keys:', Object.keys(credentials), 'has_redirect:', !!credentials.redirect)
         const response = await axios.post('/login', credentials)
         if (import.meta.env.DEV) console.log('Response received:', response.status)
         

@@ -316,7 +316,7 @@ export default {
       try {
         console.log('🔄 Loading sessions from API...')
         const token = localStorage.getItem('access_token')
-        // Ne pas logger le token (même partiel) pour des raisons de sécurité
+        console.log('🔑 Token available:', token ? 'Yes (' + token.substring(0, 20) + '...)' : 'No')
         
         const response = await axios.get('/sso/sessions')
         console.log('✅ Sessions API response:', response.status, response.data)
