@@ -305,7 +305,7 @@ export default {
                 // Utiliser window.location.replace() pour une redirection immédiate et définitive
                 window.location.replace(callbackUrl)
                 
-                // Cette ligne ne sera jamais exécutée car window.location.href redirige
+                // Cette ligne ne sera jamais exécutée car window.location.replace() redirige
                 return
               } else {
                 console.error('[Auth] Structure de réponse invalide ou callback_url manquant:', {
