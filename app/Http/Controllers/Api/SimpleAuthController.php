@@ -594,17 +594,36 @@ class SimpleAuthController extends Controller
         if ($request->has('redirect') || $request->query('redirect')) {
             $redirect = $request->input('redirect') ?: $request->query('redirect');
             
-            // Décoder si nécessaire (avec limite)
-            $decoded = urldecode($redirect);
-            if ($decoded !== $redirect && strlen($decoded) < 2000 && filter_var($decoded, FILTER_VALIDATE_URL)) {
-                $redirect = $decoded;
+            if (!$redirect || !is_string($redirect)) {
+                return null;
             }
             
-            // Valider l'URL avec longueur et schéma
-            if ($redirect && strlen($redirect) <= 2000 && filter_var($redirect, FILTER_VALIDATE_URL)) {
+            // Laravel décode déjà automatiquement les paramètres, mais on peut avoir un double encodage
+            // Essayer de décoder une fois si nécessaire
+            $decoded = urldecode($redirect);
+            if ($decoded !== $redirect && strlen($decoded) <= 2000) {
+                // Vérifier si le décodage donne une URL valide
+                if (filter_var($decoded, FILTER_VALIDATE_URL)) {
+                    $urlParts = parse_url($decoded);
+                    if (isset($urlParts['scheme']) && in_array(strtolower($urlParts['scheme']), ['http', 'https'])) {
+                        // Vérifier que c'est un domaine externe
+                        $host = $urlParts['host'] ?? null;
+                        if ($host && $host !== $request->getHost() && $host !== 'compte.herime.com') {
+                            return $decoded;
+                        }
+                    }
+                }
+            }
+            
+            // Valider l'URL telle quelle (déjà décodée par Laravel)
+            if (strlen($redirect) <= 2000 && filter_var($redirect, FILTER_VALIDATE_URL)) {
                 $urlParts = parse_url($redirect);
                 if (isset($urlParts['scheme']) && in_array(strtolower($urlParts['scheme']), ['http', 'https'])) {
-                    return $redirect;
+                    // Vérifier que c'est un domaine externe
+                    $host = $urlParts['host'] ?? null;
+                    if ($host && $host !== $request->getHost() && $host !== 'compte.herime.com') {
+                        return $redirect;
+                    }
                 }
             }
         }
@@ -613,19 +632,31 @@ class SimpleAuthController extends Controller
         if ($request->has('client_domain') || $request->query('client_domain')) {
             $clientDomain = $request->input('client_domain') ?: $request->query('client_domain');
             
+            if (!$clientDomain || !is_string($clientDomain)) {
+                return null;
+            }
+            
             // Valider le format du domaine pour éviter les injections
-            if ($clientDomain && preg_match('/^[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?)*$/', $clientDomain)) {
-                // Construire l'URL de callback standard pour le domaine client
-                $scheme = $request->secure() ? 'https' : 'http';
-                $redirectPath = $request->query('redirect_path') ?: '/sso/callback';
+            // Permettre les domaines comme academie.herime.com, www.example.com, etc.
+            // Format: label.label.label... (chaque label peut contenir lettres, chiffres, tirets)
+            if (preg_match('/^([a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$/', $clientDomain)) {
+                // S'assurer que ce n'est pas le même domaine
+                $currentHost = preg_replace('/^www\./', '', $request->getHost());
+                $clientDomainNormalized = preg_replace('/^www\./', '', $clientDomain);
                 
-                // Valider redirect_path pour éviter les directory traversal
-                $redirectPath = ltrim($redirectPath, '/');
-                if (!preg_match('/^[a-zA-Z0-9\/\-_\.]+$/', $redirectPath)) {
-                    $redirectPath = 'sso/callback';
+                if ($clientDomainNormalized !== $currentHost && $clientDomainNormalized !== 'compte.herime.com') {
+                    // Construire l'URL de callback standard pour le domaine client
+                    $scheme = $request->secure() ? 'https' : 'http';
+                    $redirectPath = $request->query('redirect_path') ?: '/sso/callback';
+                    
+                    // Valider redirect_path pour éviter les directory traversal
+                    $redirectPath = ltrim($redirectPath, '/');
+                    if (!preg_match('/^[a-zA-Z0-9\/\-_\.]+$/', $redirectPath)) {
+                        $redirectPath = 'sso/callback';
+                    }
+                    
+                    return $scheme . '://' . $clientDomain . '/' . $redirectPath;
                 }
-                
-                return $scheme . '://' . $clientDomain . '/' . $redirectPath;
             }
         }
 
@@ -634,13 +665,21 @@ class SimpleAuthController extends Controller
         if ($referer) {
             $refererUrl = parse_url($referer);
             $currentHost = parse_url(config('app.url'), PHP_URL_HOST);
+            $currentHost = preg_replace('/^www\./', '', $currentHost);
             
             // Si le referer vient d'un autre domaine que compte.herime.com
-            if (isset($refererUrl['host']) && $refererUrl['host'] !== $currentHost) {
-                $scheme = $refererUrl['scheme'] ?? ($request->secure() ? 'https' : 'http');
-                $host = $refererUrl['host'];
-                $redirectPath = $request->query('redirect_path') ?: '/sso/callback';
-                return $scheme . '://' . $host . $redirectPath;
+            if (isset($refererUrl['host'])) {
+                $refererHost = preg_replace('/^www\./', '', $refererUrl['host']);
+                if ($refererHost !== $currentHost && $refererHost !== 'compte.herime.com') {
+                    $scheme = $refererUrl['scheme'] ?? ($request->secure() ? 'https' : 'http');
+                    $host = $refererUrl['host'];
+                    $redirectPath = $request->query('redirect_path') ?: '/sso/callback';
+                    $redirectPath = ltrim($redirectPath, '/');
+                    if (!preg_match('/^[a-zA-Z0-9\/\-_\.]+$/', $redirectPath)) {
+                        $redirectPath = 'sso/callback';
+                    }
+                    return $scheme . '://' . $host . '/' . $redirectPath;
+                }
             }
         }
 
@@ -649,13 +688,21 @@ class SimpleAuthController extends Controller
         if ($origin) {
             $originUrl = parse_url($origin);
             $currentHost = parse_url(config('app.url'), PHP_URL_HOST);
+            $currentHost = preg_replace('/^www\./', '', $currentHost);
             
             // Si l'origin vient d'un autre domaine que compte.herime.com
-            if (isset($originUrl['host']) && $originUrl['host'] !== $currentHost) {
-                $scheme = $originUrl['scheme'] ?? ($request->secure() ? 'https' : 'http');
-                $host = $originUrl['host'];
-                $redirectPath = $request->query('redirect_path') ?: '/sso/callback';
-                return $scheme . '://' . $host . $redirectPath;
+            if (isset($originUrl['host'])) {
+                $originHost = preg_replace('/^www\./', '', $originUrl['host']);
+                if ($originHost !== $currentHost && $originHost !== 'compte.herime.com') {
+                    $scheme = $originUrl['scheme'] ?? ($request->secure() ? 'https' : 'http');
+                    $host = $originUrl['host'];
+                    $redirectPath = $request->query('redirect_path') ?: '/sso/callback';
+                    $redirectPath = ltrim($redirectPath, '/');
+                    if (!preg_match('/^[a-zA-Z0-9\/\-_\.]+$/', $redirectPath)) {
+                        $redirectPath = 'sso/callback';
+                    }
+                    return $scheme . '://' . $host . '/' . $redirectPath;
+                }
             }
         }
 
