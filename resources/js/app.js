@@ -7,21 +7,13 @@ import { setRouter } from './bootstrap';
 
 
 try {
-    console.log('Creating Vue app...');
     const app = createApp(App);
 
-    console.log('Adding plugins...');
     app.use(createPinia());
     app.use(router);
 
-    console.log('Mounting app...');
     app.mount('#app');
-    
-    console.log('App mounted successfully!');
 } catch (error) {
-    console.error('Error in app.js:', error);
-    console.error('Error stack:', error.stack);
-    
     // Fallback: show error message
     const appElement = document.getElementById('app');
     if (appElement) {
