@@ -185,6 +185,40 @@ router.beforeEach(async (to, from, next) => {
   
   // Vérifier les routes qui nécessitent d'être un invité (non authentifié)
   if (to.meta.requiresGuest && isAuthenticated) {
+    // Vérifier si on doit rediriger vers un site externe (SSO)
+    const redirectParam = to.query.redirect
+    if (redirectParam && typeof redirectParam === 'string') {
+      try {
+        // Décoder l'URL
+        let decoded = redirectParam
+        for (let i = 0; i < 3; i++) {
+          try {
+            const temp = decodeURIComponent(decoded)
+            if (temp === decoded) break
+            decoded = temp
+          } catch (e) {
+            break
+          }
+        }
+        
+        if (decoded.startsWith('http')) {
+          const url = new URL(decoded)
+          const currentHost = window.location.hostname.replace(/^www\./, '').toLowerCase()
+          const urlHost = url.hostname.replace(/^www\./, '').toLowerCase()
+          
+          // Si c'est un domaine externe, ne pas rediriger vers dashboard
+          // Laisser Auth.vue gérer la redirection SSO
+          if (urlHost !== currentHost && urlHost !== 'compte.herime.com') {
+            console.log('[Router] External site detected, allowing access for SSO redirect')
+            next()
+            return
+          }
+        }
+      } catch (e) {
+        // Ignorer les erreurs
+      }
+    }
+    
     // Si on arrive ici et que l'utilisateur est authentifié, mais pas de force_token
     // C'est une visite normale sur /login ou /register, rediriger vers dashboard
     console.log('[Router] User authenticated on guest route without force_token, redirecting to dashboard')
