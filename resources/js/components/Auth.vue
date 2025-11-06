@@ -279,7 +279,7 @@ export default {
                 // Utiliser window.location.href pour forcer une navigation immédiate
                 window.location.href = callbackUrl
                 
-                // Cette ligne ne sera jamais exécutée car window.location.replace() redirige
+                // Cette ligne ne sera jamais exécutée car window.location.href redirige
                 return
               } else {
                 console.error('[Auth] Structure de réponse invalide ou callback_url manquant:', {
