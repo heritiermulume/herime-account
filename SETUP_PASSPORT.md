@@ -28,10 +28,18 @@ php artisan tinker
 
 Puis dans tinker :
 ```php
-\Laravel\Passport\Client::where('personal_access_client', true)->first();
+// Vérifier le client d'accès personnel (méthode correcte)
+\Laravel\Passport\PersonalAccessClient::first();
+// Ou vérifier via la relation
+$pac = \Laravel\Passport\PersonalAccessClient::first();
+if ($pac) {
+    $pac->client; // Affiche le client associé
+}
 ```
 
-Vous devriez voir un client avec `personal_access_client = 1`.
+Vous devriez voir un client d'accès personnel créé.
+
+**Note importante** : Passport utilise une table séparée `oauth_personal_access_clients` pour stocker les clients d'accès personnel. Ne cherchez pas une colonne `personal_access_client` dans `oauth_clients`.
 
 ### 4. Si le problème persiste
 
