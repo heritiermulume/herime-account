@@ -25,28 +25,21 @@ export const useAuthStore = defineStore('auth', {
 
   actions: {
     async login(credentials) {
-      if (import.meta.env.DEV) console.log('=== AUTH STORE LOGIN START ===')
-      if (import.meta.env.DEV) console.log('Base URL:', axios.defaults.baseURL)
       
       this.loading = true
       this.error = null
 
       try {
-        if (import.meta.env.DEV) console.log('Making login request...')
         const response = await axios.post('/login', credentials)
-        if (import.meta.env.DEV) console.log('Response received:', response.status)
         
         // Vérifier si la réponse est valide
         if (!response.data) {
-          console.error('No data received from server')
           throw new Error('No data received from server')
         }
         
-        if (import.meta.env.DEV) console.log('Response data success value:', response.data.success)
         
         // Vérifier si la 2FA est requise AVANT de vérifier le success
         if (response.data.requires_two_factor === true) {
-          if (import.meta.env.DEV) console.log('AuthStore: 2FA required detected in response')
           // Stocker le jeton temporaire pour la vérification
           this.twoFactorToken = response.data.two_factor_token || null
           const customError = new Error(response.data.message || 'Code 2FA requis')
@@ -60,16 +53,13 @@ export const useAuthStore = defineStore('auth', {
                          response.data.success === 'true' || 
                          response.data.success === 1
         
-        if (import.meta.env.DEV) console.log('Is success (all methods):', isSuccess)
         
         if (isSuccess) {
-          if (import.meta.env.DEV) console.log('Login successful, processing user data...')
           
           // Vérifier si on doit rediriger vers un site externe (SSO)
           // Si oui, marquer la redirection AVANT de mettre à jour l'état
           if (response.data.data?.sso_redirect_url) {
             this.isSSORedirecting = true
-            if (import.meta.env.DEV) console.log('AuthStore: SSO redirect detected, setting flag')
             
             // Stocker le token et les données utilisateur temporairement
             // mais NE PAS mettre authenticated = true pour éviter le rendu
@@ -77,7 +67,6 @@ export const useAuthStore = defineStore('auth', {
             localStorage.setItem('access_token', token)
             // Ne pas mettre à jour user et authenticated maintenant
             // La redirection se fera avant que Vue ne puisse rendre
-            if (import.meta.env.DEV) console.log('AuthStore: SSO redirect - delaying state update')
             return response.data
           }
           
@@ -90,22 +79,15 @@ export const useAuthStore = defineStore('auth', {
           const token = response.data.data.access_token
           localStorage.setItem('access_token', token)
           
-          if (import.meta.env.DEV) console.log('AuthStore: Login successful')
           return response.data
         } else {
-          if (import.meta.env.DEV) console.log('Login failed - success check failed')
           throw new Error(response.data.message || 'Login failed')
         }
       } catch (error) {
-        if (import.meta.env.DEV) console.error('=== AUTH STORE LOGIN ERROR ===')
-        if (import.meta.env.DEV) console.error('AuthStore: Login error:', error)
-        if (import.meta.env.DEV) console.error('AuthStore: Error message:', error.message)
-        if (import.meta.env.DEV) console.error('AuthStore: Error status:', error.response?.status)
         
         // Si la 2FA est requise, retourner une erreur spéciale
         // Vérifier aussi dans response.data direct (cas où success: false mais status 200)
         if (error.response?.data?.requires_two_factor === true) {
-          if (import.meta.env.DEV) console.log('AuthStore: 2FA required detected')
           this.twoFactorToken = error.response.data.two_factor_token || null
           const customError = new Error(error.response.data.message || 'Code 2FA requis')
           customError.requiresTwoFactor = true
@@ -129,7 +111,6 @@ export const useAuthStore = defineStore('auth', {
         throw error
       } finally {
         this.loading = false
-        if (import.meta.env.DEV) console.log('=== AUTH STORE LOGIN END ===')
       }
     },
 
@@ -149,7 +130,6 @@ export const useAuthStore = defineStore('auth', {
           // Si oui, marquer la redirection AVANT de mettre à jour l'état
           if (response.data.data?.sso_redirect_url) {
             this.isSSORedirecting = true
-            if (import.meta.env.DEV) console.log('AuthStore: SSO redirect detected (2FA), setting flag')
             
             // Stocker le token temporairement
             // mais NE PAS mettre authenticated = true pour éviter le rendu
@@ -158,7 +138,6 @@ export const useAuthStore = defineStore('auth', {
             this.twoFactorToken = null
             // Ne pas mettre à jour user et authenticated maintenant
             // La redirection se fera avant que Vue ne puisse rendre
-            if (import.meta.env.DEV) console.log('AuthStore: SSO redirect (2FA) - delaying state update')
             return response.data
           }
           
@@ -172,13 +151,11 @@ export const useAuthStore = defineStore('auth', {
           localStorage.setItem('access_token', token)
           this.twoFactorToken = null
           
-          if (import.meta.env.DEV) console.log('AuthStore: 2FA verification successful')
           return response.data
         } else {
           throw new Error(response.data.message || '2FA verification failed')
         }
       } catch (error) {
-        if (import.meta.env.DEV) console.error('AuthStore: 2FA verification error:', error)
         if (error.response?.data?.message) {
           this.error = error.response.data.message
         } else if (error.response?.status === 422) {
@@ -215,7 +192,6 @@ export const useAuthStore = defineStore('auth', {
           throw new Error(response.data.message || 'Registration failed')
         }
       } catch (error) {
-        console.error('AuthStore: Register error:', error)
         if (error.response?.data?.message) {
           this.error = error.response.data.message
         } else if (error.response?.status === 422) {
@@ -239,7 +215,6 @@ export const useAuthStore = defineStore('auth', {
       try {
         await axios.post('/logout')
       } catch (error) {
-        if (import.meta.env.DEV) console.error('Logout error:', error)
       } finally {
         // Clear state regardless of API call success
         this.user = null
@@ -289,7 +264,6 @@ export const useAuthStore = defineStore('auth', {
             return true
           }
         } catch (error) {
-          if (import.meta.env.DEV) console.error('Auth check failed:', error)
           // Si l'erreur est 401 (unauthorized), le token est invalide
           if (error.response?.status === 401) {
             this.logout()
@@ -315,7 +289,6 @@ export const useAuthStore = defineStore('auth', {
           return false
         }
       } catch (error) {
-        if (import.meta.env.DEV) console.error('Auth check failed:', error)
         // Si 401, le token est invalide, déconnecter
         if (error.response?.status === 401) {
           this.logout()
@@ -332,11 +305,6 @@ export const useAuthStore = defineStore('auth', {
 
 
     updateUser(userData) {
-      if (import.meta.env.DEV) console.log('🔄 updateUser called')
-      if (import.meta.env.DEV) console.log('   avatar_url in userData:', userData?.avatar_url)
-      if (import.meta.env.DEV) console.log('   avatar in userData:', userData?.avatar)
-      if (import.meta.env.DEV) console.log('   Current user avatar_url:', this.user?.avatar_url)
-      if (import.meta.env.DEV) console.log('   Current user avatar:', this.user?.avatar)
       
       // Mettre à jour l'utilisateur
       this.user = { ...this.user, ...userData }
@@ -357,11 +325,9 @@ export const useAuthStore = defineStore('auth', {
         this.user.avatar_url = this.user.avatar_url + separator + 't=' + Date.now()
       }
       
-      if (import.meta.env.DEV) console.log('User avatar updated')
       
       localStorage.setItem('user', JSON.stringify(this.user))
       
-      if (import.meta.env.DEV) console.log('✅ User updated in store and localStorage')
     },
 
     clearError() {

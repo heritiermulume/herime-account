@@ -309,34 +309,23 @@ export default {
     }
 
     const handleImageError = (event) => {
-      console.error('❌ Image load error in Dashboard:', event.target.src)
     }
 
     const loadSessions = async () => {
       try {
-        console.log('🔄 Loading sessions from API...')
         const token = localStorage.getItem('access_token')
-        console.log('🔑 Token available:', token ? 'Yes (' + token.substring(0, 20) + '...)' : 'No')
         
         const response = await axios.get('/sso/sessions')
-        console.log('✅ Sessions API response:', response.status, response.data)
         
         if (response.data.success) {
           sessions.value = response.data.data.sessions || []
-          console.log('📊 Sessions loaded:', sessions.value.length, 'sessions')
         } else {
-          console.warn('⚠️ Sessions response not successful:', response.data)
           sessions.value = []
         }
       } catch (error) {
-        console.error('❌ Error loading sessions:', error)
-        console.error('   Status:', error.response?.status)
-        console.error('   Message:', error.response?.data?.message || error.message)
-        console.error('   Data:', error.response?.data)
         
         // Si erreur 401, le token est invalide
         if (error.response?.status === 401) {
-          console.error('🔒 Unauthorized - token may be invalid or expired')
         }
         
         // Ne pas bloquer l'affichage si les sessions ne se chargent pas
@@ -345,14 +334,10 @@ export default {
     }
 
     onMounted(async () => {
-      console.log('Dashboard mounted, user:', authStore.user)
-      console.log('Authenticated:', authStore.authenticated)
       
       // Load user if not already loaded
       if (!authStore.user) {
-        console.log('Loading user...')
         await authStore.checkAuth()
-        console.log('User after checkAuth:', authStore.user)
       }
       
       // Recharger les données utilisateur pour s'assurer d'avoir les dernières informations
@@ -360,12 +345,8 @@ export default {
         const response = await axios.get('/user/profile')
         if (response.data.success && response.data.data.user) {
           authStore.updateUser(response.data.data.user)
-          console.log('✅ User data refreshed from API')
-          console.log('   is_active:', response.data.data.user.is_active)
-          console.log('   last_login_at:', response.data.data.user.last_login_at)
         }
       } catch (error) {
-        console.error('Error refreshing user data:', error)
       }
       
       loadSessions()

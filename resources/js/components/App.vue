@@ -137,7 +137,6 @@ export default {
           }
         }
       } catch (e) {
-        console.error('[App] Error in initial SSO check:', e)
       }
       return false
     })()
@@ -286,18 +285,12 @@ export default {
         await authStore.logout()
         router.push('/login')
       } catch (error) {
-        console.error('Logout error:', error)
       } finally {
         loading.value = false
       }
     }
 
     onMounted(async () => {
-      console.log('App mounted')
-      console.log('Initial user:', authStore.user)
-      console.log('Initial authenticated:', authStore.authenticated)
-      console.log('Current route:', route?.path)
-      console.log('SSO redirecting:', typeof window !== 'undefined' ? sessionStorage.getItem('sso_redirecting') : 'N/A')
       
       // Vérification SYNCHRONE IMMÉDIATE avant tout autre rendu : si on est sur /login avec paramètres SSO et token présent
       // Cette vérification est SYNCHRONE pour éviter que Vue ne rende l'interface
@@ -307,7 +300,6 @@ export default {
           // Vérifier si on a un token de manière SYNCHRONE (pas await)
           const token = localStorage.getItem('access_token')
           if (token) {
-            console.log('[App] Token détecté sur /login avec paramètres SSO, marquer flags immédiatement (synchrone)')
             // Marquer IMMÉDIATEMENT et SYNCHRONEMENT pour afficher l'overlay
             // Cela empêchera Vue de rendre l'interface
             sessionStorage.setItem('sso_redirecting', 'true')
@@ -323,7 +315,6 @@ export default {
       if (typeof window !== 'undefined') {
         const hasRedirectParams = route && route.query && (route.query.redirect || route.query.force_token)
         if (!hasRedirectParams && sessionStorage.getItem('sso_redirecting') === 'true') {
-          console.log('[App] Pas de paramètres redirect/force_token, nettoyage du flag SSO')
           sessionStorage.removeItem('sso_redirecting')
           authStore.isSSORedirecting = false
         }
@@ -331,7 +322,6 @@ export default {
         // Vérifier si une redirection SSO est en cours dès le montage
         // Seulement si on a vraiment les paramètres redirect/force_token
         if (sessionStorage.getItem('sso_redirecting') === 'true' && hasRedirectParams) {
-          console.log('[App] Redirection SSO détectée avec paramètres, masquer interface')
           // Ne pas continuer le rendu normal, l'overlay sera affiché
           return
         }
@@ -353,11 +343,9 @@ export default {
         try {
           const isAuth = await authStore.checkAuth()
           if (!isAuth) {
-            console.log('User not authenticated, redirecting to login')
             router.push('/login')
           }
         } catch (error) {
-          console.error('Auth check error:', error)
           router.push('/login')
         }
       }
@@ -388,7 +376,6 @@ export default {
     }
 
     const handleImageError = (event) => {
-      console.error('❌ Image load error in App:', event.target.src)
     }
 
     return {

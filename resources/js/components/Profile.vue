@@ -435,7 +435,6 @@ export default {
           // Stocker l'aperçu dans un champ séparé pour l'affichage
           form.avatar_preview = e.target.result
           form.avatar_url = e.target.result // Pour l'affichage immédiat
-          console.log('✅ Avatar preview loaded:', form.avatar_url.substring(0, 50) + '...')
         }
         reader.readAsDataURL(file)
         
@@ -524,7 +523,6 @@ export default {
         
         const url = `${baseURL}/user/avatar/${user.value.id}?t=` + Date.now()
         
-        console.log('🔗 Constructed avatar URL with timestamp:', url, 'from user avatar:', user.value.avatar)
         return url
       }
       
@@ -550,15 +548,10 @@ export default {
     }
 
     const handleImageError = (event) => {
-      console.error('❌ Image load error:', event.target.src)
-      console.error('   Form avatar_url:', form.avatar_url)
-      console.error('   User avatar_url:', user.value?.avatar_url)
-      console.error('   User avatar:', user.value?.avatar)
       
       // Si l'erreur vient de l'API, essayer de retirer le timestamp
       if (event.target.src.includes('?t=')) {
         const urlWithoutTimestamp = event.target.src.split('?t=')[0]
-        console.log('   Retrying without timestamp:', urlWithoutTimestamp)
         // Réessayer sans timestamp
         setTimeout(() => {
           form.avatar_url = urlWithoutTimestamp
@@ -572,13 +565,11 @@ export default {
     }
 
     const handleImageLoad = () => {
-      console.log('✅ Image loaded successfully:', form.avatar_url)
     }
 
     const updateProfile = async () => {
       loading.value = true
       try {
-        console.log('🔄 Updating profile with data:', form)
         
         // Préparer FormData pour envoyer tous les champs, y compris l'avatar
         const formData = new FormData()
@@ -612,8 +603,6 @@ export default {
           marketing_emails: !!form.marketing_emails,
         }
         
-        console.log('📤 Sending profile data')
-        console.log('📤 Sending preferences:', preferences)
         
         // Envoyer les données du profil
         const profileResponse = await axios.post('/user/profile', formData, {
@@ -622,20 +611,15 @@ export default {
           }
         })
         
-        console.log('✅ Profile update response:', profileResponse.data)
         
         // Envoyer les préférences
         const preferencesResponse = await axios.put('/user/preferences', {
           preferences: preferences
         })
         
-        console.log('✅ Preferences update response:', preferencesResponse.data)
         
         if (profileResponse.data.success && preferencesResponse.data.success) {
           // Log pour debug
-          console.log('🔄 Updating user in store with:', profileResponse.data.data.user)
-          console.log('   avatar_url:', profileResponse.data.data.user?.avatar_url)
-          console.log('   avatar:', profileResponse.data.data.user?.avatar)
           
           // Update user in store (profil + prefs)
           const updatedUser = profileResponse.data.data.user
@@ -643,9 +627,6 @@ export default {
           authStore.updateUser({ ...updatedUser, preferences: updatedPrefs })
           
           // Vérifier que avatar_url est bien mis à jour
-          console.log('✅ User updated in store')
-          console.log('   New avatar_url:', authStore.user?.avatar_url)
-          console.log('   New avatar:', authStore.user?.avatar)
           
           // Mettre à jour form.avatar_url avec la nouvelle URL de l'API
           // Effacer l'aperçu pour forcer l'utilisation de l'URL de l'API
@@ -658,21 +639,18 @@ export default {
             // Retirer le timestamp existant s'il y en a un
             const urlWithoutTimestamp = profileResponse.data.data.user.avatar_url.split('?t=')[0]
             form.avatar_url = urlWithoutTimestamp + '?t=' + Date.now()
-            console.log('✅ form.avatar_url updated from API response with timestamp:', form.avatar_url)
           } else if (profileResponse.data.data.user?.avatar && authStore.user?.id) {
             // Si avatar_url n'est pas dans la réponse mais avatar existe, construire l'URL
             const baseURL = (typeof window !== 'undefined' && window.axios?.defaults?.baseURL) 
               ? window.axios.defaults.baseURL 
               : '/api'
             form.avatar_url = `${baseURL}/user/avatar/${authStore.user.id}?t=` + Date.now()
-            console.log('✅ form.avatar_url constructed from avatar field with timestamp:', form.avatar_url)
           } else if (authStore.user?.id) {
             // Si rien n'est disponible, construire l'URL avec timestamp
             const baseURL = (typeof window !== 'undefined' && window.axios?.defaults?.baseURL) 
               ? window.axios.defaults.baseURL 
               : '/api'
             form.avatar_url = `${baseURL}/user/avatar/${authStore.user.id}?t=` + Date.now()
-            console.log('✅ form.avatar_url constructed with timestamp:', form.avatar_url)
           }
           
           // Show success message
@@ -681,9 +659,6 @@ export default {
           throw new Error(profileResponse.data.message || 'Update failed')
         }
       } catch (error) {
-        console.error('❌ Error updating profile:', error)
-        console.error('   Status:', error.response?.status)
-        console.error('   Data:', error.response?.data)
         if (error.response?.data?.message) {
           notify.error('Erreur', error.response.data.message)
         } else {
@@ -696,9 +671,6 @@ export default {
 
     onMounted(async () => {
       if (user.value) {
-        console.log('📋 Loading user data into form:', user.value)
-        console.log('   avatar_url from user:', user.value.avatar_url)
-        console.log('   avatar from user:', user.value.avatar)
         
         Object.assign(form, {
           name: user.value.name || '',
@@ -718,10 +690,8 @@ export default {
         // Si on a un avatar mais pas d'avatar_url, construire l'URL
         if (user.value.avatar && !form.avatar_url && user.value.id) {
           form.avatar_url = `/api/user/avatar/${user.value.id}`
-          console.log('✅ Constructed avatar_url:', form.avatar_url)
         }
         
-        console.log('✅ Form initialized, avatar_url:', form.avatar_url)
       }
 
       // Recharger depuis l'API pour s'assurer d'avoir les dernières préférences et infos
@@ -734,7 +704,6 @@ export default {
           form.marketing_emails = u.preferences?.marketing_emails === true
         }
       } catch (e) {
-        console.error('Failed to refresh profile on mount:', e)
       }
     })
 
@@ -768,7 +737,6 @@ export default {
           throw new Error(response.data.message || 'Erreur lors de la suppression')
         }
       } catch (error) {
-        console.error('Error deleting account:', error)
         
         // Vérifier le code de statut HTTP pour identifier le type d'erreur
         if (error.response?.status === 400) {

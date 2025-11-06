@@ -107,7 +107,6 @@ const router = createRouter({
 
 // Navigation guards
 router.beforeEach(async (to, from, next) => {
-  console.log('[Router] Guard: navigating to', to.path, 'query:', to.query)
   
   const authStore = useAuthStore()
   
@@ -122,36 +121,24 @@ router.beforeEach(async (to, from, next) => {
   if (hasForceToken && to.path === '/login') {
     // Vérifier si une redirection SSO est déjà en cours
     if (typeof window !== 'undefined' && sessionStorage.getItem('sso_redirecting') === 'true') {
-      console.log('[Router] Redirection SSO déjà en cours, autoriser l\'accès à /login')
       next()
       return
     }
     
-    console.log('[Router] force_token détecté sur /login, vérification auth...', {
-      force_token: to.query.force_token,
-      redirect: to.query.redirect
-    })
     
     // Vérifier le token dans localStorage directement
     const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null
-    console.log('[Router] Token dans localStorage:', token ? 'PRÉSENT (' + token.substring(0, 20) + '...)' : 'AUCUN')
   
   // Vérifier l'authentification
     await authStore.checkAuth()
     const isAuthenticated = authStore.authenticated
     
-    console.log('[Router] État après checkAuth:', {
-      authenticated: isAuthenticated,
-      has_user: !!authStore.user
-    })
     
     if (isAuthenticated) {
-      console.log('[Router] ✅ User authenticated with force_token, allowing access - Auth.vue gérera la redirection SSO')
       // Permettre l'accès, Auth.vue gérera la redirection SSO
       next()
       return
     } else {
-      console.log('[Router] ⚠️ User NOT authenticated with force_token, showing login form')
       // Utilisateur pas authentifié, afficher le formulaire de login
       next()
       return
@@ -177,14 +164,12 @@ router.beforeEach(async (to, from, next) => {
   // Vérifier les routes qui nécessitent une authentification
   if (to.meta.requiresAuth) {
     if (!isAuthenticated) {
-      console.log('[Router] User not authenticated, redirecting to login')
       next('/login')
       return
     }
     
     // Vérifier les routes qui nécessitent un super utilisateur
     if (to.meta.requiresSuperUser && user?.role !== 'super_user') {
-      console.log('[Router] User is not a super user, redirecting to dashboard')
       next('/dashboard')
       return
     }
@@ -216,7 +201,6 @@ router.beforeEach(async (to, from, next) => {
           // Si c'est un domaine externe, ne pas rediriger vers dashboard
           // Laisser Auth.vue gérer la redirection SSO
           if (urlHost !== currentHost && urlHost !== 'compte.herime.com') {
-            console.log('[Router] External site detected, allowing access for SSO redirect')
             next()
             return
           }
@@ -228,7 +212,6 @@ router.beforeEach(async (to, from, next) => {
     
     // Si on arrive ici et que l'utilisateur est authentifié, mais pas de force_token
     // C'est une visite normale sur /login ou /register, rediriger vers dashboard
-    console.log('[Router] User authenticated on guest route without force_token, redirecting to dashboard')
     next('/dashboard')
     return
   }

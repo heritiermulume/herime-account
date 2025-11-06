@@ -343,7 +343,6 @@ export default {
       // Vérifier si le flag SSO est présent mais qu'on n'a pas de paramètres
       if (typeof window !== 'undefined' && sessionStorage.getItem('sso_redirecting') === 'true') {
         if (!route.query.redirect && !route.query.force_token) {
-          console.log('[Login] Flag SSO présent mais pas de paramètres, nettoyage')
           sessionStorage.removeItem('sso_redirecting')
           isRedirectingSSO.value = false
           authStore.isSSORedirecting = false
@@ -430,7 +429,6 @@ export default {
           url = new URL(decodedUrl)
         } catch (e) {
           // Si l'URL contient des caractères invalides, essayer de la nettoyer
-          console.warn('[Login] Invalid URL format, attempting to fix:', decodedUrl)
           return null
         }
         
@@ -450,7 +448,6 @@ export default {
         
         return null
       } catch (e) {
-        console.error('[Login] Error in getExternalSiteBaseUrl:', e)
         return null
       }
     }
@@ -475,34 +472,22 @@ export default {
       
       const redirectParam = route.query.redirect
       
-      console.log('[Login] handleReturnToSite called', {
-        redirectParam,
-        computedValue: externalSiteUrl.value,
-        windowLocation: window.location.href
-      })
       
       // Obtenir l'URL de base du site externe
       let returnUrl = externalSiteUrl.value
       
       // Si le computed n'a pas fonctionné, essayer directement
       if (!returnUrl && redirectParam) {
-        console.log('[Login] Computed value not available, trying direct extraction')
         returnUrl = getExternalSiteBaseUrl(redirectParam)
       }
       
       if (returnUrl) {
-        console.log('[Login] Redirecting to external site:', returnUrl)
         // Utiliser window.location.href pour forcer la navigation
         // Utiliser setTimeout pour s'assurer que le code s'exécute complètement
         setTimeout(() => {
           window.location.href = returnUrl
         }, 100)
       } else {
-        console.error('[Login] Cannot determine external site URL', {
-          redirectParam,
-          computedValue: externalSiteUrl.value,
-          routeQuery: route.query
-        })
       }
     }
     const handleSwitchToRegister = async () => {
@@ -535,7 +520,6 @@ export default {
         }
         emit('switch-to-register')
       } catch (e) {
-        console.error('Failed to check registration setting', e)
         // Dernier recours: utiliser le cache, sinon autoriser
         const cached = localStorage.getItem('registration_enabled')
         if (cached === 'false') {
@@ -549,17 +533,14 @@ export default {
     const handleLogin = async () => {
       // Vérifier si une redirection est déjà en cours
       if (loading.value || isRedirectingSSO.value) {
-        console.log('[Login] Login déjà en cours ou redirection SSO en cours, ignoré')
         return
       }
       
       // Vérifier dans sessionStorage si une redirection SSO est déjà en cours
       if (sessionStorage.getItem('sso_redirecting') === 'true') {
-        console.log('[Login] Redirection SSO déjà en cours (sessionStorage), ignoré')
         return
       }
       
-      console.log('[Login] Login attempt started', form)
       loading.value = true
       errors.value = {}
       error.value = ''
@@ -578,22 +559,10 @@ export default {
           loginData.client_domain = route.query.client_domain
         }
         
-        console.log('[Login] Calling authStore.login...', loginData)
         const result = await authStore.login(loginData)
-        console.log('[Login] Login successful:', result)
-        console.log('[Login] Full result structure:', JSON.stringify(result, null, 2))
-        console.log('[Login] Checking for sso_redirect_url:', {
-          has_result: !!result,
-          has_data: !!result?.data,
-          has_sso_redirect_url: !!result?.data?.sso_redirect_url,
-          sso_redirect_url: result?.data?.sso_redirect_url,
-          result_keys: result ? Object.keys(result) : [],
-          data_keys: result?.data ? Object.keys(result.data) : []
-        })
         
         // Vérifier s'il y a une redirection SSO vers un domaine externe
         if (result?.data?.sso_redirect_url) {
-          console.log('[Login] SSO redirect URL found:', result.data.sso_redirect_url)
           
           // Marquer IMMÉDIATEMENT et SYNCHRONEMENT avant toute autre opération
           // Cela doit être fait AVANT que Vue ne puisse rendre quoi que ce soit
@@ -604,31 +573,25 @@ export default {
           // Redirection SYNCHRONE immédiate - ne PAS attendre
           // IMPORTANT: Ne PAS utiliser window.stop() car cela peut bloquer la redirection
           // Utiliser window.location.replace() pour une redirection immédiate et définitive
-          console.log('[Login] Redirection SSO immédiate vers:', result.data.sso_redirect_url)
           // Utiliser replace au lieu de href pour éviter d'ajouter à l'historique
           window.location.replace(result.data.sso_redirect_url)
           
           // Cette ligne ne sera jamais exécutée
           return
         } else {
-          console.warn('[Login] No sso_redirect_url found in response. Redirect URL param:', route.query.redirect)
           // Si pas de sso_redirect_url mais qu'on a un redirect dans l'URL, essayer de générer le token SSO manuellement
           if (route.query.redirect && route.query.force_token) {
-            console.log('[Login] Attempting to generate SSO token manually...')
             try {
               const response = await axios.post('/sso/generate-token', {
                 redirect: route.query.redirect
               })
-              console.log('[Login] SSO token generated:', response.data)
               if (response.data?.success && response.data?.data?.callback_url) {
                 sessionStorage.setItem('sso_redirecting', 'true')
                 isRedirectingSSO.value = true
-                console.log('[Login] Redirecting to:', response.data.data.callback_url)
                 window.location.replace(response.data.data.callback_url)
                 return
               }
             } catch (error) {
-              console.error('[Login] Error generating SSO token manually:', error)
             }
           }
         }
@@ -636,24 +599,16 @@ export default {
         // Sinon, rediriger vers le dashboard local
         router.push('/dashboard')
       } catch (err) {
-        console.error('Login error:', err)
-        console.log('Error requiresTwoFactor:', err.requiresTwoFactor)
-        console.log('Error response data:', err.response?.data)
-        console.log('Error response requires_two_factor:', err.response?.data?.requires_two_factor)
         
         // Vérifier si la 2FA est requise - vérifier plusieurs endroits
         const needs2FA = err.requiresTwoFactor === true || 
                         err.response?.data?.requires_two_factor === true ||
                         (err.response?.status === 200 && err.response?.data?.requires_two_factor)
         
-        console.log('Needs 2FA:', needs2FA)
         
         if (needs2FA) {
-          console.log('Setting requiresTwoFactor to true')
           requiresTwoFactor.value = true
           error.value = err.response?.data?.message || err.message || 'Veuillez entrer le code d\'authentification à deux facteurs.'
-          console.log('requiresTwoFactor.value after setting:', requiresTwoFactor.value)
-          console.log('Error message set:', error.value)
           loading.value = false
           return
         }
@@ -680,13 +635,11 @@ export default {
     const handleVerify2FA = async () => {
       // Vérifier si une redirection est déjà en cours
       if (loading.value || isRedirectingSSO.value) {
-        console.log('[Login] 2FA déjà en cours ou redirection SSO en cours, ignoré')
         return
       }
       
       // Vérifier dans sessionStorage si une redirection SSO est déjà en cours
       if (sessionStorage.getItem('sso_redirecting') === 'true') {
-        console.log('[Login] Redirection SSO déjà en cours (sessionStorage), ignoré')
         return
       }
       
@@ -717,11 +670,9 @@ export default {
         }
         
         const result = await authStore.verifyTwoFactor(form.email, twoFactorCode.value, verifyData)
-        console.log('[Login] 2FA verification successful:', result)
         
         // Vérifier s'il y a une redirection SSO vers un domaine externe
         if (result?.data?.sso_redirect_url) {
-          console.log('[Login] SSO redirect URL found (2FA):', result.data.sso_redirect_url)
           
           // Marquer IMMÉDIATEMENT et SYNCHRONEMENT avant toute autre opération
           sessionStorage.setItem('sso_redirecting', 'true')
@@ -730,7 +681,6 @@ export default {
           
           // Redirection SYNCHRONE immédiate - ne PAS attendre
           // IMPORTANT: Ne PAS utiliser window.stop() car cela peut bloquer la redirection
-          console.log('[Login] Redirection SSO immédiate (2FA) vers:', result.data.sso_redirect_url)
           // Utiliser replace au lieu de href pour éviter d'ajouter à l'historique
           window.location.replace(result.data.sso_redirect_url)
           
@@ -741,7 +691,6 @@ export default {
         // Sinon, rediriger vers le dashboard local
         router.push('/dashboard')
       } catch (err) {
-        console.error('2FA verification error:', err)
         if (err.response?.data?.errors) {
           errors.value = err.response.data.errors
         } else if (err.response?.data?.message) {
@@ -786,7 +735,6 @@ export default {
           throw new Error(response.data.message || 'Erreur lors de l\'envoi du lien')
         }
       } catch (err) {
-        console.error('Forgot password error:', err)
         if (err.response?.data?.errors?.email) {
           forgotPasswordError.value = err.response.data.errors.email[0]
         } else if (err.response?.data?.message) {
