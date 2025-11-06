@@ -637,11 +637,7 @@ class SimpleAuthController extends Controller
             $clientDomain = $request->query('client_domain');
         }
         
-        if ($clientDomain) {
-            
-            if (!$clientDomain || !is_string($clientDomain)) {
-                return null;
-            }
+        if ($clientDomain && is_string($clientDomain)) {
             
             // Validation plus simple : juste vérifier que ce n'est pas vide et qu'il contient des caractères valides
             // Ne pas être trop strict avec la regex pour éviter de bloquer des domaines valides
