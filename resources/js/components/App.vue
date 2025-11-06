@@ -1,16 +1,16 @@
 <template>
   <div id="app" class="min-h-screen bg-gray-50 dark:bg-gray-900">
 
-    <!-- Loading State -->
-    <div v-if="loading" class="min-h-screen flex items-center justify-center">
+    <!-- Loading State - Masquer l'interface si redirection SSO en cours -->
+    <div v-if="loading || isSSORedirecting || authStore.isSSORedirecting" class="fixed inset-0 z-[9999] flex items-center justify-center bg-gray-50 dark:bg-gray-900">
       <div class="bg-white dark:bg-gray-800 rounded-lg p-6 flex items-center space-x-3">
         <div class="animate-spin rounded-full h-6 w-6 border-b-2" style="border-color: #003366;"></div>
-        <span class="text-gray-700 dark:text-gray-300">Chargement...</span>
+        <span class="text-gray-700 dark:text-gray-300">{{ isSSORedirecting || authStore.isSSORedirecting ? 'Redirection en cours...' : 'Chargement...' }}</span>
       </div>
     </div>
 
     <!-- Main Content -->
-    <div v-else-if="!isSSORedirecting" class="min-h-screen">
+    <div v-else-if="!isSSORedirecting && !authStore.isSSORedirecting" class="min-h-screen">
         <!-- Sidebar - Hide on login/register pages -->
         <Sidebar v-if="user && route && route.path !== '/login' && route.path !== '/register'" />
       
@@ -110,9 +110,9 @@ export default {
     const loading = ref(false)
     const isDarkMode = ref(false)
     const toastContainer = ref(null)
-    const isSSORedirecting = ref(false)
 
     const user = computed(() => authStore.user)
+    const isSSORedirecting = computed(() => authStore.isSSORedirecting)
     
     // Vérifier si on est en train de rediriger vers un site externe
     const checkSSORedirect = () => {
@@ -137,8 +137,8 @@ export default {
             const urlHost = url.hostname.replace(/^www\./, '').toLowerCase()
             
             // Si c'est un domaine externe et qu'on est authentifié, on va rediriger
+            // Le flag isSSORedirecting est déjà géré par l'authStore
             if (urlHost !== currentHost && urlHost !== 'compte.herime.com' && authStore.authenticated) {
-              isSSORedirecting.value = true
               return true
             }
           }

@@ -7,7 +7,8 @@ export const useAuthStore = defineStore('auth', {
     authenticated: localStorage.getItem('authenticated') === 'true',
     loading: false,
     error: null,
-    twoFactorToken: null
+    twoFactorToken: null,
+    isSSORedirecting: false // Flag pour indiquer qu'une redirection SSO est en cours
   }),
 
   getters: {
@@ -63,6 +64,14 @@ export const useAuthStore = defineStore('auth', {
         
         if (isSuccess) {
           if (import.meta.env.DEV) console.log('Login successful, processing user data...')
+          
+          // Vérifier si on doit rediriger vers un site externe (SSO)
+          // Si oui, marquer la redirection AVANT de mettre à jour l'état
+          if (response.data.data?.sso_redirect_url) {
+            this.isSSORedirecting = true
+            if (import.meta.env.DEV) console.log('AuthStore: SSO redirect detected, setting flag')
+          }
+          
           this.user = response.data.data.user
           this.authenticated = true
           
@@ -127,6 +136,13 @@ export const useAuthStore = defineStore('auth', {
         })
         
         if (response.data.success) {
+          // Vérifier si on doit rediriger vers un site externe (SSO)
+          // Si oui, marquer la redirection AVANT de mettre à jour l'état
+          if (response.data.data?.sso_redirect_url) {
+            this.isSSORedirecting = true
+            if (import.meta.env.DEV) console.log('AuthStore: SSO redirect detected (2FA), setting flag')
+          }
+          
           this.user = response.data.data.user
           this.authenticated = true
           

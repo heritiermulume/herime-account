@@ -550,12 +550,14 @@ export default {
         
         // Vérifier s'il y a une redirection SSO vers un domaine externe
         if (result?.data?.sso_redirect_url) {
+          // L'authStore a déjà mis isSSORedirecting à true
           // Masquer immédiatement l'interface et rediriger
           isRedirectingSSO.value = true
           
-          // Redirection immédiate vers le domaine externe avec le token SSO
-          // Utiliser window.location.replace pour éviter d'ajouter à l'historique
+          // Redirection SYNCHRONE immédiate pour éviter tout rendu
+          // Ne PAS utiliser requestAnimationFrame car cela laisse le temps à Vue de rendre
           console.log('[Login] Redirection SSO immédiate vers:', result.data.sso_redirect_url)
+          // Utiliser window.location.replace pour éviter d'ajouter à l'historique
           window.location.replace(result.data.sso_redirect_url)
           return
         }
@@ -620,12 +622,14 @@ export default {
         
         // Vérifier s'il y a une redirection SSO vers un domaine externe
         if (result?.data?.sso_redirect_url) {
+          // L'authStore a déjà mis isSSORedirecting à true
           // Masquer immédiatement l'interface et rediriger
           isRedirectingSSO.value = true
           
-          // Redirection immédiate vers le domaine externe avec le token SSO
-          // Utiliser window.location.replace pour éviter d'ajouter à l'historique
+          // Redirection SYNCHRONE immédiate pour éviter tout rendu
+          // Ne PAS utiliser requestAnimationFrame car cela laisse le temps à Vue de rendre
           console.log('[Login] Redirection SSO immédiate (2FA) vers:', result.data.sso_redirect_url)
+          // Utiliser window.location.replace pour éviter d'ajouter à l'historique
           window.location.replace(result.data.sso_redirect_url)
           return
         }
