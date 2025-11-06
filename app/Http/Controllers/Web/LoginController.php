@@ -185,13 +185,32 @@ class LoginController extends Controller
         // Si l'utilisateur est connecté, effectuer le logout
         if ($user) {
             try {
+                // Révoquer le token actuel s'il existe (pour les requêtes API)
+                try {
+                    $authHeader = $request->header('Authorization');
+                    if ($authHeader && str_starts_with($authHeader, 'Bearer ')) {
+                        $token = substr($authHeader, 7);
+                        $tokenHash = hash('sha256', $token);
+                        $currentToken = \Laravel\Passport\Token::where('id', $tokenHash)
+                            ->where('revoked', false)
+                            ->first();
+                        if ($currentToken) {
+                            $currentToken->revoke();
+                        }
+                    }
+                } catch (\Exception $e) {
+                    // Si le token actuel n'est pas accessible, continuer quand même
+                }
+                
                 // Révoquer TOUS les tokens Passport de l'utilisateur pour déconnecter tous les sites externes
+                // Cette opération invalide immédiatement tous les tokens
                 $user->tokens()->update(['revoked' => true]);
                 
-                // Marquer TOUTES les sessions comme inactives (déconnecter tous les appareils)
-                $user->sessions()->update(['is_current' => false]);
+                // Supprimer TOUTES les sessions de l'utilisateur (déconnecter tous les appareils)
+                // On supprime complètement les sessions plutôt que de les marquer comme inactives
+                $user->sessions()->delete();
             } catch (\Exception $e) {
-                // Ignorer les erreurs lors du logout
+                // Ignorer les erreurs lors du logout, mais continuer la déconnexion
             }
         }
         

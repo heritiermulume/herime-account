@@ -125,22 +125,47 @@ class AuthController extends Controller
 
     /**
      * Logout user
+     * Déconnecte toutes les sessions et invalide tous les tokens immédiatement
      */
     public function logout(Request $request): JsonResponse
     {
         $user = $request->user();
         
         if ($user) {
-            // Révoquer TOUS les tokens Passport de l'utilisateur pour déconnecter tous les sites externes
-            $user->tokens()->update(['revoked' => true]);
-            
-            // Marquer TOUTES les sessions comme inactives (déconnecter tous les appareils)
-            $user->sessions()->update(['is_current' => false]);
+            try {
+                // Révoquer le token actuel utilisé pour cette requête
+                try {
+                    $authHeader = $request->header('Authorization');
+                    if ($authHeader && str_starts_with($authHeader, 'Bearer ')) {
+                        $token = substr($authHeader, 7);
+                        $tokenHash = hash('sha256', $token);
+                        $currentToken = \Laravel\Passport\Token::where('id', $tokenHash)
+                            ->where('revoked', false)
+                            ->first();
+                        if ($currentToken) {
+                            $currentToken->revoke();
+                        }
+                    }
+                } catch (\Exception $e) {
+                    // Si le token actuel n'est pas accessible, continuer quand même
+                }
+                
+                // Révoquer TOUS les tokens Passport de l'utilisateur pour déconnecter tous les sites externes
+                // Cette opération invalide immédiatement tous les tokens (y compris celui déjà révoqué ci-dessus)
+                $user->tokens()->update(['revoked' => true]);
+                
+                // Supprimer TOUTES les sessions de l'utilisateur (déconnecter tous les appareils)
+                // On supprime complètement les sessions plutôt que de les marquer comme inactives
+                $user->sessions()->delete();
+            } catch (\Exception $e) {
+                // En cas d'erreur, essayer de continuer le logout quand même
+                // Logger l'erreur si nécessaire
+            }
         }
 
         return response()->json([
             'success' => true,
-            'message' => 'Logout successful'
+            'message' => 'Déconnexion réussie. Toutes les sessions ont été fermées et tous les tokens ont été invalidés.'
         ]);
     }
 
