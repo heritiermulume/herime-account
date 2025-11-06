@@ -3,10 +3,10 @@
     <!-- Loading State - Masquer l'interface si redirection SSO en cours -->
     <!-- IMPORTANT: Vérifier sessionStorage directement dans le template pour réactivité immédiate -->
     <!-- Utiliser une fonction inline pour vérifier sessionStorage directement -->
-    <div v-if="loading || isSSORedirecting || shouldShowSSOOverlay || (typeof window !== 'undefined' && window.sessionStorage && window.sessionStorage.getItem('sso_redirecting') === 'true' && route && route.query && (route.query.redirect || route.query.force_token))" class="fixed inset-0 z-[99999] flex items-center justify-center bg-gray-50 dark:bg-gray-900" style="position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; z-index: 99999 !important; background-color: rgb(249 250 251) !important;">
+    <div v-if="loading || isSSORedirecting || shouldShowSSOOverlay || initialSSOCheck || (typeof window !== 'undefined' && window.sessionStorage && window.sessionStorage.getItem('sso_redirecting') === 'true' && route && route.query && (route.query.redirect || route.query.force_token))" class="fixed inset-0 z-[99999] flex items-center justify-center bg-gray-50 dark:bg-gray-900" style="position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; z-index: 99999 !important; background-color: rgb(249 250 251) !important;">
       <div class="bg-white dark:bg-gray-800 rounded-lg p-6 flex items-center space-x-3">
         <div class="animate-spin rounded-full h-6 w-6 border-b-2" style="border-color: #003366;"></div>
-        <span class="text-gray-700 dark:text-gray-300">{{ (isSSORedirecting || shouldShowSSOOverlay || (typeof window !== 'undefined' && window.sessionStorage && window.sessionStorage.getItem('sso_redirecting') === 'true')) ? 'Redirection en cours...' : 'Chargement...' }}</span>
+        <span class="text-gray-700 dark:text-gray-300">{{ (isSSORedirecting || shouldShowSSOOverlay || initialSSOCheck || (typeof window !== 'undefined' && window.sessionStorage && window.sessionStorage.getItem('sso_redirecting') === 'true')) ? 'Redirection en cours...' : 'Chargement...' }}</span>
       </div>
     </div>
 
@@ -113,6 +113,33 @@ export default {
     const toastContainer = ref(null)
 
     const user = computed(() => authStore.user)
+    
+    // Vérification SYNCHRONE INITIALE avant même le montage pour éviter tout rendu
+    // Cette vérification se fait AVANT que Vue ne commence à rendre quoi que ce soit
+    const initialSSOCheck = (() => {
+      if (typeof window === 'undefined') return false
+      
+      // Vérifier si on est sur /login avec paramètres SSO et token présent
+      // Cette vérification est SYNCHRONE et se fait AVANT le montage
+      try {
+        const currentPath = window.location.pathname
+        const searchParams = new URLSearchParams(window.location.search)
+        const hasRedirect = searchParams.has('redirect') || searchParams.has('force_token')
+        
+        if (currentPath === '/login' && hasRedirect) {
+          const token = localStorage.getItem('access_token')
+          if (token) {
+            // Marquer immédiatement les flags (synchrone)
+            sessionStorage.setItem('sso_redirecting', 'true')
+            authStore.isSSORedirecting = true
+            return true
+          }
+        }
+      } catch (e) {
+        console.error('[App] Error in initial SSO check:', e)
+      }
+      return false
+    })()
     
     // Vérifier directement sessionStorage pour une réactivité immédiate
     const shouldShowSSOOverlay = computed(() => {
