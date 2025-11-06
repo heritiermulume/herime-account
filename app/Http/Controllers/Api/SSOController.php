@@ -181,13 +181,14 @@ class SSOController extends Controller
         }
 
         // Vérifier que le redirect URL ne pointe pas vers le même domaine (éviter boucles)
+        $currentHost = null;
         try {
             $redirectHost = parse_url($redirectUrl, PHP_URL_HOST);
             $currentHost = $request->getHost();
             
             // Normaliser les hostnames (enlever www. si présent)
-            $redirectHost = preg_replace('/^www\./', '', $redirectHost);
-            $currentHost = preg_replace('/^www\./', '', $currentHost);
+            $redirectHost = preg_replace('/^www\./', '', strtolower($redirectHost));
+            $currentHost = preg_replace('/^www\./', '', strtolower($currentHost));
             
             if ($redirectHost === $currentHost || $redirectHost === 'compte.herime.com') {
                 return response()->json([
@@ -198,7 +199,10 @@ class SSOController extends Controller
                 ], 422);
             }
         } catch (\Exception $e) {
-            // Ignorer les erreurs de parsing d'URL
+            // En cas d'erreur, initialiser currentHost
+            if (!$currentHost) {
+                $currentHost = preg_replace('/^www\./', '', strtolower($request->getHost()));
+            }
         }
 
         // Create SSO token
@@ -208,20 +212,24 @@ class SSOController extends Controller
         $callbackUrl = $redirectUrl . (strpos($redirectUrl, '?') !== false ? '&' : '?') . 'token=' . urlencode($token);
         
         // Vérifier une dernière fois que callback_url ne pointe pas vers le même domaine
-        try {
-            $callbackHost = parse_url($callbackUrl, PHP_URL_HOST);
-            $callbackHost = preg_replace('/^www\./', '', $callbackHost);
-            
-            if ($callbackHost === $currentHost || $callbackHost === 'compte.herime.com') {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Generated callback URL points to the same domain (would cause redirect loop)',
-                    'callback_host' => $callbackHost,
-                    'current_host' => $currentHost
-                ], 500);
+        if ($currentHost) {
+            try {
+                $callbackHost = parse_url($callbackUrl, PHP_URL_HOST);
+                if ($callbackHost) {
+                    $callbackHost = preg_replace('/^www\./', '', strtolower($callbackHost));
+                    
+                    if ($callbackHost === $currentHost || $callbackHost === 'compte.herime.com') {
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'Generated callback URL points to the same domain (would cause redirect loop)',
+                            'callback_host' => $callbackHost,
+                            'current_host' => $currentHost
+                        ], 422);
+                    }
+                }
+            } catch (\Exception $e) {
+                // Ignorer les erreurs de parsing d'URL
             }
-        } catch (\Exception $e) {
-            // Ignorer les erreurs de parsing d'URL
         }
 
         return response()->json([
