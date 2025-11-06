@@ -165,11 +165,17 @@ export default {
         }
         
         if (isAuthenticated) {
+          // Vérifier à nouveau si une redirection est déjà en cours (double vérification)
+          if (sessionStorage.getItem('sso_redirecting') === 'true') {
+            console.log('[Auth] Redirection SSO déjà en cours (double vérification), ignoré')
+            return
+          }
+          
           console.log('[Auth] Utilisateur authentifié, génération token SSO...')
           isRedirecting.value = true
           
-          // Marquer qu'on est en train de rediriger
-          sessionStorage.setItem('sso_redirecting', Date.now().toString())
+          // Marquer qu'on est en train de rediriger AVANT de faire l'appel API
+          sessionStorage.setItem('sso_redirecting', 'true')
           
           // Créer une promesse de redirection pour éviter les redirections multiples
           if (!redirectPromise.value) {
@@ -222,15 +228,14 @@ export default {
                     console.warn('[Auth] Impossible de parser callback URL:', callbackUrl)
                   }
                   
-                  // Redirection immédiate et définitive - utiliser setTimeout pour être sûr que c'est après le rendu
+                  // Redirection immédiate et définitive
+                  console.log('[Auth] Exécution de window.location.replace...')
+                  // Nettoyer sessionStorage après un délai (si la redirection échoue)
                   setTimeout(() => {
-                    console.log('[Auth] Exécution de window.location.replace...')
-                    // Nettoyer sessionStorage après un délai (si la redirection échoue)
-                    setTimeout(() => {
-                      sessionStorage.removeItem('sso_redirecting')
-                    }, 10000)
-                    window.location.replace(callbackUrl)
-                  }, 100) // Petit délai pour laisser les logs s'afficher
+                    sessionStorage.removeItem('sso_redirecting')
+                  }, 5000)
+                  // Utiliser replace immédiatement, pas de setTimeout qui laisse le temps à Vue de rendre
+                  window.location.replace(callbackUrl)
                   
                   return true
                 } else {
@@ -274,14 +279,22 @@ export default {
         isRedirecting: isRedirecting.value,
         path: route.path,
         hasRedirect: !!route.query.redirect,
-        hasForceToken: !!route.query.force_token
+        hasForceToken: !!route.query.force_token,
+        ssoRedirecting: sessionStorage.getItem('sso_redirecting')
       })
+      
+      // Si une redirection SSO est en cours, ne pas continuer
+      if (sessionStorage.getItem('sso_redirecting') === 'true') {
+        console.log('[Auth] Redirection SSO en cours (onMounted), arrêt du montage')
+        return
+      }
       
       // Réinitialiser le flag SSO si on arrive sur la page sans paramètre redirect/force_token
       if (!route.query.redirect && !route.query.force_token) {
         authStore.isSSORedirecting = false
         isRedirecting.value = false
         redirectPromise.value = null
+        sessionStorage.removeItem('sso_redirecting')
       }
       
       // Si on est en train de rediriger, ne pas continuer

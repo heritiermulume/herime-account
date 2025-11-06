@@ -531,7 +531,19 @@ export default {
     }
 
     const handleLogin = async () => {
-      console.log('Login attempt started', form)
+      // Vérifier si une redirection est déjà en cours
+      if (loading.value || isRedirectingSSO.value) {
+        console.log('[Login] Login déjà en cours ou redirection SSO en cours, ignoré')
+        return
+      }
+      
+      // Vérifier dans sessionStorage si une redirection SSO est déjà en cours
+      if (sessionStorage.getItem('sso_redirecting') === 'true') {
+        console.log('[Login] Redirection SSO déjà en cours (sessionStorage), ignoré')
+        return
+      }
+      
+      console.log('[Login] Login attempt started', form)
       loading.value = true
       errors.value = {}
       error.value = ''
@@ -550,12 +562,15 @@ export default {
           loginData.client_domain = route.query.client_domain
         }
         
-        console.log('Calling authStore.login...', loginData)
+        console.log('[Login] Calling authStore.login...', loginData)
         const result = await authStore.login(loginData)
-        console.log('Login successful:', result)
+        console.log('[Login] Login successful:', result)
         
         // Vérifier s'il y a une redirection SSO vers un domaine externe
         if (result?.data?.sso_redirect_url) {
+          // Marquer dans sessionStorage pour éviter les doubles redirections
+          sessionStorage.setItem('sso_redirecting', 'true')
+          
           // L'authStore a déjà mis isSSORedirecting à true
           // Masquer immédiatement l'interface et rediriger
           isRedirectingSSO.value = true
