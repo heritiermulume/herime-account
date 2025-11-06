@@ -115,9 +115,24 @@ export default {
     
     // Vérifier si une redirection SSO est en cours
     const isSSORedirecting = computed(() => {
+      // Ne pas afficher l'overlay SSO si on est sur dashboard ou d'autres routes sans paramètres redirect
+      if (route && route.path && route.path !== '/login' && route.path !== '/register') {
+        // Si on n'est pas sur une page d'auth, ne pas afficher l'overlay SSO
+        // Sauf si on a vraiment des paramètres redirect/force_token dans l'URL
+        if (!route.query.redirect && !route.query.force_token) {
+          return false
+        }
+      }
+      
       // Vérifier sessionStorage pour détecter une redirection SSO en cours
+      // Seulement si on est sur /login ou /register avec des paramètres
       if (typeof window !== 'undefined' && sessionStorage.getItem('sso_redirecting') === 'true') {
-        return true
+        // Vérifier qu'on a bien les paramètres nécessaires
+        if (route && route.query && (route.query.redirect || route.query.force_token)) {
+          return true
+        }
+        // Si pas de paramètres, ne pas afficher l'overlay
+        return false
       }
       // Vérifier aussi le flag dans authStore
       return authStore.isSSORedirecting
@@ -208,12 +223,22 @@ export default {
       console.log('Current route:', route?.path)
       console.log('SSO redirecting:', typeof window !== 'undefined' ? sessionStorage.getItem('sso_redirecting') : 'N/A')
       
-      // Vérifier si une redirection SSO est en cours dès le montage
-      // Si oui, ne pas continuer le rendu normal
-      if (typeof window !== 'undefined' && sessionStorage.getItem('sso_redirecting') === 'true') {
-        console.log('[App] Redirection SSO détectée, masquer interface')
-        // Ne pas continuer le rendu normal, l'overlay sera affiché
-        return
+      // Nettoyer le flag SSO si on n'est pas sur une route avec redirect/force_token
+      if (typeof window !== 'undefined') {
+        const hasRedirectParams = route && route.query && (route.query.redirect || route.query.force_token)
+        if (!hasRedirectParams && sessionStorage.getItem('sso_redirecting') === 'true') {
+          console.log('[App] Pas de paramètres redirect/force_token, nettoyage du flag SSO')
+          sessionStorage.removeItem('sso_redirecting')
+          authStore.isSSORedirecting = false
+        }
+        
+        // Vérifier si une redirection SSO est en cours dès le montage
+        // Seulement si on a vraiment les paramètres redirect/force_token
+        if (sessionStorage.getItem('sso_redirecting') === 'true' && hasRedirectParams) {
+          console.log('[App] Redirection SSO détectée avec paramètres, masquer interface')
+          // Ne pas continuer le rendu normal, l'overlay sera affiché
+          return
+        }
       }
       
       // Check for saved dark mode preference
