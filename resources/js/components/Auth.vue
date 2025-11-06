@@ -1,5 +1,6 @@
 <template>
-  <div v-if="isRedirecting || shouldShowSSOOverlay" class="fixed inset-0 z-[99999] bg-gray-50 dark:bg-gray-900 flex items-center justify-center" style="position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; z-index: 99999 !important; background-color: rgb(249 250 251) !important;">
+  <!-- Vérifier sessionStorage directement dans le template pour réactivité immédiate -->
+  <div v-if="isRedirecting || shouldShowSSOOverlay || (typeof window !== 'undefined' && window.sessionStorage && window.sessionStorage.getItem('sso_redirecting') === 'true' && route && route.query && (route.query.redirect || route.query.force_token))" class="fixed inset-0 z-[99999] bg-gray-50 dark:bg-gray-900 flex items-center justify-center" style="position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; z-index: 99999 !important; background-color: rgb(249 250 251) !important;">
     <div class="text-center">
       <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4" style="border-color: #003366;"></div>
       <p class="text-gray-600 dark:text-gray-400">Redirection en cours...</p>

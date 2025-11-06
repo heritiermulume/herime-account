@@ -1,12 +1,12 @@
 <template>
   <div id="app" class="min-h-screen bg-gray-50 dark:bg-gray-900">
-
     <!-- Loading State - Masquer l'interface si redirection SSO en cours -->
     <!-- IMPORTANT: Vérifier sessionStorage directement dans le template pour réactivité immédiate -->
-    <div v-if="loading || isSSORedirecting || shouldShowSSOOverlay" class="fixed inset-0 z-[99999] flex items-center justify-center bg-gray-50 dark:bg-gray-900" style="position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; z-index: 99999 !important; background-color: rgb(249 250 251) !important;">
+    <!-- Utiliser une fonction inline pour vérifier sessionStorage directement -->
+    <div v-if="loading || isSSORedirecting || shouldShowSSOOverlay || (typeof window !== 'undefined' && window.sessionStorage && window.sessionStorage.getItem('sso_redirecting') === 'true' && route && route.query && (route.query.redirect || route.query.force_token))" class="fixed inset-0 z-[99999] flex items-center justify-center bg-gray-50 dark:bg-gray-900" style="position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; z-index: 99999 !important; background-color: rgb(249 250 251) !important;">
       <div class="bg-white dark:bg-gray-800 rounded-lg p-6 flex items-center space-x-3">
         <div class="animate-spin rounded-full h-6 w-6 border-b-2" style="border-color: #003366;"></div>
-        <span class="text-gray-700 dark:text-gray-300">{{ (isSSORedirecting || shouldShowSSOOverlay) ? 'Redirection en cours...' : 'Chargement...' }}</span>
+        <span class="text-gray-700 dark:text-gray-300">{{ (isSSORedirecting || shouldShowSSOOverlay || (typeof window !== 'undefined' && window.sessionStorage && window.sessionStorage.getItem('sso_redirecting') === 'true')) ? 'Redirection en cours...' : 'Chargement...' }}</span>
       </div>
     </div>
 
