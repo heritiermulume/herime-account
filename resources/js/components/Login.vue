@@ -1,8 +1,8 @@
 <template>
-  <div v-if="isRedirectingSSO" class="fixed inset-0 z-[99999] flex items-center justify-center" style="position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; z-index: 99999 !important; background-color: #003366 !important;">
-    <div class="text-center rounded-lg p-8" style="background-color: rgba(255, 255, 255, 0.95);">
+  <div v-if="isRedirectingSSO" class="fixed inset-0 z-[99999] flex items-center justify-center bg-gray-900" style="position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; z-index: 99999 !important;">
+    <div class="text-center rounded-lg p-8" style="background-color: #003366;">
       <div class="animate-spin rounded-full h-12 w-12 border-4 border-t-transparent mx-auto mb-4" style="border-color: #ffcc33;"></div>
-      <p class="text-lg font-medium" style="color: #003366;">Redirection en cours...</p>
+      <p class="text-lg font-medium text-white">Redirection en cours...</p>
     </div>
   </div>
   <div v-else :class="['flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-gray-50 dark:bg-gray-900', requiresTwoFactor ? 'min-h-screen overflow-y-auto' : 'h-screen overflow-hidden']">
