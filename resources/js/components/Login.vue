@@ -191,6 +191,19 @@
             </button>
           </p>
         </div>
+        
+        <!-- Bouton retour au site externe -->
+        <div v-if="externalSiteUrl" class="text-center mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+          <button
+            @click="handleReturnToSite"
+            class="inline-flex items-center text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
+          >
+            <svg class="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+            </svg>
+            Retour au site
+          </button>
+        </div>
       </div>
     </div>
     
@@ -293,7 +306,7 @@
 </template>
 
 <script>
-import { ref, reactive, onMounted, inject, Teleport, Transition } from 'vue'
+import { ref, reactive, computed, onMounted, inject, Teleport, Transition } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import axios from 'axios'
@@ -346,6 +359,60 @@ export default {
       error: () => {},
       info: () => {}
     })
+    
+    // Détecter si l'utilisateur vient d'un site externe
+    const externalSiteUrl = computed(() => {
+      const redirectParam = route.query.redirect
+      if (!redirectParam || typeof redirectParam !== 'string') {
+        return null
+      }
+      
+      try {
+        // Décoder l'URL si nécessaire
+        let redirectUrl = redirectParam
+        try {
+          const decoded = decodeURIComponent(redirectParam)
+          // Vérifier si le décodage a produit une URL valide
+          try {
+            new URL(decoded)
+            redirectUrl = decoded
+          } catch (e) {
+            // Si le décodage ne produit pas une URL valide, garder l'original
+          }
+        } catch (e) {
+          // Ignorer les erreurs de décodage
+        }
+        
+        // Vérifier si c'est une URL valide
+        if (!redirectUrl || !redirectUrl.startsWith('http')) {
+          return null
+        }
+        
+        // Extraire l'URL de base (sans les paramètres de query comme token)
+        const url = new URL(redirectUrl)
+        const currentHost = window.location.hostname
+        
+        // Normaliser les hostnames (enlever www. si présent)
+        const urlHost = url.hostname.replace(/^www\./, '')
+        const currentHostNormalized = currentHost.replace(/^www\./, '')
+        
+        // Vérifier si c'est un domaine externe
+        if (urlHost !== currentHostNormalized && urlHost !== 'compte.herime.com') {
+          // Retourner l'URL de base du site externe (sans les paramètres de query)
+          return `${url.protocol}//${url.hostname}${url.pathname}`
+        }
+      } catch (e) {
+        console.error('Error parsing redirect URL:', e)
+      }
+      
+      return null
+    })
+    
+    const handleReturnToSite = () => {
+      if (externalSiteUrl.value) {
+        window.location.href = externalSiteUrl.value
+      }
+    }
     const handleSwitchToRegister = async () => {
       try {
         // Toujours interroger le serveur pour éviter un cache obsolète
@@ -566,7 +633,9 @@ export default {
       forgotPasswordLoading,
       resetUrl,
       handleForgotPassword,
-      handleSwitchToRegister
+      handleSwitchToRegister,
+      externalSiteUrl,
+      handleReturnToSite
     }
   }
 }
