@@ -32,6 +32,34 @@ export default {
       const redirectingKey = 'sso_redirecting'
       const redirectingTimestamp = sessionStorage.getItem(redirectingKey)
       
+      // Vérifier si on a force_token dans l'URL - si oui, c'est une demande SSO légitime
+      const hasForceToken = route.query.force_token === '1' || 
+                           route.query.force_token === 1 || 
+                           route.query.force_token === true || 
+                           route.query.force_token === 'true' ||
+                           route.query.force_token === 'yes' ||
+                           route.query.force_token === 'on'
+      
+      // Si on a force_token et un redirect, c'est une demande SSO légitime, pas une boucle
+      if (hasForceToken && route.query.redirect) {
+        // Vérifier que le redirect pointe vers un domaine externe
+        try {
+          const redirectUrl = route.query.redirect
+          const decodedUrl = decodeURIComponent(redirectUrl)
+          const redirectHost = new URL(decodedUrl).hostname
+          const currentHost = window.location.hostname
+          
+          // Si le redirect pointe vers un domaine externe, ce n'est pas une boucle
+          if (redirectHost !== currentHost && redirectHost !== 'compte.herime.com') {
+            // Nettoyer le timestamp pour permettre la redirection
+            sessionStorage.removeItem(redirectingKey)
+            return false
+          }
+        } catch (e) {
+          // Si le parsing échoue, continuer quand même (peut être une URL encodée)
+        }
+      }
+      
       // Vérifier si on vient d'un autre domaine (academie.herime.com)
       // Si oui, nettoyer sessionStorage car c'est une nouvelle session
       const referer = document.referer
@@ -58,8 +86,9 @@ export default {
         const now = Date.now()
         const elapsed = now - parseInt(redirectingTimestamp, 10)
         
-        // Si moins de 5 secondes se sont écoulées, on est probablement dans une boucle
-        if (elapsed < 5000) {
+        // Si moins de 3 secondes se sont écoulées et qu'on est sur la même page, on est probablement dans une boucle
+        // Mais seulement si on n'a pas force_token (ce qui indiquerait une demande SSO légitime)
+        if (elapsed < 3000 && !hasForceToken) {
           console.error('[Auth] ⚠️ BOUCLE DE REDIRECTION DÉTECTÉE!', {
             elapsed,
             timestamp: redirectingTimestamp,
@@ -74,7 +103,7 @@ export default {
           router.push('/dashboard')
           return true
         }
-        // Plus de 5 secondes, considérer que c'est une nouvelle tentative
+        // Plus de 3 secondes ou demande SSO légitime, considérer que c'est une nouvelle tentative
         sessionStorage.removeItem(redirectingKey)
       }
       
