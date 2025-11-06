@@ -271,9 +271,20 @@ export default {
                 isRedirecting.value = true
                 authStore.isSSORedirecting = true
                 
-                console.log('[Auth] Exécution de window.location.replace vers:', callbackUrl)
-                // Utiliser replace immédiatement - ne PAS attendre
-                window.location.replace(callbackUrl)
+                // IMPORTANT: S'assurer que les flags sont bien à true avant la redirection
+                if (typeof window !== 'undefined') {
+                  sessionStorage.setItem('sso_redirecting', 'true')
+                  // Arrêter tout chargement en cours pour éviter que Vue ne rende
+                  if (window.stop) {
+                    window.stop()
+                  }
+                }
+                isRedirecting.value = true
+                authStore.isSSORedirecting = true
+                
+                console.log('[Auth] Exécution de window.location.href vers:', callbackUrl)
+                // Utiliser window.location.href pour forcer une navigation immédiate
+                window.location.href = callbackUrl
                 
                 // Cette ligne ne sera jamais exécutée car window.location.replace() redirige
                 return
