@@ -228,14 +228,27 @@ class SimpleAuthController extends Controller
         $token = $user->createToken('API Token')->accessToken;
 
         // Log de débogage AVANT determineRedirectUrl
+        // IMPORTANT: Ne pas logger les données sensibles comme les mots de passe
+        $requestData = $request->all();
+        $safeRequestData = [];
+        foreach ($requestData as $key => $value) {
+            if ($key !== 'password' && $key !== 'password_confirmation') {
+                $safeRequestData[$key] = $value;
+            } else {
+                $safeRequestData[$key] = '[REDACTED]';
+            }
+        }
+        
         \Log::info('Login - Before determineRedirectUrl', [
             'user_id' => $user->id,
-            'request_all' => $request->all(),
+            'request_all_keys' => array_keys($requestData),
+            'request_all_safe' => $safeRequestData,
             'request_query' => $request->query(),
-            'has_redirect_in_all' => isset($request->all()['redirect']),
+            'has_redirect_in_all' => isset($requestData['redirect']),
             'has_redirect_in_query' => $request->query('redirect') !== null,
             'redirect_from_input' => $request->input('redirect'),
             'redirect_from_query' => $request->query('redirect'),
+            'content_type' => $request->header('Content-Type'),
             'wants_json' => $request->wantsJson(),
             'expects_json' => $request->expectsJson(),
         ]);
