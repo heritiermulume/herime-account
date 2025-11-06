@@ -257,11 +257,22 @@ export const useAuthStore = defineStore('auth', {
     },
 
     async checkAuth() {
+      // Réinitialiser le flag SSO si on fait un checkAuth (nouvelle vérification)
+      // Sauf si on est vraiment en train de rediriger (vérifier dans l'URL)
+      if (typeof window !== 'undefined') {
+        const urlParams = new URLSearchParams(window.location.search)
+        const hasRedirect = urlParams.has('redirect') || urlParams.has('force_token')
+        if (!hasRedirect) {
+          this.isSSORedirecting = false
+        }
+      }
+      
       // Vérifier si on a un token dans localStorage
       const token = localStorage.getItem('access_token')
       if (!token) {
         this.user = null
         this.authenticated = false
+        this.isSSORedirecting = false
         return false
       }
 
