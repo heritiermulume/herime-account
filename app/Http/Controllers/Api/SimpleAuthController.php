@@ -625,50 +625,38 @@ class SimpleAuthController extends Controller
             $decoded = urldecode($redirect);
             if ($decoded !== $redirect && strlen($decoded) <= 2000) {
                 // Vérifier si le décodage donne une URL valide
-                if (filter_var($decoded, FILTER_VALIDATE_URL)) {
-                    $urlParts = parse_url($decoded);
-                    if (isset($urlParts['scheme']) && in_array(strtolower($urlParts['scheme']), ['http', 'https'])) {
-                        $redirect = $decoded;
-                    }
+                $testParts = @parse_url($decoded);
+                if ($testParts && isset($testParts['scheme']) && isset($testParts['host'])) {
+                    $redirect = $decoded;
                 }
             }
             
             // Valider l'URL (déjà décodée par Laravel ou manuellement)
-            // Simplifier la validation - juste vérifier que c'est une URL valide et externe
-            if (strlen($redirect) <= 2000) {
-                // Vérifier que c'est une URL valide
-                if (filter_var($redirect, FILTER_VALIDATE_URL)) {
-                    $urlParts = parse_url($redirect);
-                    if (isset($urlParts['scheme']) && in_array(strtolower($urlParts['scheme']), ['http', 'https'])) {
+            // Simplifier la validation - accepter si l'URL commence par http:// ou https:// et contient un host
+            if (strlen($redirect) <= 2000 && (strpos($redirect, 'http://') === 0 || strpos($redirect, 'https://') === 0)) {
+                $urlParts = @parse_url($redirect);
+                if ($urlParts && isset($urlParts['host']) && isset($urlParts['scheme'])) {
+                    $scheme = strtolower($urlParts['scheme']);
+                    if (in_array($scheme, ['http', 'https'])) {
                         // Vérifier que c'est un domaine externe
-                        $host = $urlParts['host'] ?? null;
-                        if ($host) {
-                            $currentHost = preg_replace('/^www\./', '', strtolower($request->getHost()));
-                            $redirectHost = preg_replace('/^www\./', '', strtolower($host));
-                            
-                            // Ne rediriger que si c'est un domaine externe
-                            if ($redirectHost !== $currentHost && $redirectHost !== 'compte.herime.com') {
-                                \Log::info('determineRedirectUrl - External redirect found', [
-                                    'redirect_host' => $redirectHost,
-                                    'current_host' => $currentHost,
-                                ]);
-                                return $redirect;
-                            } else {
-                                \Log::warning('determineRedirectUrl - Same domain redirect blocked', [
-                                    'redirect_host' => $redirectHost,
-                                    'current_host' => $currentHost,
-                                ]);
-                            }
+                        $host = $urlParts['host'];
+                        $currentHost = preg_replace('/^www\./', '', strtolower($request->getHost()));
+                        $redirectHost = preg_replace('/^www\./', '', strtolower($host));
+                        
+                        // Ne rediriger que si c'est un domaine externe
+                        if ($redirectHost !== $currentHost && $redirectHost !== 'compte.herime.com') {
+                            \Log::info('determineRedirectUrl - External redirect found', [
+                                'redirect_host' => $redirectHost,
+                                'current_host' => $currentHost,
+                            ]);
+                            return $redirect;
+                        } else {
+                            \Log::warning('determineRedirectUrl - Same domain redirect blocked', [
+                                'redirect_host' => $redirectHost,
+                                'current_host' => $currentHost,
+                            ]);
                         }
-                    } else {
-                        \Log::warning('determineRedirectUrl - Invalid URL scheme', [
-                            'scheme' => $urlParts['scheme'] ?? 'none',
-                        ]);
                     }
-                } else {
-                    \Log::warning('determineRedirectUrl - Invalid URL format', [
-                        'redirect_length' => strlen($redirect),
-                    ]);
                 }
             }
         }
