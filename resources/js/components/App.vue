@@ -165,6 +165,23 @@ export default {
     const logout = async () => {
       loading.value = true
       try {
+        // Vérifier si un paramètre redirect est présent dans l'URL
+        const redirectParam = route.query.redirect
+        let logoutUrl = '/logout'
+        
+        if (redirectParam && typeof redirectParam === 'string') {
+          // Ajouter le paramètre redirect à l'URL de logout
+          logoutUrl = `/logout?redirect=${encodeURIComponent(redirectParam)}`
+        }
+        
+        // Si on a un redirect, rediriger directement vers la route web logout
+        // qui gérera le logout et la redirection
+        if (redirectParam) {
+          window.location.href = logoutUrl
+          return
+        }
+        
+        // Sinon, utiliser le logout normal via l'API
         await authStore.logout()
         router.push('/login')
       } catch (error) {

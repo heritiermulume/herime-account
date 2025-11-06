@@ -197,4 +197,72 @@ class LoginController extends Controller
         // 5. Si aucune origine externe détectée, retourner null pour rediriger vers le dashboard local
         return null;
     }
+
+    /**
+     * Handle logout with redirect parameter support
+     */
+    public function logout(Request $request)
+    {
+        $user = Auth::user();
+        
+        // Déterminer l'URL de redirection
+        $redirectUrl = $this->determineRedirectUrl($request);
+        
+        // Si l'utilisateur est connecté, effectuer le logout
+        if ($user) {
+            try {
+                // Marquer la session comme inactive
+                if ($user->currentSession) {
+                    $user->currentSession->update(['is_current' => false]);
+                }
+                
+                // Révoquer tous les tokens Passport de l'utilisateur
+                $user->tokens()->update(['revoked' => true]);
+                
+                \Log::info('User tokens revoked', ['user_id' => $user->id]);
+            } catch (\Exception $e) {
+                \Log::error('Error during logout', ['error' => $e->getMessage(), 'user_id' => $user->id]);
+            }
+        }
+        
+        // Déconnecter la session web
+        Auth::logout();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+        
+        \Log::info('Logout completed', [
+            'user_id' => $user?->id,
+            'redirect_url' => $redirectUrl
+        ]);
+        
+        // Si une URL de redirection est spécifiée et valide, rediriger vers celle-ci
+        if ($redirectUrl && filter_var($redirectUrl, FILTER_VALIDATE_URL)) {
+            // Vérifier que l'URL ne pointe pas vers le même domaine (éviter les boucles)
+            try {
+                $redirectHost = parse_url($redirectUrl, PHP_URL_HOST);
+                $currentHost = $request->getHost();
+                
+                $redirectHost = preg_replace('/^www\./', '', $redirectHost);
+                $currentHost = preg_replace('/^www\./', '', $currentHost);
+                
+                if ($redirectHost !== $currentHost && $redirectHost !== 'compte.herime.com') {
+                    return redirect($redirectUrl);
+                } else {
+                    \Log::warning('Logout redirect blocked: same domain', [
+                        'redirect_host' => $redirectHost,
+                        'current_host' => $currentHost,
+                        'redirect_url' => $redirectUrl
+                    ]);
+                }
+            } catch (\Exception $e) {
+                \Log::warning('Error parsing redirect URL during logout', [
+                    'error' => $e->getMessage(),
+                    'redirect_url' => $redirectUrl
+                ]);
+            }
+        }
+        
+        // Par défaut, rediriger vers la page de login
+        return redirect('/login');
+    }
 }

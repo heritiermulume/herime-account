@@ -11,6 +11,9 @@ Route::get('/', function () {
 // Route de login avec gestion du SSO force_token
 Route::get('/login', [LoginController::class, 'show']);
 
+// Route de logout avec gestion du paramètre redirect
+Route::get('/logout', [LoginController::class, 'logout']);
+
 Route::get('/register', function () {
     return view('welcome');
 });
