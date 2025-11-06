@@ -120,6 +120,13 @@ router.beforeEach(async (to, from, next) => {
                        to.query.force_token === 'on'
   
   if (hasForceToken && to.path === '/login') {
+    // Vérifier si une redirection SSO est déjà en cours
+    if (typeof window !== 'undefined' && sessionStorage.getItem('sso_redirecting') === 'true') {
+      console.log('[Router] Redirection SSO déjà en cours, autoriser l\'accès à /login')
+      next()
+      return
+    }
+    
     console.log('[Router] force_token détecté sur /login, vérification auth...', {
       force_token: to.query.force_token,
       redirect: to.query.redirect

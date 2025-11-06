@@ -206,6 +206,15 @@ export default {
       console.log('Initial user:', authStore.user)
       console.log('Initial authenticated:', authStore.authenticated)
       console.log('Current route:', route?.path)
+      console.log('SSO redirecting:', typeof window !== 'undefined' ? sessionStorage.getItem('sso_redirecting') : 'N/A')
+      
+      // Vérifier si une redirection SSO est en cours dès le montage
+      // Si oui, ne pas continuer le rendu normal
+      if (typeof window !== 'undefined' && sessionStorage.getItem('sso_redirecting') === 'true') {
+        console.log('[App] Redirection SSO détectée, masquer interface')
+        // Ne pas continuer le rendu normal, l'overlay sera affiché
+        return
+      }
       
       // Check for saved dark mode preference
       const savedDarkMode = localStorage.getItem('darkMode')
@@ -274,7 +283,8 @@ export default {
       authStore,
       toastContainer,
       getAvatarUrl,
-      handleImageError
+      handleImageError,
+      isSSORedirecting
     }
   }
 }
