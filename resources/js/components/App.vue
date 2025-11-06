@@ -238,6 +238,8 @@ export default {
       loading,
       isDarkMode,
       user,
+      route,
+      router,
       pageTitle,
       showPageTitle,
       toggleDarkMode,
