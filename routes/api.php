@@ -28,6 +28,7 @@ Route::post('password/reset', [App\Http\Controllers\Api\PasswordResetController:
 
 // SSO public routes
 Route::post('sso/validate-token', [SSOController::class, 'validateToken']);
+Route::post('sso/check-token', [SSOController::class, 'checkToken']); // Lightweight token check for polling
 
 // Validate token with SSO secret (for external services)
 Route::post('validate-token', [SSOController::class, 'validateTokenWithSecret']);
