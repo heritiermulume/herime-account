@@ -720,7 +720,8 @@ export default {
       handleForgotPassword,
       handleSwitchToRegister,
       externalSiteUrl,
-      handleReturnToSite
+      handleReturnToSite,
+      authStore
     }
   }
 }
