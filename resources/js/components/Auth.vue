@@ -12,7 +12,7 @@
 </template>
 
 <script>
-import { ref, onMounted, onBeforeMount } from 'vue'
+import { ref, computed, onMounted, onBeforeMount } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import axios from 'axios'
@@ -263,8 +263,15 @@ export default {
                 }
                 
                 // Redirection immédiate et définitive
+                // IMPORTANT: S'assurer que les flags sont bien à true avant la redirection
+                if (typeof window !== 'undefined') {
+                  sessionStorage.setItem('sso_redirecting', 'true')
+                }
+                isRedirecting.value = true
+                authStore.isSSORedirecting = true
+                
                 console.log('[Auth] Exécution de window.location.replace vers:', callbackUrl)
-                // Utiliser replace immédiatement
+                // Utiliser replace immédiatement - ne PAS attendre
                 window.location.replace(callbackUrl)
                 
                 // Cette ligne ne sera jamais exécutée car window.location.replace() redirige
