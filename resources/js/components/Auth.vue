@@ -184,7 +184,8 @@ export default {
           // Forcer un re-render pour afficher l'overlay immédiatement
           await new Promise(resolve => setTimeout(resolve, 0))
           
-          // Créer une promesse de redirection pour éviter les redirections multiples
+          // Générer le token SSO et rediriger immédiatement
+          // Ne pas attendre la promesse, laisser la redirection se faire
           if (!redirectPromise.value) {
             redirectPromise.value = (async () => {
               try {
@@ -193,7 +194,10 @@ export default {
                 
                 if (!redirect) {
                   console.error('[Auth] No redirect URL provided')
-                  sessionStorage.removeItem('sso_redirecting')
+                  if (typeof window !== 'undefined') {
+                    sessionStorage.removeItem('sso_redirecting')
+                  }
+                  isRedirecting.value = false
                   return false
                 }
                 
@@ -228,7 +232,10 @@ export default {
                         currentHost,
                         callbackUrl
                       })
-                      sessionStorage.removeItem('sso_redirecting')
+                      if (typeof window !== 'undefined') {
+                        sessionStorage.removeItem('sso_redirecting')
+                      }
+                      isRedirecting.value = false
                       return false
                     }
                   } catch (e) {
@@ -239,15 +246,21 @@ export default {
                   console.log('[Auth] Exécution de window.location.replace...')
                   // Nettoyer sessionStorage après un délai (si la redirection échoue)
                   setTimeout(() => {
-                    sessionStorage.removeItem('sso_redirecting')
+                    if (typeof window !== 'undefined') {
+                      sessionStorage.removeItem('sso_redirecting')
+                    }
                   }, 5000)
-                  // Utiliser replace immédiatement, pas de setTimeout qui laisse le temps à Vue de rendre
+                  // Utiliser replace immédiatement - c'est la dernière instruction
                   window.location.replace(callbackUrl)
                   
+                  // Cette ligne ne sera jamais exécutée car window.location.replace() redirige
                   return true
                 } else {
                   console.error('[Auth] Structure de réponse invalide:', response.data)
-                  sessionStorage.removeItem('sso_redirecting')
+                  if (typeof window !== 'undefined') {
+                    sessionStorage.removeItem('sso_redirecting')
+                  }
+                  isRedirecting.value = false
                   return false
                 }
               } catch (error) {
@@ -261,18 +274,27 @@ export default {
                     headers: error.config?.headers
                   }
                 })
-                sessionStorage.removeItem('sso_redirecting')
+                if (typeof window !== 'undefined') {
+                  sessionStorage.removeItem('sso_redirecting')
+                }
+                isRedirecting.value = false
                 return false
               }
             })()
           }
           
-          // Attendre la redirection
-          const redirected = await redirectPromise.value
-          if (redirected) {
-            console.log('[Auth] Redirection en cours...')
-            return // Ne pas continuer
-          }
+          // Lancer la promesse mais ne PAS l'attendre
+          // La redirection se fera dans la promesse
+          redirectPromise.value.catch(error => {
+            console.error('[Auth] Erreur dans la promesse de redirection:', error)
+            if (typeof window !== 'undefined') {
+              sessionStorage.removeItem('sso_redirecting')
+            }
+            isRedirecting.value = false
+          })
+          
+          // Ne pas continuer, la redirection est en cours
+          return
         } else {
           console.log('[Auth] User not authenticated, will show login form')
         }
