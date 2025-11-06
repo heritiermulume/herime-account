@@ -118,6 +118,11 @@ export default {
     const shouldShowSSOOverlay = computed(() => {
       if (typeof window === 'undefined') return false
       
+      // Utiliser la vérification initiale (synchrone, avant le montage)
+      if (initialSSOCheck) {
+        return true
+      }
+      
       // Vérification SYNCHRONE : si on est sur /login avec paramètres SSO et qu'on a un token
       // Marquer immédiatement les flags pour afficher l'overlay AVANT même checkAuth()
       if (route && route.path === '/login') {
@@ -373,7 +378,8 @@ export default {
       getAvatarUrl,
       handleImageError,
       isSSORedirecting,
-      shouldShowSSOOverlay
+      shouldShowSSOOverlay,
+      initialSSOCheck
     }
   }
 }
