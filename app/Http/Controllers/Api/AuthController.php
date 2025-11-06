@@ -134,10 +134,8 @@ class AuthController extends Controller
             // Révoquer TOUS les tokens Passport de l'utilisateur pour déconnecter tous les sites externes
             $user->tokens()->update(['revoked' => true]);
             
-            // Mark current session as inactive
-            if ($user->currentSession) {
-                $user->currentSession->update(['is_current' => false]);
-            }
+            // Marquer TOUTES les sessions comme inactives (déconnecter tous les appareils)
+            $user->sessions()->update(['is_current' => false]);
         }
 
         return response()->json([

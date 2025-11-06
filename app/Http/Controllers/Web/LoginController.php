@@ -185,13 +185,11 @@ class LoginController extends Controller
         // Si l'utilisateur est connecté, effectuer le logout
         if ($user) {
             try {
-                // Marquer la session comme inactive
-                if ($user->currentSession) {
-                    $user->currentSession->update(['is_current' => false]);
-                }
-                
-                // Révoquer tous les tokens Passport de l'utilisateur
+                // Révoquer TOUS les tokens Passport de l'utilisateur pour déconnecter tous les sites externes
                 $user->tokens()->update(['revoked' => true]);
+                
+                // Marquer TOUTES les sessions comme inactives (déconnecter tous les appareils)
+                $user->sessions()->update(['is_current' => false]);
             } catch (\Exception $e) {
                 // Ignorer les erreurs lors du logout
             }
