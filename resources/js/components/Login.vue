@@ -601,15 +601,12 @@ export default {
           authStore.isSSORedirecting = true
           isRedirectingSSO.value = true
           
-          // Arrêter tout chargement en cours pour éviter que Vue ne rende
-          if (typeof window !== 'undefined' && window.stop) {
-            window.stop()
-          }
-          
           // Redirection SYNCHRONE immédiate - ne PAS attendre
-          // Utiliser window.location.href pour forcer une navigation immédiate
+          // IMPORTANT: Ne PAS utiliser window.stop() car cela peut bloquer la redirection
+          // Utiliser window.location.replace() pour une redirection immédiate et définitive
           console.log('[Login] Redirection SSO immédiate vers:', result.data.sso_redirect_url)
-          window.location.href = result.data.sso_redirect_url
+          // Utiliser replace au lieu de href pour éviter d'ajouter à l'historique
+          window.location.replace(result.data.sso_redirect_url)
           
           // Cette ligne ne sera jamais exécutée
           return
@@ -731,14 +728,11 @@ export default {
           authStore.isSSORedirecting = true
           isRedirectingSSO.value = true
           
-          // Arrêter tout chargement en cours pour éviter que Vue ne rende
-          if (typeof window !== 'undefined' && window.stop) {
-            window.stop()
-          }
-          
           // Redirection SYNCHRONE immédiate - ne PAS attendre
+          // IMPORTANT: Ne PAS utiliser window.stop() car cela peut bloquer la redirection
           console.log('[Login] Redirection SSO immédiate (2FA) vers:', result.data.sso_redirect_url)
-          window.location.href = result.data.sso_redirect_url
+          // Utiliser replace au lieu de href pour éviter d'ajouter à l'historique
+          window.location.replace(result.data.sso_redirect_url)
           
           // Cette ligne ne sera jamais exécutée
           return
