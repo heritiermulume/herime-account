@@ -328,10 +328,26 @@ export default {
     
     // Initialiser le thème sombre si nécessaire
     onMounted(() => {
+      // TOUJOURS réinitialiser isRedirectingSSO au début
+      isRedirectingSSO.value = false
+      
       // Réinitialiser le flag SSO si on arrive sur la page de login sans paramètre redirect/force_token
       if (!route.query.redirect && !route.query.force_token) {
         authStore.isSSORedirecting = false
         isRedirectingSSO.value = false
+        if (typeof window !== 'undefined') {
+          sessionStorage.removeItem('sso_redirecting')
+        }
+      }
+      
+      // Vérifier si le flag SSO est présent mais qu'on n'a pas de paramètres
+      if (typeof window !== 'undefined' && sessionStorage.getItem('sso_redirecting') === 'true') {
+        if (!route.query.redirect && !route.query.force_token) {
+          console.log('[Login] Flag SSO présent mais pas de paramètres, nettoyage')
+          sessionStorage.removeItem('sso_redirecting')
+          isRedirectingSSO.value = false
+          authStore.isSSORedirecting = false
+        }
       }
       
       // Vérifier la préférence dark mode sauvegardée

@@ -299,8 +299,11 @@ export default {
         path: route.path,
         hasRedirect: !!route.query.redirect,
         hasForceToken: !!route.query.force_token,
-        ssoRedirecting: sessionStorage.getItem('sso_redirecting')
+        ssoRedirecting: typeof window !== 'undefined' ? sessionStorage.getItem('sso_redirecting') : null
       })
+      
+      // TOUJOURS réinitialiser isRedirecting au début de onMounted
+      isRedirecting.value = false
       
       // Réinitialiser le flag SSO si on arrive sur la page sans paramètre redirect/force_token
       if (!route.query.redirect && !route.query.force_token) {
@@ -323,15 +326,25 @@ export default {
           authStore.isSSORedirecting = false
         } else {
           // On a les paramètres, vérifier si l'utilisateur est authentifié
-          const isAuthenticated = await authStore.checkAuth()
-          if (!isAuthenticated) {
-            console.log('[Auth] Utilisateur non authentifié, nettoyage du flag SSO')
+          const token = localStorage.getItem('access_token')
+          if (!token) {
+            console.log('[Auth] Pas de token, nettoyage du flag SSO')
             sessionStorage.removeItem('sso_redirecting')
             isRedirecting.value = false
             authStore.isSSORedirecting = false
           } else {
-            console.log('[Auth] Redirection SSO en cours (onMounted), arrêt du montage')
-            return
+            const isAuthenticated = await authStore.checkAuth()
+            if (!isAuthenticated) {
+              console.log('[Auth] Utilisateur non authentifié, nettoyage du flag SSO')
+              sessionStorage.removeItem('sso_redirecting')
+              isRedirecting.value = false
+              authStore.isSSORedirecting = false
+            } else {
+              console.log('[Auth] Utilisateur authentifié avec paramètres SSO, redirection en cours')
+              // La redirection sera gérée par onBeforeMount
+              isRedirecting.value = true
+              return
+            }
           }
         }
       }
