@@ -185,113 +185,103 @@ export default {
           await new Promise(resolve => setTimeout(resolve, 0))
           
           // Générer le token SSO et rediriger immédiatement
-          // Ne pas attendre la promesse, laisser la redirection se faire
-          if (!redirectPromise.value) {
-            redirectPromise.value = (async () => {
-              try {
-                const redirect = route.query.redirect
-                console.log('[Auth] Redirect URL extraite:', redirect)
+          // Exécuter la fonction async immédiatement
+          const redirect = route.query.redirect
+          console.log('[Auth] Redirect URL extraite:', redirect)
+          
+          if (!redirect) {
+            console.error('[Auth] No redirect URL provided')
+            if (typeof window !== 'undefined') {
+              sessionStorage.removeItem('sso_redirecting')
+            }
+            isRedirecting.value = false
+            return
+          }
+          
+          // Exécuter la génération du token et la redirection immédiatement
+          ;(async () => {
+            try {
+              console.log('[Auth] Appel API /sso/generate-token...', {
+                redirect: redirect,
+                token_present: !!token
+              })
+              
+              const response = await axios.post('/sso/generate-token', {
+                redirect: redirect
+              })
+              
+              console.log('[Auth] SSO token response reçue:', {
+                status: response.status,
+                success: response.data?.success,
+                has_data: !!response.data?.data,
+                has_callback_url: !!response.data?.data?.callback_url,
+                full_response: response.data
+              })
+              
+              if (response.data && response.data.success && response.data.data && response.data.data.callback_url) {
+                const callbackUrl = response.data.data.callback_url
+                console.log('[Auth] Redirection vers:', callbackUrl)
                 
-                if (!redirect) {
-                  console.error('[Auth] No redirect URL provided')
-                  if (typeof window !== 'undefined') {
-                    sessionStorage.removeItem('sso_redirecting')
-                  }
-                  isRedirecting.value = false
-                  return false
-                }
-                
-                console.log('[Auth] Appel API /sso/generate-token...', {
-                  redirect: redirect,
-                  token_present: !!token
-                })
-                
-                const response = await axios.post('/sso/generate-token', {
-                  redirect: redirect
-                })
-                
-                console.log('[Auth] SSO token response reçue:', {
-                  status: response.status,
-                  success: response.data?.success,
-                  has_data: !!response.data?.data,
-                  has_callback_url: !!response.data?.data?.callback_url
-                })
-                
-                if (response.data && response.data.success && response.data.data && response.data.data.callback_url) {
-                  const callbackUrl = response.data.data.callback_url
-                  console.log('[Auth] Redirection vers:', callbackUrl)
+                // Vérifier une dernière fois que callbackUrl ne pointe pas vers le même domaine
+                try {
+                  const callbackHost = new URL(callbackUrl).hostname
+                  const currentHost = window.location.hostname
                   
-                  // Vérifier une dernière fois que callbackUrl ne pointe pas vers le même domaine
-                  try {
-                    const callbackHost = new URL(callbackUrl).hostname
-                    const currentHost = window.location.hostname
-                    
-                    if (callbackHost === currentHost || callbackHost === 'compte.herime.com') {
-                      console.error('[Auth] ⚠️ Callback URL pointe vers le même domaine, ARRÊT!', {
-                        callbackHost,
-                        currentHost,
-                        callbackUrl
-                      })
-                      if (typeof window !== 'undefined') {
-                        sessionStorage.removeItem('sso_redirecting')
-                      }
-                      isRedirecting.value = false
-                      return false
-                    }
-                  } catch (e) {
-                    console.warn('[Auth] Impossible de parser callback URL:', callbackUrl)
-                  }
-                  
-                  // Redirection immédiate et définitive
-                  console.log('[Auth] Exécution de window.location.replace...')
-                  // Nettoyer sessionStorage après un délai (si la redirection échoue)
-                  setTimeout(() => {
+                  if (callbackHost === currentHost || callbackHost === 'compte.herime.com') {
+                    console.error('[Auth] ⚠️ Callback URL pointe vers le même domaine, ARRÊT!', {
+                      callbackHost,
+                      currentHost,
+                      callbackUrl
+                    })
                     if (typeof window !== 'undefined') {
                       sessionStorage.removeItem('sso_redirecting')
                     }
-                  }, 5000)
-                  // Utiliser replace immédiatement - c'est la dernière instruction
-                  window.location.replace(callbackUrl)
-                  
-                  // Cette ligne ne sera jamais exécutée car window.location.replace() redirige
-                  return true
-                } else {
-                  console.error('[Auth] Structure de réponse invalide:', response.data)
-                  if (typeof window !== 'undefined') {
-                    sessionStorage.removeItem('sso_redirecting')
+                    isRedirecting.value = false
+                    return
                   }
-                  isRedirecting.value = false
-                  return false
+                } catch (e) {
+                  console.warn('[Auth] Impossible de parser callback URL:', callbackUrl, e)
                 }
-              } catch (error) {
-                console.error('[Auth] Erreur lors de la génération du token SSO:', {
-                  message: error.message,
-                  response: error.response?.data,
-                  status: error.response?.status,
-                  config: {
-                    url: error.config?.url,
-                    method: error.config?.method,
-                    headers: error.config?.headers
-                  }
+                
+                // Redirection immédiate et définitive
+                console.log('[Auth] Exécution de window.location.replace vers:', callbackUrl)
+                // Utiliser replace immédiatement
+                window.location.replace(callbackUrl)
+                
+                // Cette ligne ne sera jamais exécutée car window.location.replace() redirige
+                return
+              } else {
+                console.error('[Auth] Structure de réponse invalide ou callback_url manquant:', {
+                  response_data: response.data,
+                  has_success: !!response.data?.success,
+                  has_data: !!response.data?.data,
+                  has_callback_url: !!response.data?.data?.callback_url
                 })
                 if (typeof window !== 'undefined') {
                   sessionStorage.removeItem('sso_redirecting')
                 }
                 isRedirecting.value = false
-                return false
+                return
               }
-            })()
-          }
-          
-          // Lancer la promesse mais ne PAS l'attendre
-          // La redirection se fera dans la promesse
-          redirectPromise.value.catch(error => {
-            console.error('[Auth] Erreur dans la promesse de redirection:', error)
-            if (typeof window !== 'undefined') {
-              sessionStorage.removeItem('sso_redirecting')
+            } catch (error) {
+              console.error('[Auth] Erreur lors de la génération du token SSO:', {
+                message: error.message,
+                response: error.response?.data,
+                status: error.response?.status,
+                config: {
+                  url: error.config?.url,
+                  method: error.config?.method,
+                  headers: error.config?.headers
+                },
+                stack: error.stack
+              })
+              if (typeof window !== 'undefined') {
+                sessionStorage.removeItem('sso_redirecting')
+              }
+              isRedirecting.value = false
+              return
             }
-            isRedirecting.value = false
-          })
+          })()
           
           // Ne pas continuer, la redirection est en cours
           return
