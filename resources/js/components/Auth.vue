@@ -263,14 +263,6 @@ export default {
                   console.warn('[Auth] Impossible de parser callback URL:', callbackUrl, e)
                 }
                 
-                // Redirection immédiate et définitive
-                // IMPORTANT: S'assurer que les flags sont bien à true avant la redirection
-                if (typeof window !== 'undefined') {
-                  sessionStorage.setItem('sso_redirecting', 'true')
-                }
-                isRedirecting.value = true
-                authStore.isSSORedirecting = true
-                
                 // IMPORTANT: S'assurer que les flags sont bien à true avant la redirection
                 if (typeof window !== 'undefined') {
                   sessionStorage.setItem('sso_redirecting', 'true')
@@ -282,6 +274,7 @@ export default {
                 isRedirecting.value = true
                 authStore.isSSORedirecting = true
                 
+                // Redirection immédiate et définitive
                 console.log('[Auth] Exécution de window.location.href vers:', callbackUrl)
                 // Utiliser window.location.href pour forcer une navigation immédiate
                 window.location.href = callbackUrl
