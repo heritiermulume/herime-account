@@ -357,14 +357,30 @@ export default {
     onMounted(async () => {
       console.log('[Auth] onMounted - Début', {
         isRedirecting: isRedirecting.value,
+        redirectPromise: !!redirectPromise.value,
         path: route.path,
         hasRedirect: !!route.query.redirect,
         hasForceToken: !!route.query.force_token,
-        ssoRedirecting: typeof window !== 'undefined' ? sessionStorage.getItem('sso_redirecting') : null
+        ssoRedirecting: typeof window !== 'undefined' ? sessionStorage.getItem('sso_redirecting') : null,
+        redirect_url: route.query.redirect
       })
       
-      // TOUJOURS réinitialiser isRedirecting au début de onMounted
-      isRedirecting.value = false
+      // Si une redirection est déjà en cours (promesse en cours), ne rien faire de plus
+      if (redirectPromise.value) {
+        console.log('[Auth] Redirection déjà en cours (promesse existante), attendre...')
+        try {
+          await redirectPromise.value
+        } catch (e) {
+          console.error('[Auth] Erreur dans la promesse de redirection existante:', e)
+        }
+        return
+      }
+      
+      // TOUJOURS réinitialiser isRedirecting au début de onMounted (sauf si redirection en cours)
+      // Mais seulement si on n'a pas de paramètres SSO
+      if (!route.query.redirect && !route.query.force_token) {
+        isRedirecting.value = false
+      }
       
       // Réinitialiser le flag SSO si on arrive sur la page sans paramètre redirect/force_token
       if (!route.query.redirect && !route.query.force_token) {
