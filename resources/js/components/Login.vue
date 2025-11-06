@@ -594,18 +594,19 @@ export default {
         // Vérifier s'il y a une redirection SSO vers un domaine externe
         if (result?.data?.sso_redirect_url) {
           console.log('[Login] SSO redirect URL found:', result.data.sso_redirect_url)
-          // Marquer dans sessionStorage pour éviter les doubles redirections
-          sessionStorage.setItem('sso_redirecting', 'true')
           
-          // L'authStore a déjà mis isSSORedirecting à true
-          // Masquer immédiatement l'interface et rediriger
+          // Marquer IMMÉDIATEMENT et SYNCHRONEMENT avant toute autre opération
+          // Cela doit être fait AVANT que Vue ne puisse rendre quoi que ce soit
+          sessionStorage.setItem('sso_redirecting', 'true')
+          authStore.isSSORedirecting = true
           isRedirectingSSO.value = true
           
-          // Redirection SYNCHRONE immédiate pour éviter tout rendu
-          // Ne PAS utiliser requestAnimationFrame car cela laisse le temps à Vue de rendre
+          // Redirection SYNCHRONE immédiate - ne PAS attendre
+          // Utiliser window.location.replace directement, pas de setTimeout ni de nextTick
           console.log('[Login] Redirection SSO immédiate vers:', result.data.sso_redirect_url)
-          // Utiliser window.location.replace pour éviter d'ajouter à l'historique
           window.location.replace(result.data.sso_redirect_url)
+          
+          // Cette ligne ne sera jamais exécutée
           return
         } else {
           console.warn('[Login] No sso_redirect_url found in response. Redirect URL param:', route.query.redirect)
@@ -718,18 +719,18 @@ export default {
         
         // Vérifier s'il y a une redirection SSO vers un domaine externe
         if (result?.data?.sso_redirect_url) {
-          // Marquer dans sessionStorage pour éviter les doubles redirections
-          sessionStorage.setItem('sso_redirecting', 'true')
+          console.log('[Login] SSO redirect URL found (2FA):', result.data.sso_redirect_url)
           
-          // L'authStore a déjà mis isSSORedirecting à true
-          // Masquer immédiatement l'interface et rediriger
+          // Marquer IMMÉDIATEMENT et SYNCHRONEMENT avant toute autre opération
+          sessionStorage.setItem('sso_redirecting', 'true')
+          authStore.isSSORedirecting = true
           isRedirectingSSO.value = true
           
-          // Redirection SYNCHRONE immédiate pour éviter tout rendu
-          // Ne PAS utiliser requestAnimationFrame car cela laisse le temps à Vue de rendre
+          // Redirection SYNCHRONE immédiate - ne PAS attendre
           console.log('[Login] Redirection SSO immédiate (2FA) vers:', result.data.sso_redirect_url)
-          // Utiliser window.location.replace pour éviter d'ajouter à l'historique
           window.location.replace(result.data.sso_redirect_url)
+          
+          // Cette ligne ne sera jamais exécutée
           return
         }
         

@@ -32,6 +32,18 @@ export default {
     const currentView = ref('login')
     const isRedirecting = ref(false)
     const redirectPromise = ref(null)
+    
+    // Vérifier directement sessionStorage pour une réactivité immédiate
+    const shouldShowSSOOverlay = computed(() => {
+      if (typeof window === 'undefined') return false
+      const ssoRedirecting = sessionStorage.getItem('sso_redirecting') === 'true'
+      if (!ssoRedirecting) return false
+      // Vérifier qu'on a bien les paramètres nécessaires
+      if (route && route.query && (route.query.redirect || route.query.force_token)) {
+        return true
+      }
+      return false
+    })
 
     // Protection contre les boucles de redirection
     const checkForRedirectLoop = () => {
@@ -176,13 +188,20 @@ export default {
           
           // Marquer IMMÉDIATEMENT qu'on est en train de rediriger AVANT toute autre opération
           // Cela empêchera App.vue de rendre l'interface
+          // IMPORTANT: Faire cela SYNCHRONEMENT avant toute opération asynchrone
           if (typeof window !== 'undefined') {
             sessionStorage.setItem('sso_redirecting', 'true')
           }
           isRedirecting.value = true
+          authStore.isSSORedirecting = true
           
-          // Forcer un re-render pour afficher l'overlay immédiatement
-          await new Promise(resolve => setTimeout(resolve, 0))
+          // Forcer Vue à mettre à jour le DOM immédiatement
+          // Utiliser nextTick pour s'assurer que Vue a mis à jour le DOM
+          await import('vue').then(vue => {
+            vue.nextTick(() => {
+              // Forcer un re-render
+            })
+          })
           
           // Générer le token SSO et rediriger immédiatement
           // Exécuter la fonction async immédiatement
@@ -383,7 +402,8 @@ export default {
 
     return {
       currentView,
-      isRedirecting
+      isRedirecting,
+      shouldShowSSOOverlay
     }
   }
 }
