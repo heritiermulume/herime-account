@@ -24,7 +24,6 @@ class TwoFactorController extends Controller
         
         $enabled = $user->two_factor_confirmed_at !== null;
         
-        
         return response()->json([
             'success' => true,
             'data' => [

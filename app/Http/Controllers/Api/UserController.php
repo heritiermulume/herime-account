@@ -37,7 +37,6 @@ class UserController extends Controller
             $userData['last_login_at'] = null;
         }
         
-        
         return response()->json([
             'success' => true,
             'data' => [
@@ -157,7 +156,6 @@ class UserController extends Controller
             // Mais on peut aussi l'ajouter ici si nécessaire
         }
         
-
         return response()->json([
             'success' => true,
             'message' => 'Profile updated successfully',

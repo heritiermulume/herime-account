@@ -57,8 +57,7 @@ class NotificationService
             }
 
             Mail::to($user->email)->send($mailable);
-        } catch (\Throwable $e) {
-        }
+        } 
     }
 
     /**
@@ -129,8 +128,7 @@ class NotificationService
                 ],
                 'scheduled_at' => $scheduledAt,
             ]);
-        } catch (\Throwable $e) {
-        }
+        } 
     }
 
     /**

@@ -123,7 +123,6 @@ class User extends Authenticatable implements MustVerifyEmail
             $baseUrl = config('app.url');
             $url = rtrim($baseUrl, '/') . '/api/user/avatar/' . $this->id;
             
-            
             return $url;
         }
         

@@ -75,8 +75,9 @@ class SimpleAuthController extends Controller
             $ip = $request->ip();
             $time = now()->toDateTimeString();
             NotificationService::sendForEvent($user, 'suspicious_logins', new NewLoginMail($firstName, $lastName, $ip, $device, $time));
-        } catch (\Throwable $e) {
-        }
+        } catch (\Exception $e) {
+            // Ignorer les erreurs d'envoi d'email
+        } 
 
         // Create access token for API authentication
         $token = $user->createToken('API Token')->accessToken;
@@ -180,9 +181,6 @@ class SimpleAuthController extends Controller
         // Utiliser la méthode Fortify pour vérifier si la 2FA est activée
         $has2FAEnabled = $user->hasEnabledTwoFactorAuthentication();
         
-        if (config('app.debug')) {
-        }
-        
         if ($has2FAEnabled) {
             // La 2FA est activée, on doit demander le code
             // Générer un jeton temporaire stocké côté serveur (stateless API)
@@ -191,9 +189,6 @@ class SimpleAuthController extends Controller
 
             // Déconnecter l'utilisateur jusqu'à ce que le code 2FA soit vérifié
             Auth::logout();
-            
-            if (config('app.debug')) {
-            }
             
             return response()->json([
                 'success' => false,
@@ -250,9 +245,6 @@ class SimpleAuthController extends Controller
             $ssoToken = $this->generateSSOToken($user);
             $responseData['sso_redirect_url'] = $redirectUrl . '?token=' . $ssoToken;
             $responseData['sso_token'] = $ssoToken;
-        }
-        
-        if (config('app.debug')) {
         }
         
         return response()->json([

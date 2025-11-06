@@ -110,7 +110,6 @@ class ImageService
                 
                 imagedestroy($image);
                 
-                
                 return $path;
             }
             

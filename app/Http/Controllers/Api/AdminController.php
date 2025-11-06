@@ -295,7 +295,6 @@ public function updateUserStatus(Request $request, $id): JsonResponse
         // Supprimer l'utilisateur
         $user->delete();
         
-        
         return response()->json([
             'success' => true,
             'message' => 'Utilisateur supprimé avec succès. Toutes ses sessions ont été fermées.'

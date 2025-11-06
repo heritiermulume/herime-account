@@ -51,6 +51,7 @@ class LoginController extends Controller
                         }
                     }
                 } catch (\Exception $e) {
+                    // Ignorer les erreurs de token
                 }
             }
         }
@@ -191,8 +192,8 @@ class LoginController extends Controller
                 
                 // Révoquer tous les tokens Passport de l'utilisateur
                 $user->tokens()->update(['revoked' => true]);
-                
             } catch (\Exception $e) {
+                // Ignorer les erreurs lors du logout
             }
         }
         
@@ -200,7 +201,6 @@ class LoginController extends Controller
         Auth::logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
-        
         
         // Si une URL de redirection est spécifiée et valide, rediriger vers celle-ci
         if ($redirectUrl && filter_var($redirectUrl, FILTER_VALIDATE_URL)) {
@@ -214,9 +214,9 @@ class LoginController extends Controller
                 
                 if ($redirectHost !== $currentHost && $redirectHost !== 'compte.herime.com') {
                     return redirect($redirectUrl);
-                } else {
                 }
             } catch (\Exception $e) {
+                // Ignorer les erreurs de parsing d'URL
             }
         }
         

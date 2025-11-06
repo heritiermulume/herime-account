@@ -154,7 +154,6 @@ class SSOController extends Controller
             $currentHost = preg_replace('/^www\./', '', $currentHost);
             
             if ($redirectHost === $currentHost || $redirectHost === 'compte.herime.com') {
-                
                 return response()->json([
                     'success' => false,
                     'message' => 'Redirect URL cannot point to the same domain (would cause redirect loop)',
@@ -163,6 +162,7 @@ class SSOController extends Controller
                 ], 422);
             }
         } catch (\Exception $e) {
+            // Ignorer les erreurs de parsing d'URL
         }
 
         // Create SSO token
@@ -177,7 +177,6 @@ class SSOController extends Controller
             $callbackHost = preg_replace('/^www\./', '', $callbackHost);
             
             if ($callbackHost === $currentHost || $callbackHost === 'compte.herime.com') {
-                
                 return response()->json([
                     'success' => false,
                     'message' => 'Generated callback URL points to the same domain (would cause redirect loop)',
@@ -186,6 +185,7 @@ class SSOController extends Controller
                 ], 500);
             }
         } catch (\Exception $e) {
+            // Ignorer les erreurs de parsing d'URL
         }
 
         return response()->json([
@@ -242,9 +242,6 @@ class SSOController extends Controller
      */
     public function getSessions(Request $request): JsonResponse
     {
-        if (config('app.debug')) {
-        }
-        
         $user = $request->user();
         
         if (!$user) {
@@ -252,9 +249,6 @@ class SSOController extends Controller
                 'success' => false,
                 'message' => 'User not authenticated'
             ], 401);
-        }
-        
-        if (config('app.debug')) {
         }
         
         try {
@@ -272,9 +266,6 @@ class SSOController extends Controller
                 ->orderBy('created_at', 'desc');
             
             $sessionsRaw = $sessionsQuery->get();
-            
-            if (config('app.debug')) {
-            }
             
             $sessions = collect([]);
             
@@ -320,13 +311,9 @@ class SSOController extends Controller
                 }
             }
 
-            if (config('app.debug')) {
-            }
-
             // Vérifier que nous avons bien des sessions à retourner
             if ($sessions->isEmpty()) {
-                if (config('app.debug')) {
-                }
+                
             }
 
             // Convertir la collection en tableau simple
@@ -342,7 +329,6 @@ class SSOController extends Controller
                 ]
             ], 200, [], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         } catch (\Exception $e) {
-
             // En production, ne pas exposer le message d'erreur complet
             $errorMessage = config('app.debug') ? $e->getMessage() : 'Error loading sessions';
             
@@ -411,7 +397,6 @@ class SSOController extends Controller
             ]);
         }
 
-        // Log the access (you can create a separate table for this if needed)
     }
 
     /**
@@ -555,9 +540,7 @@ class SSOController extends Controller
                     'is_active' => $user->is_active,
                 ]
             ]);
-
         } catch (\Exception $e) {
-
             return response()->json([
                 'valid' => false,
                 'message' => 'Error validating token'
