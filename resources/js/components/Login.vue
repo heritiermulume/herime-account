@@ -519,6 +519,7 @@ export default {
         const loginData = { ...form }
         if (route.query.redirect) {
           loginData.redirect = route.query.redirect
+          console.log('[Login] Redirect param from URL:', route.query.redirect)
         }
         if (route.query.force_token) {
           loginData.force_token = route.query.force_token
@@ -527,17 +528,25 @@ export default {
           loginData.client_domain = route.query.client_domain
         }
         
+        console.log('[Login] Sending login request with redirect:', loginData.redirect ? 'YES' : 'NO')
+        
         // Ne pas logger loginData car il contient le mot de passe
         const result = await authStore.login(loginData)
-        // Ne pas logger result car il peut contenir des tokens
+        
+        console.log('[Login] Login response received:', {
+          has_sso_redirect_url: !!result?.data?.sso_redirect_url,
+          has_data: !!result?.data,
+        })
         
         // Vérifier s'il y a une redirection SSO vers un domaine externe
         if (result?.data?.sso_redirect_url) {
+          console.log('[Login] Redirecting to external site via SSO')
           // Rediriger vers le domaine externe avec le token SSO
           window.location.href = result.data.sso_redirect_url
           return
         }
         
+        console.log('[Login] No SSO redirect, going to dashboard')
         // Sinon, rediriger vers le dashboard local
         router.push('/dashboard')
       } catch (err) {

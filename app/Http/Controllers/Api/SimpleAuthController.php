@@ -229,6 +229,19 @@ class SimpleAuthController extends Controller
 
         // Vérifier si on doit rediriger vers un domaine externe après connexion
         $redirectUrl = $this->determineRedirectUrl($request);
+        
+        // Log pour déboguer
+        \Log::info('Login - determineRedirectUrl result', [
+            'user_id' => $user->id,
+            'redirect_url' => $redirectUrl,
+            'has_redirect_param' => $request->has('redirect'),
+            'redirect_param' => $request->input('redirect') ?: $request->query('redirect'),
+            'has_client_domain' => $request->has('client_domain'),
+            'client_domain' => $request->input('client_domain') ?: $request->query('client_domain'),
+            'wants_json' => $request->wantsJson(),
+            'expects_json' => $request->expectsJson(),
+        ]);
+        
         if ($redirectUrl && !$request->wantsJson() && !$request->expectsJson()) {
             // C'est une requête web depuis un domaine externe, générer un token SSO et rediriger
             $ssoToken = $this->generateSSOToken($user);
@@ -255,16 +268,25 @@ class SimpleAuthController extends Controller
         ];
 
         if ($redirectUrl) {
-            $ssoToken = $this->generateSSOToken($user);
-            $responseData['sso_redirect_url'] = $redirectUrl . '?token=' . $ssoToken;
-            $responseData['sso_token'] = $ssoToken;
-        }
-        
-        if (config('app.debug')) {
-            \Log::debug('Login response', [
+            try {
+                $ssoToken = $this->generateSSOToken($user);
+                $responseData['sso_redirect_url'] = $redirectUrl . '?token=' . $ssoToken;
+                $responseData['sso_token'] = $ssoToken;
+                \Log::info('Login - SSO redirect URL added', [
+                    'user_id' => $user->id,
+                    'redirect_url_host' => parse_url($redirectUrl, PHP_URL_HOST),
+                ]);
+            } catch (\Exception $e) {
+                \Log::error('Login - Error generating SSO token', [
+                    'user_id' => $user->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        } else {
+            \Log::warning('Login - No redirect URL determined', [
                 'user_id' => $user->id,
-                'has_last_login_at' => !empty($userData['last_login_at']),
-                'redirect_url' => $redirectUrl
+                'has_redirect_param' => $request->has('redirect'),
+                'redirect_param' => $request->input('redirect') ?: $request->query('redirect'),
             ]);
         }
         
@@ -612,20 +634,41 @@ class SimpleAuthController extends Controller
             }
             
             // Valider l'URL (déjà décodée par Laravel ou manuellement)
-            if (strlen($redirect) <= 2000 && filter_var($redirect, FILTER_VALIDATE_URL)) {
-                $urlParts = parse_url($redirect);
-                if (isset($urlParts['scheme']) && in_array(strtolower($urlParts['scheme']), ['http', 'https'])) {
-                    // Vérifier que c'est un domaine externe
-                    $host = $urlParts['host'] ?? null;
-                    if ($host) {
-                        $currentHost = preg_replace('/^www\./', '', $request->getHost());
-                        $redirectHost = preg_replace('/^www\./', '', $host);
-                        
-                        // Ne rediriger que si c'est un domaine externe
-                        if ($redirectHost !== $currentHost && $redirectHost !== 'compte.herime.com') {
-                            return $redirect;
+            // Simplifier la validation - juste vérifier que c'est une URL valide et externe
+            if (strlen($redirect) <= 2000) {
+                // Vérifier que c'est une URL valide
+                if (filter_var($redirect, FILTER_VALIDATE_URL)) {
+                    $urlParts = parse_url($redirect);
+                    if (isset($urlParts['scheme']) && in_array(strtolower($urlParts['scheme']), ['http', 'https'])) {
+                        // Vérifier que c'est un domaine externe
+                        $host = $urlParts['host'] ?? null;
+                        if ($host) {
+                            $currentHost = preg_replace('/^www\./', '', strtolower($request->getHost()));
+                            $redirectHost = preg_replace('/^www\./', '', strtolower($host));
+                            
+                            // Ne rediriger que si c'est un domaine externe
+                            if ($redirectHost !== $currentHost && $redirectHost !== 'compte.herime.com') {
+                                \Log::info('determineRedirectUrl - External redirect found', [
+                                    'redirect_host' => $redirectHost,
+                                    'current_host' => $currentHost,
+                                ]);
+                                return $redirect;
+                            } else {
+                                \Log::warning('determineRedirectUrl - Same domain redirect blocked', [
+                                    'redirect_host' => $redirectHost,
+                                    'current_host' => $currentHost,
+                                ]);
+                            }
                         }
+                    } else {
+                        \Log::warning('determineRedirectUrl - Invalid URL scheme', [
+                            'scheme' => $urlParts['scheme'] ?? 'none',
+                        ]);
                     }
+                } else {
+                    \Log::warning('determineRedirectUrl - Invalid URL format', [
+                        'redirect_length' => strlen($redirect),
+                    ]);
                 }
             }
         }
