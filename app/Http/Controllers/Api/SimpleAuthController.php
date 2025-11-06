@@ -227,6 +227,19 @@ class SimpleAuthController extends Controller
         // Create access token for API authentication
         $token = $user->createToken('API Token')->accessToken;
 
+        // Log de débogage AVANT determineRedirectUrl
+        \Log::info('Login - Before determineRedirectUrl', [
+            'user_id' => $user->id,
+            'request_all' => $request->all(),
+            'request_query' => $request->query(),
+            'has_redirect_in_all' => isset($request->all()['redirect']),
+            'has_redirect_in_query' => $request->query('redirect') !== null,
+            'redirect_from_input' => $request->input('redirect'),
+            'redirect_from_query' => $request->query('redirect'),
+            'wants_json' => $request->wantsJson(),
+            'expects_json' => $request->expectsJson(),
+        ]);
+        
         // Vérifier si on doit rediriger vers un domaine externe après connexion
         $redirectUrl = $this->determineRedirectUrl($request);
         
