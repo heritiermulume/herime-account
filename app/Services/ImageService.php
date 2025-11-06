@@ -110,12 +110,6 @@ class ImageService
                 
                 imagedestroy($image);
                 
-                \Log::info('Image compressed', [
-                    'original_size' => $originalSize,
-                    'compressed_size' => strlen($compressedData),
-                    'quality' => $currentQuality,
-                    'path' => $path
-                ]);
                 
                 return $path;
             }

@@ -20,4 +20,3 @@ class UserEmailNotification extends Model
     ];
 }
 
-

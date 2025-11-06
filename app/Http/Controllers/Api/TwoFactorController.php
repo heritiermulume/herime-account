@@ -24,11 +24,6 @@ class TwoFactorController extends Controller
         
         $enabled = $user->two_factor_confirmed_at !== null;
         
-        \Log::info('2FA Status check', [
-            'user_id' => $user->id,
-            'two_factor_confirmed_at' => $user->two_factor_confirmed_at,
-            'enabled' => $enabled
-        ]);
         
         return response()->json([
             'success' => true,

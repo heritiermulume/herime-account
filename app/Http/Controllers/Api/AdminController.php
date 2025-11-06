@@ -250,12 +250,6 @@ public function updateUserStatus(Request $request, $id): JsonResponse
             UserSession::where('user_id', $user->id)
                 ->update(['is_current' => false]);
             
-            \Log::info('User deactivated and logged out everywhere', [
-                'user_id' => $user->id,
-                'user_email' => $user->email,
-                'tokens_revoked' => true,
-                'sessions_closed' => true
-            ]);
         }
         
         return response()->json([
@@ -301,12 +295,6 @@ public function updateUserStatus(Request $request, $id): JsonResponse
         // Supprimer l'utilisateur
         $user->delete();
         
-        \Log::info('User deleted and logged out everywhere', [
-            'user_id' => $userId,
-            'user_email' => $userEmail,
-            'tokens_revoked' => true,
-            'sessions_deleted' => true
-        ]);
         
         return response()->json([
             'success' => true,

@@ -38,4 +38,3 @@ class AccountDeactivatedMail extends Mailable
     }
 }
 
-

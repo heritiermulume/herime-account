@@ -36,4 +36,3 @@ class PasswordChangedMail extends Mailable
     }
 }
 
-

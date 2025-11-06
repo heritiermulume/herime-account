@@ -33,4 +33,3 @@ class SendScheduledNotifications extends Command
     }
 }
 
-

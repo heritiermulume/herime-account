@@ -74,11 +74,6 @@ class PasswordResetController extends Controller
         $resetUrl = config('app.url') . '/reset-password?token=' . $token . '&email=' . urlencode($request->email);
 
         // Log pour debug
-        \Log::info('Password reset link generated', [
-            'email' => $request->email,
-            'reset_url' => $resetUrl,
-            'token' => $token
-        ]);
 
         // Envoyer l'email avec le lien de réinitialisation
         try {
@@ -96,15 +91,7 @@ class PasswordResetController extends Controller
             }
 
             Mail::to($request->email)->send(new PasswordResetMail($resetUrl, $firstName, $lastName));
-            \Log::info('Password reset email sent successfully', [
-                'email' => $request->email
-            ]);
         } catch (\Exception $e) {
-            \Log::error('Failed to send password reset email', [
-                'email' => $request->email,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
             
             // En cas d'erreur d'envoi, on retourne quand même un succès pour ne pas révéler 
             // si l'email existe ou non (bonne pratique de sécurité)
@@ -203,11 +190,6 @@ class PasswordResetController extends Controller
 
         // Révoquer tous les tokens existants de l'utilisateur pour forcer une nouvelle connexion
         $user->tokens()->delete();
-
-        \Log::info('Password reset successful', [
-            'user_id' => $user->id,
-            'email' => $user->email
-        ]);
 
         return response()->json([
             'success' => true,

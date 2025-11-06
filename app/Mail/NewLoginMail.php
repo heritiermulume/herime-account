@@ -42,4 +42,3 @@ class NewLoginMail extends Mailable
     }
 }
 
-

@@ -76,7 +76,6 @@ class SimpleAuthController extends Controller
             $time = now()->toDateTimeString();
             NotificationService::sendForEvent($user, 'suspicious_logins', new NewLoginMail($firstName, $lastName, $ip, $device, $time));
         } catch (\Throwable $e) {
-            \Log::warning('Failed to queue new login email', ['error' => $e->getMessage()]);
         }
 
         // Create access token for API authentication
@@ -182,10 +181,6 @@ class SimpleAuthController extends Controller
         $has2FAEnabled = $user->hasEnabledTwoFactorAuthentication();
         
         if (config('app.debug')) {
-            \Log::debug('Login - 2FA check', [
-                'user_id' => $user->id,
-                'has_enabled_2fa' => $has2FAEnabled,
-            ]);
         }
         
         if ($has2FAEnabled) {
@@ -198,9 +193,6 @@ class SimpleAuthController extends Controller
             Auth::logout();
             
             if (config('app.debug')) {
-                \Log::debug('Login - 2FA required', [
-                    'user_id' => $user->id,
-                ]);
             }
             
             return response()->json([
@@ -261,11 +253,6 @@ class SimpleAuthController extends Controller
         }
         
         if (config('app.debug')) {
-            \Log::debug('Login response', [
-                'user_id' => $user->id,
-                'has_last_login_at' => !empty($userData['last_login_at']),
-                'redirect_url' => $redirectUrl
-            ]);
         }
         
         return response()->json([

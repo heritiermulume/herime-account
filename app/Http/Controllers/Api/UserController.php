@@ -37,12 +37,6 @@ class UserController extends Controller
             $userData['last_login_at'] = null;
         }
         
-        \Log::info('Profile API response', [
-            'user_id' => $user->id,
-            'avatar' => $user->avatar,
-            'avatar_url' => $userData['avatar_url'],
-            'last_login_at' => $userData['last_login_at']
-        ]);
         
         return response()->json([
             'success' => true,
@@ -99,7 +93,6 @@ class UserController extends Controller
         }
         
         // Log pour debug
-        \Log::info('Profile update data:', $data);
 
         // Handle avatar upload
         if ($request->hasFile('avatar')) {
@@ -137,19 +130,7 @@ class UserController extends Controller
                 
                 $finalSize = Storage::disk('private')->size($avatarPath);
                 
-                \Log::info('Avatar stored in private storage (compressed)', [
-                    'filename' => $filename,
-                    'avatar_path' => $avatarPath,
-                    'original_size' => $originalSize,
-                    'final_size' => $finalSize,
-                    'compressed' => $originalSize > $finalSize,
-                    'mime' => $file->getMimeType()
-                ]);
             } catch (\Exception $e) {
-                \Log::error('Error uploading avatar:', [
-                    'error' => $e->getMessage(),
-                    'trace' => $e->getTraceAsString()
-                ]);
                 // Ne pas échouer la mise à jour du profil si l'avatar échoue
             }
         }
@@ -176,12 +157,6 @@ class UserController extends Controller
             // Mais on peut aussi l'ajouter ici si nécessaire
         }
         
-        \Log::info('Profile update API response', [
-            'user_id' => $user->id,
-            'avatar' => $user->avatar,
-            'avatar_filename' => $user->avatar_filename,
-            'avatar_url' => $userData['avatar_url']
-        ]);
 
         return response()->json([
             'success' => true,
@@ -282,11 +257,6 @@ class UserController extends Controller
         $newPreferences = array_replace_recursive($currentPreferences, $request->preferences);
         
         // Log pour debug
-        \Log::info('Preferences update:', [
-            'current' => $currentPreferences,
-            'new' => $request->preferences,
-            'merged' => $newPreferences
-        ]);
 
         $user->update([
             'preferences' => $newPreferences
@@ -398,12 +368,6 @@ class UserController extends Controller
             $firstName = $parts[0] ?? null;
             $lastName = isset($parts[1]) ? implode(' ', array_slice($parts, 1)) : null;
             NotificationService::sendForEvent($user, 'account_status', new AccountDeactivatedMail($firstName, $lastName, $request->reason));
-
-        \Log::info('Account deactivated by user', [
-            'user_id' => $user->id,
-            'user_email' => $user->email,
-            'reason' => $request->reason
-        ]);
 
         return response()->json([
             'success' => true,

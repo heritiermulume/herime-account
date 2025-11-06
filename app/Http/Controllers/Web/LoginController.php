@@ -51,19 +51,9 @@ class LoginController extends Controller
                         }
                     }
                 } catch (\Exception $e) {
-                    \Log::warning('Error checking API token in LoginController', ['error' => $e->getMessage()]);
                 }
             }
         }
-
-        \Log::info('LoginController@show', [
-            'auth_check' => $isAuthenticated,
-            'auth_check_web' => Auth::check(),
-            'user_id' => $user?->id,
-            'force_token' => $forceToken,
-            'redirect_url' => $redirectUrl,
-            'query_params' => $request->all()
-        ]);
 
         // Si l'utilisateur est déjà connecté ET force_token est présent
         if ($isAuthenticated && $user && $forceToken) {
@@ -82,21 +72,12 @@ class LoginController extends Controller
             // Si une URL de redirection a été détectée, rediriger directement via HTTP
             if ($redirectUrl) {
                 $callbackUrl = $redirectUrl . (strpos($redirectUrl, '?') !== false ? '&' : '?') . 'token=' . urlencode($token);
-                \Log::info('SSO Redirect with token', [
-                    'redirect_url' => $callbackUrl,
-                    'user_id' => $user->id,
-                    'token_length' => strlen($token)
-                ]);
                 
                 // Redirection HTTP directe - plus fiable qu'une redirection JavaScript
                 return redirect($callbackUrl);
             }
 
             // Sinon, rediriger vers le dashboard local (cas où l'utilisateur se connecte directement)
-            \Log::warning('SSO force_token requested but no redirect URL found', [
-                'user_id' => $user->id,
-                'query_params' => $request->all()
-            ]);
             return redirect('/dashboard');
         }
 
@@ -133,24 +114,16 @@ class LoginController extends Controller
             // Laravel décode automatiquement les paramètres d'URL une fois
             // Vérifier si l'URL est valide telle quelle
             if ($redirect && filter_var($redirect, FILTER_VALIDATE_URL)) {
-                \Log::info('SSO Redirect detected (direct)', ['redirect_url' => $redirect]);
                 return $redirect;
             }
             
             // Si pas valide, essayer de décoder une fois de plus (cas double encodage)
             $decodedRedirect = urldecode($redirect);
             if ($decodedRedirect !== $redirect && filter_var($decodedRedirect, FILTER_VALIDATE_URL)) {
-                \Log::info('SSO Redirect detected (decoded)', ['redirect_url' => $decodedRedirect, 'original' => $redirect]);
                 return $decodedRedirect;
             }
             
             // Log si aucune URL valide n'a été trouvée
-            \Log::warning('SSO Redirect URL invalid', [
-                'redirect' => $redirect,
-                'decoded' => $decodedRedirect,
-                'is_valid_direct' => filter_var($redirect, FILTER_VALIDATE_URL),
-                'is_valid_decoded' => filter_var($decodedRedirect, FILTER_VALIDATE_URL)
-            ]);
         }
 
         // 2. Vérifier le paramètre 'client_domain' pour construire l'URL de callback
@@ -219,9 +192,7 @@ class LoginController extends Controller
                 // Révoquer tous les tokens Passport de l'utilisateur
                 $user->tokens()->update(['revoked' => true]);
                 
-                \Log::info('User tokens revoked', ['user_id' => $user->id]);
             } catch (\Exception $e) {
-                \Log::error('Error during logout', ['error' => $e->getMessage(), 'user_id' => $user->id]);
             }
         }
         
@@ -230,10 +201,6 @@ class LoginController extends Controller
         $request->session()->invalidate();
         $request->session()->regenerateToken();
         
-        \Log::info('Logout completed', [
-            'user_id' => $user?->id,
-            'redirect_url' => $redirectUrl
-        ]);
         
         // Si une URL de redirection est spécifiée et valide, rediriger vers celle-ci
         if ($redirectUrl && filter_var($redirectUrl, FILTER_VALIDATE_URL)) {
@@ -248,17 +215,8 @@ class LoginController extends Controller
                 if ($redirectHost !== $currentHost && $redirectHost !== 'compte.herime.com') {
                     return redirect($redirectUrl);
                 } else {
-                    \Log::warning('Logout redirect blocked: same domain', [
-                        'redirect_host' => $redirectHost,
-                        'current_host' => $currentHost,
-                        'redirect_url' => $redirectUrl
-                    ]);
                 }
             } catch (\Exception $e) {
-                \Log::warning('Error parsing redirect URL during logout', [
-                    'error' => $e->getMessage(),
-                    'redirect_url' => $redirectUrl
-                ]);
             }
         }
         

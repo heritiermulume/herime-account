@@ -39,12 +39,6 @@ class AvatarController extends Controller
         // si l'utilisateur demande son propre avatar ou si un token est fourni
         // Pour l'instant, on permet l'accès si l'utilisateur existe dans la DB
         
-        \Log::info('Avatar request', [
-            'user_id' => $userId,
-            'has_token' => $token ? 'yes' : 'no',
-            'authenticated_user' => $authenticatedUser ? $authenticatedUser->id : 'none',
-            'bearer_token' => $request->bearerToken() ? 'yes' : 'no'
-        ]);
         
         // Récupérer l'utilisateur dont on veut voir l'avatar
         $user = User::find($userId);

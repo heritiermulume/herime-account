@@ -58,12 +58,6 @@ class NotificationService
 
             Mail::to($user->email)->send($mailable);
         } catch (\Throwable $e) {
-            \Log::error('NotificationService: failed to send email', [
-                'user_id' => $user->id ?? null,
-                'email' => $user->email ?? null,
-                'mailable' => is_object($mailable) ? get_class($mailable) : (string) $mailable,
-                'error' => $e->getMessage(),
-            ]);
         }
     }
 
@@ -136,13 +130,6 @@ class NotificationService
                 'scheduled_at' => $scheduledAt,
             ]);
         } catch (\Throwable $e) {
-            \Log::error('NotificationService: failed to send event email', [
-                'user_id' => $user->id ?? null,
-                'email' => $user->email ?? null,
-                'event' => $eventKey,
-                'mailable' => is_object($mailable) ? get_class($mailable) : (string) $mailable,
-                'error' => $e->getMessage(),
-            ]);
         }
     }
 
@@ -177,10 +164,6 @@ class NotificationService
             $item->save();
             return true;
         } catch (\Throwable $e) {
-            \Log::error('NotificationService: failed to send queued item', [
-                'id' => $item->id,
-                'error' => $e->getMessage(),
-            ]);
             // Do not rethrow to avoid blocking the batch
             $item->sent_at = now();
             $item->save();
@@ -188,5 +171,4 @@ class NotificationService
         }
     }
 }
-
 

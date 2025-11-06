@@ -123,11 +123,6 @@ class User extends Authenticatable implements MustVerifyEmail
             $baseUrl = config('app.url');
             $url = rtrim($baseUrl, '/') . '/api/user/avatar/' . $this->id;
             
-            \Log::info('Avatar URL generated (secure)', [
-                'avatar' => $this->avatar,
-                'generated_url' => $url,
-                'user_id' => $this->id
-            ]);
             
             return $url;
         }

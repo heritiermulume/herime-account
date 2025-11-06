@@ -154,11 +154,6 @@ class SSOController extends Controller
             $currentHost = preg_replace('/^www\./', '', $currentHost);
             
             if ($redirectHost === $currentHost || $redirectHost === 'compte.herime.com') {
-                \Log::warning('SSO redirect blocked: same domain', [
-                    'redirect_host' => $redirectHost,
-                    'current_host' => $currentHost,
-                    'redirect_url' => $redirectUrl
-                ]);
                 
                 return response()->json([
                     'success' => false,
@@ -168,10 +163,6 @@ class SSOController extends Controller
                 ], 422);
             }
         } catch (\Exception $e) {
-            \Log::warning('Error parsing redirect URL host', [
-                'error' => $e->getMessage(),
-                'redirect_url' => $redirectUrl
-            ]);
         }
 
         // Create SSO token
@@ -186,11 +177,6 @@ class SSOController extends Controller
             $callbackHost = preg_replace('/^www\./', '', $callbackHost);
             
             if ($callbackHost === $currentHost || $callbackHost === 'compte.herime.com') {
-                \Log::error('SSO callback URL points to same domain after construction', [
-                    'callback_host' => $callbackHost,
-                    'current_host' => $currentHost,
-                    'callback_url' => $callbackUrl
-                ]);
                 
                 return response()->json([
                     'success' => false,
@@ -200,17 +186,7 @@ class SSOController extends Controller
                 ], 500);
             }
         } catch (\Exception $e) {
-            \Log::warning('Error parsing callback URL host', [
-                'error' => $e->getMessage(),
-                'callback_url' => $callbackUrl
-            ]);
         }
-
-        \Log::info('SSO Token generated via API', [
-            'user_id' => $user->id,
-            'redirect_url' => $redirectUrl,
-            'callback_url' => $callbackUrl
-        ]);
 
         return response()->json([
             'success' => true,
@@ -267,18 +243,11 @@ class SSOController extends Controller
     public function getSessions(Request $request): JsonResponse
     {
         if (config('app.debug')) {
-            \Log::debug('getSessions called', [
-                'has_token' => $request->bearerToken() ? 'yes' : 'no',
-                'user_authenticated' => $request->user() ? 'yes' : 'no'
-            ]);
         }
         
         $user = $request->user();
         
         if (!$user) {
-            \Log::warning('getSessions: User not authenticated', [
-                'token_present' => $request->bearerToken() ? 'yes' : 'no'
-            ]);
             return response()->json([
                 'success' => false,
                 'message' => 'User not authenticated'
@@ -286,15 +255,11 @@ class SSOController extends Controller
         }
         
         if (config('app.debug')) {
-            \Log::debug('getSessions: User authenticated', [
-                'user_id' => $user->id,
-            ]);
         }
         
         try {
             // Vérifier que l'utilisateur a bien un ID
             if (!$user->id) {
-                \Log::error('User has no ID', ['user' => $user]);
                 return response()->json([
                     'success' => false,
                     'message' => 'Invalid user'
@@ -309,10 +274,6 @@ class SSOController extends Controller
             $sessionsRaw = $sessionsQuery->get();
             
             if (config('app.debug')) {
-                \Log::debug('Raw sessions query result', [
-                    'user_id' => $user->id,
-                    'sessions_found' => $sessionsRaw->count()
-                ]);
             }
             
             $sessions = collect([]);
@@ -355,28 +316,16 @@ class SSOController extends Controller
                         'created_at' => $createdAt,
                     ]);
                 } catch (\Exception $e) {
-                    \Log::error('Error mapping session', [
-                        'session_id' => $session->id ?? 'unknown',
-                        'error' => $e->getMessage(),
-                        'trace' => substr($e->getTraceAsString(), 0, 500)
-                    ]);
                     // Continue avec les autres sessions même si une échoue
                 }
             }
 
             if (config('app.debug')) {
-                \Log::debug('Sessions loaded successfully', [
-                    'user_id' => $user->id,
-                    'sessions_count' => $sessions->count()
-                ]);
             }
 
             // Vérifier que nous avons bien des sessions à retourner
             if ($sessions->isEmpty()) {
                 if (config('app.debug')) {
-                    \Log::debug('No sessions found for user', [
-                        'user_id' => $user->id,
-                    ]);
                 }
             }
 
@@ -393,12 +342,6 @@ class SSOController extends Controller
                 ]
             ], 200, [], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         } catch (\Exception $e) {
-            \Log::error('Error loading sessions', [
-                'user_id' => $user->id ?? 'unknown',
-                'error' => $e->getMessage(),
-                'file' => $e->getFile(),
-                'line' => $e->getLine()
-            ]);
 
             // En production, ne pas exposer le message d'erreur complet
             $errorMessage = config('app.debug') ? $e->getMessage() : 'Error loading sessions';
@@ -469,13 +412,6 @@ class SSOController extends Controller
         }
 
         // Log the access (you can create a separate table for this if needed)
-        \Log::info('SSO Access', [
-            'user_id' => $user->id,
-            'client_domain' => $clientDomain,
-            'ip_address' => $request->ip(),
-            'user_agent' => $request->userAgent(),
-            'timestamp' => now(),
-        ]);
     }
 
     /**
@@ -621,10 +557,6 @@ class SSOController extends Controller
             ]);
 
         } catch (\Exception $e) {
-            \Log::error('Error validating token', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
 
             return response()->json([
                 'valid' => false,
