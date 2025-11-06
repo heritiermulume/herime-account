@@ -14,6 +14,91 @@ use Illuminate\Support\Str;
 class SSOController extends Controller
 {
     /**
+     * Check if SSO token is still valid (lightweight check for polling)
+     * Returns minimal data for quick validation
+     */
+    public function checkToken(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'token' => 'required|string',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Token is required'
+            ], 422);
+        }
+
+        $token = $request->token;
+        $tokenHash = hash('sha256', $token);
+        
+        // Quick check: just verify if token exists and is not revoked
+        $accessToken = \Laravel\Passport\Token::where('id', $tokenHash)
+            ->where('revoked', false)
+            ->first();
+
+        if (!$accessToken) {
+            // Try to find by user_id if hash doesn't match
+            try {
+                $parts = explode('.', $token);
+                if (count($parts) === 3) {
+                    $payload = json_decode(base64_decode(strtr($parts[1], '-_', '+/')), true);
+                    if ($payload && isset($payload['sub'])) {
+                        $userId = $payload['sub'];
+                        $userTokens = \Laravel\Passport\Token::where('user_id', $userId)
+                            ->where('revoked', false)
+                            ->get();
+                        
+                        foreach ($userTokens as $tokenObj) {
+                            if (hash('sha256', $token) === $tokenObj->id) {
+                                $accessToken = $tokenObj;
+                                break;
+                            }
+                        }
+                    }
+                }
+            } catch (\Exception $e) {
+                // Ignore
+            }
+        }
+
+        if (!$accessToken) {
+            return response()->json([
+                'success' => false,
+                'valid' => false,
+                'message' => 'Token not found or revoked'
+            ], 401);
+        }
+
+        // Check if token is expired
+        if ($accessToken->expires_at && $accessToken->expires_at->isPast()) {
+            return response()->json([
+                'success' => false,
+                'valid' => false,
+                'message' => 'Token has expired'
+            ], 401);
+        }
+
+        // Check if user is still active
+        $user = $accessToken->user;
+        if (!$user || !$user->isActive()) {
+            return response()->json([
+                'success' => false,
+                'valid' => false,
+                'message' => 'User is inactive'
+            ], 401);
+        }
+
+        // Token is valid
+        return response()->json([
+            'success' => true,
+            'valid' => true,
+            'user_id' => $user->id
+        ]);
+    }
+
+    /**
      * Validate SSO token and return user info
      */
     public function validateToken(Request $request): JsonResponse
