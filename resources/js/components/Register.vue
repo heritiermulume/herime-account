@@ -4,7 +4,7 @@
       <!-- Logo -->
       <div class="text-center mb-8">
         <img 
-          src="/logo.png" 
+          src="/logo-principal.png" 
           alt="HERIME Logo" 
           class="h-12 w-auto mx-auto mb-4"
         />
