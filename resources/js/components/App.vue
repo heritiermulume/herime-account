@@ -11,7 +11,8 @@
     </div>
 
     <!-- Main Content -->
-    <div v-else class="min-h-screen">
+    <!-- IMPORTANT: Toujours rendre le contenu pour que Auth.vue puisse se monter et déclencher la redirection -->
+    <div class="min-h-screen" :class="{ 'opacity-0 pointer-events-none': loading || isSSORedirecting || shouldShowSSOOverlay || initialSSOCheck || (typeof window !== 'undefined' && window.sessionStorage && window.sessionStorage.getItem('sso_redirecting') === 'true' && route && route.query && (route.query.redirect || route.query.force_token)) }">
         <!-- Sidebar - Hide on login/register pages -->
         <Sidebar v-if="user && route && route.path !== '/login' && route.path !== '/register'" />
       
