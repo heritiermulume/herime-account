@@ -272,8 +272,17 @@ export default {
     onMounted(async () => {
       console.log('[Auth] onMounted - Début', {
         isRedirecting: isRedirecting.value,
-        path: route.path
+        path: route.path,
+        hasRedirect: !!route.query.redirect,
+        hasForceToken: !!route.query.force_token
       })
+      
+      // Réinitialiser le flag SSO si on arrive sur la page sans paramètre redirect/force_token
+      if (!route.query.redirect && !route.query.force_token) {
+        authStore.isSSORedirecting = false
+        isRedirecting.value = false
+        redirectPromise.value = null
+      }
       
       // Si on est en train de rediriger, ne pas continuer
       if (isRedirecting.value || redirectPromise.value) {
