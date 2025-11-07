@@ -10,6 +10,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
+use Laravel\Passport\Token as PassportToken;
 
 class SSOController extends Controller
 {
@@ -31,37 +32,7 @@ class SSOController extends Controller
         }
 
         $token = $request->token;
-        $tokenHash = hash('sha256', $token);
-        
-        // Quick check: just verify if token exists and is not revoked
-        $accessToken = \Laravel\Passport\Token::where('id', $tokenHash)
-            ->where('revoked', false)
-            ->first();
-
-        if (!$accessToken) {
-            // Try to find by user_id if hash doesn't match
-            try {
-                $parts = explode('.', $token);
-                if (count($parts) === 3) {
-                    $payload = json_decode(base64_decode(strtr($parts[1], '-_', '+/')), true);
-                    if ($payload && isset($payload['sub'])) {
-                        $userId = $payload['sub'];
-                        $userTokens = \Laravel\Passport\Token::where('user_id', $userId)
-                            ->where('revoked', false)
-                            ->get();
-                        
-                        foreach ($userTokens as $tokenObj) {
-                            if (hash('sha256', $token) === $tokenObj->id) {
-                                $accessToken = $tokenObj;
-                                break;
-                            }
-                        }
-                    }
-                }
-            } catch (\Exception $e) {
-                // Ignore
-            }
-        }
+        $accessToken = $this->findAccessToken($token);
 
         if (!$accessToken) {
             return response()->json([
@@ -121,10 +92,7 @@ class SSOController extends Controller
 
         // Passport stores token IDs as SHA-256 hash of the JWT token
         // Try to find the token by its hash first
-        $tokenHash = hash('sha256', $token);
-        $accessToken = \Laravel\Passport\Token::where('id', $tokenHash)
-            ->where('revoked', false)
-            ->first();
+        $accessToken = $this->findAccessToken($token);
 
         // If not found by hash, try to decode JWT and get user_id from payload
         // This handles cases where the token format might be different
@@ -573,61 +541,12 @@ class SSOController extends Controller
         $tokenString = $request->input('token');
 
         try {
-            // Passport stores token IDs as SHA-256 hash of the JWT token
-            // First, try to find the token by its hash
-            $tokenHash = hash('sha256', $tokenString);
-            $accessToken = \Laravel\Passport\Token::where('id', $tokenHash)
-                ->where('revoked', false)
-                ->first();
+            $accessToken = $this->findAccessToken($tokenString);
 
-            // If not found by hash, try to decode JWT and get user_id from payload
             if (!$accessToken) {
-                $parts = explode('.', $tokenString);
-                if (count($parts) !== 3) {
-                    return response()->json([
-                        'valid' => false
-                    ], 200);
-                }
-
-                // Decode JWT payload (without verification, as we'll verify via database)
-                $payload = json_decode(base64_decode(strtr($parts[1], '-_', '+/')), true);
-                
-                if (!$payload || !isset($payload['sub'])) {
-                    return response()->json([
-                        'valid' => false
-                    ], 200);
-                }
-
-                $userId = $payload['sub'];
-                
-                // Find user and check if they have any valid tokens
-                $user = User::find($userId);
-                if (!$user) {
-                    return response()->json([
-                        'valid' => false
-                    ], 200);
-                }
-
-                // Check if token exists for this user (by checking all user tokens)
-                $userTokens = \Laravel\Passport\Token::where('user_id', $userId)
-                    ->where('revoked', false)
-                    ->get();
-
-                $tokenFound = false;
-                foreach ($userTokens as $token) {
-                    if (hash('sha256', $tokenString) === $token->id) {
-                        $accessToken = $token;
-                        $tokenFound = true;
-                        break;
-                    }
-                }
-
-                // If still not found, token is invalid
-                if (!$accessToken) {
-                    return response()->json([
-                        'valid' => false
-                    ], 200);
-                }
+                return response()->json([
+                    'valid' => false
+                ], 200);
             }
 
             $user = $accessToken->user;
@@ -692,5 +611,68 @@ class SSOController extends Controller
         ]);
 
         return "https://{$clientDomain}/sso/callback?{$params}";
+    }
+
+    /**
+     * Find a Passport token record from the raw token string.
+     */
+    private function findAccessToken(string $token): ?PassportToken
+    {
+        if (!$token) {
+            return null;
+        }
+
+        $tokenHash = hash('sha256', $token);
+
+        $accessToken = PassportToken::where('id', $tokenHash)
+            ->where('revoked', false)
+            ->first();
+
+        if ($accessToken) {
+            return $accessToken;
+        }
+
+        $payload = $this->decodeJwtPayload($token);
+
+        if ($payload && isset($payload['jti'])) {
+            $jti = $payload['jti'];
+
+            $accessToken = PassportToken::where('id', $jti)
+                ->where('revoked', false)
+                ->first();
+
+            if ($accessToken) {
+                return $accessToken;
+            }
+
+            $accessToken = PassportToken::where('id', hash('sha256', $jti))
+                ->where('revoked', false)
+                ->first();
+
+            if ($accessToken) {
+                return $accessToken;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Decode a JWT payload without verification.
+     */
+    private function decodeJwtPayload(string $token): ?array
+    {
+        try {
+            $parts = explode('.', $token);
+            if (count($parts) !== 3) {
+                return null;
+            }
+
+            $payload = json_decode(base64_decode(strtr($parts[1], '-_', '+/')), true);
+
+            return is_array($payload) ? $payload : null;
+        } catch (\Throwable $e) {
+            return null;
+        }
     }
 }

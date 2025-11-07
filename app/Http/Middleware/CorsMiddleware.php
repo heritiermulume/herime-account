@@ -17,6 +17,7 @@ class CorsMiddleware
     {
         $allowedOrigins = config('cors.allowed_origins', []);
         $allowedHeaders = config('cors.allowed_headers', ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept']);
+        $maxAge = (int) config('cors.max_age', 0);
         $origin = $request->headers->get('Origin');
 
         $isOriginAllowed = false;
@@ -58,10 +59,27 @@ class CorsMiddleware
 
         $response->headers->set('Vary', 'Origin');
         $response->headers->set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-        $response->headers->set('Access-Control-Allow-Headers', implode(', ', array_unique(array_merge([
-            'Content-Type', 'Authorization', 'X-Requested-With', 'Accept'
-        ], $allowedHeaders))));
-        $response->headers->set('Access-Control-Allow-Credentials', 'true');
+
+        $requestHeaders = $request->headers->get('Access-Control-Request-Headers');
+        if ($requestHeaders) {
+            $response->headers->set('Access-Control-Allow-Headers', $requestHeaders);
+        } else {
+            if (in_array('*', $allowedHeaders, true)) {
+                $response->headers->set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept');
+            } else {
+                $response->headers->set('Access-Control-Allow-Headers', implode(', ', array_unique(array_merge([
+                    'Content-Type', 'Authorization', 'X-Requested-With', 'Accept'
+                ], $allowedHeaders))));
+            }
+        }
+
+        if ($maxAge > 0) {
+            $response->headers->set('Access-Control-Max-Age', (string) $maxAge);
+        }
+
+        if ($isOriginAllowed) {
+            $response->headers->set('Access-Control-Allow-Credentials', 'true');
+        }
 
         return $response;
     }

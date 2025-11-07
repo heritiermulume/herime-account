@@ -85,7 +85,7 @@ class SSOTest extends TestCase
         $response->assertStatus(200)
             ->assertJson([
                 'success' => true,
-                'message' => 'Logout successful',
+                'message' => 'Déconnexion réussie. Toutes les sessions ont été fermées et tous les tokens ont été invalidés.',
             ]);
     }
 
@@ -236,7 +236,7 @@ class SSOTest extends TestCase
         $response->assertStatus(401)
             ->assertJson([
                 'success' => false,
-                'message' => 'Invalid credentials',
+                'message' => 'Identifiants incorrects. Veuillez vérifier votre email et mot de passe.',
             ]);
     }
 
