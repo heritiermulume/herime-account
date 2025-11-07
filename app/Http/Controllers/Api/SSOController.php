@@ -542,13 +542,6 @@ class SSOController extends Controller
      */
     public function validateTokenWithSecret(Request $request): JsonResponse
     {
-        // Validate request method - only POST allowed
-        if (!$request->isMethod('post')) {
-            return response()->json([
-                'valid' => false
-            ], 405);
-        }
-
         // Validate request body - token is required
         $validator = Validator::make($request->all(), [
             'token' => 'required|string',
