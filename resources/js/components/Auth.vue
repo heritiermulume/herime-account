@@ -164,13 +164,16 @@ export default {
           return
         }
         
-        // Vérifier l'authentification
+        // OPTIMISATION: Vérifier l'authentification avec timeout pour éviter les attentes longues
         let isAuthenticated = false
         
         try {
-          isAuthenticated = await authStore.checkAuth()
+          isAuthenticated = await Promise.race([
+            authStore.checkAuth(),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Auth check timeout')), 5000))
+          ])
         } catch (error) {
-          // En cas d'erreur, nettoyer les flags
+          // En cas d'erreur ou timeout, nettoyer les flags et considérer comme non authentifié
           if (typeof window !== 'undefined') {
             sessionStorage.removeItem('sso_redirecting')
           }
@@ -316,7 +319,18 @@ export default {
             isRedirecting.value = false
             authStore.isSSORedirecting = false
           } else {
-            const isAuthenticated = await authStore.checkAuth()
+            // OPTIMISATION: Vérifier l'authentification avec timeout
+            let isAuthenticated = false
+            try {
+              isAuthenticated = await Promise.race([
+                authStore.checkAuth(),
+                new Promise((_, reject) => setTimeout(() => reject(new Error('Auth check timeout')), 5000))
+              ])
+            } catch (error) {
+              // En cas de timeout, considérer comme non authentifié
+              isAuthenticated = false
+            }
+            
             if (!isAuthenticated) {
               sessionStorage.removeItem('sso_redirecting')
               isRedirecting.value = false
@@ -373,7 +387,18 @@ export default {
         return
       }
       
-      const isAuthenticated = await authStore.checkAuth()
+      // OPTIMISATION: Vérifier l'authentification avec timeout
+      let isAuthenticated = false
+      try {
+        isAuthenticated = await Promise.race([
+          authStore.checkAuth(),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Auth check timeout')), 5000))
+        ])
+      } catch (error) {
+        // En cas de timeout, utiliser l'état actuel du store
+        isAuthenticated = authStore.authenticated
+      }
+      
       if (isAuthenticated && !isRedirecting.value) {
         // Redirection normale vers dashboard seulement si pas de force_token
           router.push('/dashboard')

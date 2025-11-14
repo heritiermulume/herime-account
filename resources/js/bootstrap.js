@@ -15,6 +15,8 @@ axios.defaults.baseURL = baseURL
 axios.defaults.headers.common['Accept'] = 'application/json'
 axios.defaults.headers.common['Content-Type'] = 'application/json'
 axios.defaults.headers.common['X-Requested-With'] = 'XMLHttpRequest'
+// Set timeout to 10 seconds to prevent long waits
+axios.defaults.timeout = 10000
 
 // Set up axios interceptor for token
 axios.interceptors.request.use((config) => {

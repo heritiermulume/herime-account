@@ -249,7 +249,7 @@ export const useAuthStore = defineStore('auth', {
         }
       }
       
-      // Vérifier si on a un token dans localStorage
+      // Vérifier si on a un token dans localStorage - OPTIMISATION: retourner immédiatement si pas de token
       const token = localStorage.getItem('access_token')
       if (!token) {
         this.user = null
@@ -258,11 +258,15 @@ export const useAuthStore = defineStore('auth', {
         return false
       }
 
-      // Si on a déjà un user dans le state et authenticated, le retourner
+      // OPTIMISATION: Si on a déjà un user dans le state et authenticated, vérifier rapidement avec un timeout court
       if (this.authenticated && this.user) {
-        // Vérifier quand même avec l'API pour s'assurer que le token est toujours valide
+        // Vérifier avec l'API mais avec un timeout court pour éviter les attentes longues
         try {
-          const response = await axios.get('/me')
+          const response = await Promise.race([
+            axios.get('/me', { timeout: 5000 }), // Timeout de 5 secondes pour les vérifications rapides
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000))
+          ])
+          
           if (response.data.success && response.data.data.user) {
             this.user = response.data.data.user
             this.authenticated = true
@@ -276,14 +280,18 @@ export const useAuthStore = defineStore('auth', {
             this.forceLogout()
             return false
           }
-          // Pour les autres erreurs, garder l'utilisateur connecté
+          // Pour les autres erreurs (timeout, network, etc.), garder l'utilisateur connecté si on a déjà un user en cache
+          // Cela évite de déconnecter l'utilisateur en cas de problème réseau temporaire
           return true
         }
       }
 
-      // Si pas de user mais on a un token, essayer de récupérer l'utilisateur
+      // Si pas de user mais on a un token, essayer de récupérer l'utilisateur avec timeout
       try {
-        const response = await axios.get('/me')
+        const response = await Promise.race([
+          axios.get('/me', { timeout: 5000 }), // Timeout de 5 secondes
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000))
+        ])
         
         if (response.data.success && response.data.data.user) {
           this.user = response.data.data.user
@@ -301,10 +309,12 @@ export const useAuthStore = defineStore('auth', {
           this.forceLogout()
           return false
         }
-        // Pour les autres erreurs (network, 500, etc.), essayer de garder l'utilisateur si on a déjà un user en cache
+        // Pour les autres erreurs (timeout, network, 500, etc.), ne pas déconnecter si on a déjà un user en cache
+        // Cela évite de déconnecter l'utilisateur en cas de problème réseau temporaire
         if (this.user) {
           return true
         }
+        // Si pas de user en cache et erreur réseau/timeout, considérer comme non authentifié
         this.forceLogout()
         return false
       }

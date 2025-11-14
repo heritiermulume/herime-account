@@ -125,14 +125,29 @@ router.beforeEach(async (to, from, next) => {
       return
     }
     
-    
-    // Vérifier le token dans localStorage directement
+    // OPTIMISATION: Vérifier le token dans localStorage directement AVANT checkAuth()
     const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null
-  
-  // Vérifier l'authentification
-    await authStore.checkAuth()
-    const isAuthenticated = authStore.authenticated
     
+    // Si pas de token, pas besoin d'appeler checkAuth() - l'utilisateur n'est pas connecté
+    if (!token) {
+      // Utilisateur pas authentifié, afficher le formulaire de login
+      next()
+      return
+    }
+  
+    // OPTIMISATION: Vérifier l'authentification seulement si on a un token
+    // Utiliser un timeout pour éviter les attentes trop longues
+    try {
+      await Promise.race([
+        authStore.checkAuth(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Auth check timeout')), 5000))
+      ])
+    } catch (error) {
+      // En cas de timeout ou d'erreur, considérer comme non authentifié
+      // Auth.vue gérera l'affichage du formulaire de login
+    }
+    
+    const isAuthenticated = authStore.authenticated
     
     if (isAuthenticated) {
       // Permettre l'accès, Auth.vue gérera la redirection SSO
@@ -145,8 +160,24 @@ router.beforeEach(async (to, from, next) => {
     }
   }
   
-  // Vérifier l'authentification pour les autres cas
-  await authStore.checkAuth()
+  // OPTIMISATION: Vérifier l'authentification pour les autres cas avec timeout
+  // Vérifier d'abord si on a un token avant d'appeler checkAuth()
+  const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null
+  
+  if (token) {
+    try {
+      await Promise.race([
+        authStore.checkAuth(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Auth check timeout')), 5000))
+      ])
+    } catch (error) {
+      // En cas de timeout, utiliser l'état actuel du store
+    }
+  } else {
+    // Pas de token, forcer l'état non authentifié
+    authStore.authenticated = false
+    authStore.user = null
+  }
   
   const isAuthenticated = authStore.authenticated
   const user = authStore.user
