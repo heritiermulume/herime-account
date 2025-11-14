@@ -69,7 +69,8 @@ export default {
     // Protection contre les boucles de redirection
     const checkForRedirectLoop = () => {
       const redirectingKey = 'sso_redirecting'
-      const redirectingTimestamp = sessionStorage.getItem(redirectingKey)
+      const redirectingTimestampKey = 'sso_redirecting_timestamp'
+      const redirectingTimestamp = sessionStorage.getItem(redirectingTimestampKey)
       
       // Vérifier si on vient d'un autre domaine (academie.herime.com)
       // Si oui, nettoyer sessionStorage car c'est une nouvelle session
@@ -82,6 +83,7 @@ export default {
           // Si on vient d'un autre domaine, c'est normal, nettoyer
           if (refererHost !== currentHost && refererHost !== 'compte.herime.com') {
             sessionStorage.removeItem(redirectingKey)
+            sessionStorage.removeItem(redirectingTimestampKey)
             return false
           }
         } catch (e) {
@@ -93,17 +95,18 @@ export default {
         const now = Date.now()
         const elapsed = now - parseInt(redirectingTimestamp, 10)
         
-        // Si moins de 5 secondes se sont écoulées, on est probablement dans une boucle
-        if (elapsed < 5000) {
-          // Nettoyer et arrêter
+        // Si moins de 3 secondes se sont écoulées, on est probablement dans une boucle
+        if (elapsed < 3000) {
+          // Nettoyer et arrêter - ne pas rediriger vers dashboard pour éviter une autre boucle
           sessionStorage.removeItem(redirectingKey)
-          
-          // Rediriger vers dashboard pour arrêter la boucle
-          router.push('/dashboard')
+          sessionStorage.removeItem(redirectingTimestampKey)
+          isRedirecting.value = false
+          authStore.isSSORedirecting = false
           return true
         }
-        // Plus de 5 secondes, considérer que c'est une nouvelle tentative
+        // Plus de 3 secondes, considérer que c'est une nouvelle tentative
         sessionStorage.removeItem(redirectingKey)
+        sessionStorage.removeItem(redirectingTimestampKey)
       }
       
       return false
@@ -147,6 +150,7 @@ export default {
         // Cela empêche App.vue de rendre l'interface même pendant la vérification
         if (typeof window !== 'undefined') {
           sessionStorage.setItem('sso_redirecting', 'true')
+          sessionStorage.setItem('sso_redirecting_timestamp', Date.now().toString())
         }
         isRedirecting.value = true
         authStore.isSSORedirecting = true
@@ -158,6 +162,7 @@ export default {
           // Nettoyer les flags si pas de token
           if (typeof window !== 'undefined') {
             sessionStorage.removeItem('sso_redirecting')
+            sessionStorage.removeItem('sso_redirecting_timestamp')
           }
           isRedirecting.value = false
           authStore.isSSORedirecting = false
@@ -176,6 +181,7 @@ export default {
           // En cas d'erreur ou timeout, nettoyer les flags et considérer comme non authentifié
           if (typeof window !== 'undefined') {
             sessionStorage.removeItem('sso_redirecting')
+            sessionStorage.removeItem('sso_redirecting_timestamp')
           }
           isRedirecting.value = false
           authStore.isSSORedirecting = false
@@ -186,6 +192,7 @@ export default {
           // Nettoyer les flags si l'utilisateur n'est pas authentifié
           if (typeof window !== 'undefined') {
             sessionStorage.removeItem('sso_redirecting')
+            sessionStorage.removeItem('sso_redirecting_timestamp')
           }
           isRedirecting.value = false
           authStore.isSSORedirecting = false
@@ -202,8 +209,10 @@ export default {
         if (!redirect) {
           if (typeof window !== 'undefined') {
             sessionStorage.removeItem('sso_redirecting')
+            sessionStorage.removeItem('sso_redirecting_timestamp')
           }
           isRedirecting.value = false
+          authStore.isSSORedirecting = false
           return
         }
         
@@ -231,6 +240,7 @@ export default {
                 if (callbackHost === currentHost || callbackHost === 'compte.herime.com') {
                   if (typeof window !== 'undefined') {
                     sessionStorage.removeItem('sso_redirecting')
+                    sessionStorage.removeItem('sso_redirecting_timestamp')
                   }
                   isRedirecting.value = false
                   authStore.isSSORedirecting = false
@@ -242,6 +252,7 @@ export default {
               // IMPORTANT: S'assurer que les flags sont bien à true avant la redirection
               if (typeof window !== 'undefined') {
                 sessionStorage.setItem('sso_redirecting', 'true')
+                sessionStorage.setItem('sso_redirecting_timestamp', Date.now().toString())
               }
               isRedirecting.value = true
               authStore.isSSORedirecting = true
@@ -254,6 +265,7 @@ export default {
             } else {
               if (typeof window !== 'undefined') {
                 sessionStorage.removeItem('sso_redirecting')
+                sessionStorage.removeItem('sso_redirecting_timestamp')
               }
               isRedirecting.value = false
               authStore.isSSORedirecting = false
@@ -262,6 +274,7 @@ export default {
           } catch (error) {
             if (typeof window !== 'undefined') {
               sessionStorage.removeItem('sso_redirecting')
+              sessionStorage.removeItem('sso_redirecting_timestamp')
             }
             isRedirecting.value = false
             authStore.isSSORedirecting = false
@@ -304,14 +317,23 @@ export default {
         redirectPromise.value = null
         if (typeof window !== 'undefined') {
           sessionStorage.removeItem('sso_redirecting')
+          sessionStorage.removeItem('sso_redirecting_timestamp')
         }
       }
       
+      // OPTIMISATION: Si onBeforeMount a déjà géré la redirection (redirectPromise existe), ne rien faire
+      // Cela évite les appels redondants et les boucles
+      if (redirectPromise.value) {
+        return
+      }
+      
       // Si une redirection SSO est en cours ET qu'on a les paramètres, vérifier si c'est vraiment nécessaire
-      if (typeof window !== 'undefined' && sessionStorage.getItem('sso_redirecting') === 'true') {
+      // Mais seulement si onBeforeMount n'a pas déjà géré la redirection
+      if (typeof window !== 'undefined' && sessionStorage.getItem('sso_redirecting') === 'true' && !redirectPromise.value) {
         // Si on n'a pas de paramètres redirect/force_token, nettoyer le flag
         if (!route.query.redirect && !route.query.force_token) {
           sessionStorage.removeItem('sso_redirecting')
+          sessionStorage.removeItem('sso_redirecting_timestamp')
           isRedirecting.value = false
           authStore.isSSORedirecting = false
         } else {
@@ -319,6 +341,7 @@ export default {
           const token = localStorage.getItem('access_token')
           if (!token) {
             sessionStorage.removeItem('sso_redirecting')
+            sessionStorage.removeItem('sso_redirecting_timestamp')
             isRedirecting.value = false
             authStore.isSSORedirecting = false
           } else {
@@ -327,7 +350,7 @@ export default {
             try {
               isAuthenticated = await Promise.race([
                 authStore.checkAuth(),
-                new Promise((_, reject) => setTimeout(() => reject(new Error('Auth check timeout')), 5000))
+                new Promise((_, reject) => setTimeout(() => reject(new Error('Auth check timeout')), 3000))
               ])
             } catch (error) {
               // En cas de timeout, considérer comme non authentifié
@@ -336,6 +359,7 @@ export default {
             
             if (!isAuthenticated) {
               sessionStorage.removeItem('sso_redirecting')
+              sessionStorage.removeItem('sso_redirecting_timestamp')
               isRedirecting.value = false
               authStore.isSSORedirecting = false
             } else {
@@ -354,10 +378,15 @@ export default {
                     
                     if (response.data?.success && response.data?.data?.callback_url) {
                       const callbackUrl = response.data.data.callback_url
+                      if (typeof window !== 'undefined') {
+                        sessionStorage.setItem('sso_redirecting', 'true')
+                        sessionStorage.setItem('sso_redirecting_timestamp', Date.now().toString())
+                      }
                       window.location.replace(callbackUrl)
                     }
                   } catch (error) {
                     sessionStorage.removeItem('sso_redirecting')
+                    sessionStorage.removeItem('sso_redirecting_timestamp')
                     isRedirecting.value = false
                     authStore.isSSORedirecting = false
                   }
