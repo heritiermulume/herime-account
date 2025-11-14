@@ -164,13 +164,13 @@ export default {
           return
         }
         
-        // OPTIMISATION: Vérifier l'authentification avec timeout pour éviter les attentes longues
+        // OPTIMISATION: Vérifier l'authentification avec timeout court (3 secondes) pour accélérer
         let isAuthenticated = false
         
         try {
           isAuthenticated = await Promise.race([
             authStore.checkAuth(),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('Auth check timeout')), 5000))
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Auth check timeout')), 3000))
           ])
         } catch (error) {
           // En cas d'erreur ou timeout, nettoyer les flags et considérer comme non authentifié
@@ -211,10 +211,13 @@ export default {
         // Utiliser une fonction async et l'exécuter immédiatement
         const performRedirect = async () => {
           try {
-            
-            const response = await axios.post('/sso/generate-token', {
-              redirect: redirect
-            })
+            // OPTIMISATION: Timeout court pour la génération du token SSO (3 secondes)
+            const response = await Promise.race([
+              axios.post('/sso/generate-token', {
+                redirect: redirect
+              }, { timeout: 3000 }),
+              new Promise((_, reject) => setTimeout(() => reject(new Error('SSO token generation timeout')), 3000))
+            ])
             
             
             if (response.data && response.data.success && response.data.data && response.data.data.callback_url) {
@@ -341,9 +344,13 @@ export default {
                 isRedirecting.value = true
                 const performRedirect = async () => {
                   try {
-                    const response = await axios.post('/sso/generate-token', {
-                      redirect: route.query.redirect
-                    })
+                    // OPTIMISATION: Timeout court pour la génération du token SSO (3 secondes)
+                    const response = await Promise.race([
+                      axios.post('/sso/generate-token', {
+                        redirect: route.query.redirect
+                      }, { timeout: 3000 }),
+                      new Promise((_, reject) => setTimeout(() => reject(new Error('SSO token generation timeout')), 3000))
+                    ])
                     
                     if (response.data?.success && response.data?.data?.callback_url) {
                       const callbackUrl = response.data.data.callback_url

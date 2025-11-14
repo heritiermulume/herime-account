@@ -263,8 +263,8 @@ export const useAuthStore = defineStore('auth', {
         // Vérifier avec l'API mais avec un timeout court pour éviter les attentes longues
         try {
           const response = await Promise.race([
-            axios.get('/me', { timeout: 5000 }), // Timeout de 5 secondes pour les vérifications rapides
-            new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000))
+            axios.get('/me', { timeout: 3000 }), // Timeout de 3 secondes pour les vérifications rapides
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 3000))
           ])
           
           if (response.data.success && response.data.data.user) {
@@ -289,8 +289,8 @@ export const useAuthStore = defineStore('auth', {
       // Si pas de user mais on a un token, essayer de récupérer l'utilisateur avec timeout
       try {
         const response = await Promise.race([
-          axios.get('/me', { timeout: 5000 }), // Timeout de 5 secondes
-          new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000))
+          axios.get('/me', { timeout: 3000 }), // Timeout de 3 secondes pour accélérer
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 3000))
         ])
         
         if (response.data.success && response.data.data.user) {
