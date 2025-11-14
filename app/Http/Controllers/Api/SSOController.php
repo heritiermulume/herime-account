@@ -262,7 +262,46 @@ class SSOController extends Controller
         $token = $user->createToken('SSO Token', ['profile'])->accessToken;
         
         // Build callback URL with token
-        $callbackUrl = $redirectUrl . (strpos($redirectUrl, '?') !== false ? '&' : '?') . 'token=' . urlencode($token);
+        // Si l'URL de redirection contient déjà un paramètre token, le remplacer
+        // Sinon, ajouter le nouveau token
+        $parsedUrl = parse_url($redirectUrl);
+        
+        if (!$parsedUrl || !isset($parsedUrl['scheme']) || !isset($parsedUrl['host'])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid redirect URL format'
+            ], 422);
+        }
+        
+        $queryParams = [];
+        
+        // Extraire les paramètres de requête existants
+        if (isset($parsedUrl['query'])) {
+            parse_str($parsedUrl['query'], $queryParams);
+        }
+        
+        // Remplacer ou ajouter le paramètre token
+        $queryParams['token'] = $token;
+        
+        // Reconstruire l'URL avec le nouveau token
+        $newQuery = http_build_query($queryParams);
+        $callbackUrl = $parsedUrl['scheme'] . '://' . $parsedUrl['host'];
+        
+        if (isset($parsedUrl['port'])) {
+            $callbackUrl .= ':' . $parsedUrl['port'];
+        }
+        
+        if (isset($parsedUrl['path'])) {
+            $callbackUrl .= $parsedUrl['path'];
+        }
+        
+        if ($newQuery) {
+            $callbackUrl .= '?' . $newQuery;
+        }
+        
+        if (isset($parsedUrl['fragment'])) {
+            $callbackUrl .= '#' . $parsedUrl['fragment'];
+        }
         
         // Vérifier une dernière fois que callback_url ne pointe pas vers le même domaine
         if ($currentHost) {
