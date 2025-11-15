@@ -127,6 +127,38 @@ router.beforeEach(async (to, from, next) => {
     }
   }
   
+  // Vérifier la boucle directement dans le router AVANT toute autre vérification
+  if (hasForceToken && to.path === '/login' && typeof window !== 'undefined') {
+    const lastRedirectTo = sessionStorage.getItem('sso_last_redirect_to')
+    const redirectingTimestamp = sessionStorage.getItem('sso_redirecting_timestamp')
+    
+    if (lastRedirectTo && redirectingTimestamp) {
+      const now = Date.now()
+      const elapsed = now - parseInt(redirectingTimestamp, 10)
+      const currentHost = window.location.hostname.replace(/^www\./, '').toLowerCase()
+      
+      // Si on a redirigé vers un domaine externe récemment (moins de 10 secondes)
+      // ET qu'on est de retour sur compte.herime.com avec force_token, c'est une boucle
+      if (elapsed < 10000 && lastRedirectTo !== 'compte.herime.com' && currentHost === 'compte.herime.com') {
+        console.log('[ROUTER] SSO loop detected in router, setting flag and allowing access to login page')
+        sessionStorage.setItem('sso_loop_detected', 'true')
+        // Nettoyer les flags
+        sessionStorage.removeItem('sso_redirecting')
+        sessionStorage.removeItem('sso_redirecting_timestamp')
+        sessionStorage.removeItem('sso_redirecting_url')
+        sessionStorage.removeItem('sso_redirect_attempts')
+        sessionStorage.removeItem('sso_last_redirect_to')
+        // Nettoyer ce flag après 30 secondes
+        setTimeout(() => {
+          sessionStorage.removeItem('sso_loop_detected')
+        }, 30000)
+        // Permettre l'accès à la page de login
+        next()
+        return
+      }
+    }
+  }
+  
   if (hasForceToken && to.path === '/login') {
     // OPTIMISATION: Éviter toute vérification dans le router quand on a force_token
     // Laisser Auth.vue gérer complètement la logique de redirection SSO
