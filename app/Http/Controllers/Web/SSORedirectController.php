@@ -17,11 +17,18 @@ class SSORedirectController extends Controller
      */
     public function redirect(Request $request)
     {
-        \Log::info('SSO Redirect started', [
+        // DEBUG: Vérifier que le contrôleur est bien appelé
+        // Si on voit ce message dans les logs, le contrôleur s'exécute
+        \Log::info('SSO Redirect Controller called', [
             'url' => $request->fullUrl(),
             'has_token' => $request->has('_token'),
             'session_id' => $request->session()->getId(),
+            'method' => $request->method(),
+            'path' => $request->path(),
         ]);
+        
+        // Forcer l'arrêt de toute exécution après redirection
+        // Ne pas permettre au template Blade de se charger
         
         // PRIORITÉ 1: Vérifier la session web (l'utilisateur est déjà connecté via la session Laravel)
         // C'est la méthode la plus fiable car l'utilisateur vient de la page de login
@@ -73,21 +80,22 @@ class SSORedirectController extends Controller
             ]);
             
             // Rediriger vers la page de login avec les paramètres
+            // Utiliser redirect()->to() pour forcer une redirection interne
             $redirect = $request->query('redirect');
             $redirectParam = $redirect ? '?redirect=' . urlencode($redirect) . '&force_token=1' : '';
-            return redirect('/login' . $redirectParam);
+            return redirect()->to('/login' . $redirectParam);
         }
 
         $redirectUrl = $request->query('redirect');
 
         if (!$redirectUrl) {
-            return redirect('/dashboard')->with('error', 'Redirect URL is required');
+            return redirect()->to('/dashboard')->with('error', 'Redirect URL is required');
         }
 
         try {
             // Vérifier que l'utilisateur est actif
             if (!$user->isActive()) {
-                return redirect('/dashboard')->with('error', 'Your account has been deactivated');
+                return redirect()->to('/dashboard')->with('error', 'Your account has been deactivated');
             }
 
             // Vérifier que le redirect URL ne pointe pas vers le même domaine
@@ -99,7 +107,7 @@ class SSORedirectController extends Controller
                 $currentHost = preg_replace('/^www\./', '', strtolower($currentHost));
                 
                 if ($redirectHost === $currentHost || $redirectHost === 'compte.herime.com') {
-                    return redirect('/dashboard')->with('error', 'Redirect URL cannot point to the same domain');
+                    return redirect()->to('/dashboard')->with('error', 'Redirect URL cannot point to the same domain');
                 }
             }
 
@@ -110,7 +118,7 @@ class SSORedirectController extends Controller
             $parsedUrl = parse_url($redirectUrl);
             
             if (!$parsedUrl || !isset($parsedUrl['scheme']) || !isset($parsedUrl['host'])) {
-                return redirect('/dashboard')->with('error', 'Invalid redirect URL format');
+                return redirect()->to('/dashboard')->with('error', 'Invalid redirect URL format');
             }
             
             $queryParams = [];
@@ -137,9 +145,9 @@ class SSORedirectController extends Controller
             $callbackHost = parse_url($callbackUrl, PHP_URL_HOST);
             if ($callbackHost) {
                 $callbackHost = preg_replace('/^www\./', '', strtolower($callbackHost));
-                if ($callbackHost === $currentHost || $callbackHost === 'compte.herime.com') {
-                    return redirect('/dashboard')->with('error', 'Generated callback URL points to the same domain');
-                }
+                    if ($callbackHost === $currentHost || $callbackHost === 'compte.herime.com') {
+                        return redirect()->to('/dashboard')->with('error', 'Generated callback URL points to the same domain');
+                    }
             }
 
             \Log::info('SSO Redirect - Redirecting to callback', [
@@ -148,7 +156,9 @@ class SSORedirectController extends Controller
             ]);
 
             // Redirection HTTP 302 directe - contourne JavaScript et Vue Router complètement
-            return redirect($callbackUrl);
+            // Utiliser redirect()->away() pour forcer une redirection externe
+            // Cela empêche Laravel d'interpréter la redirection comme interne
+            return redirect()->away($callbackUrl);
 
         } catch (\Exception $e) {
             \Log::error('SSO Redirect Error', [
@@ -158,7 +168,7 @@ class SSORedirectController extends Controller
                 'redirect_url' => $redirectUrl ?? null
             ]);
 
-            return redirect('/dashboard')->with('error', 'An error occurred during SSO redirect');
+            return redirect()->to('/dashboard')->with('error', 'An error occurred during SSO redirect');
         }
     }
     

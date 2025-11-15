@@ -15,6 +15,7 @@ Route::get('/login', [LoginController::class, 'show']);
 Route::get('/logout', [LoginController::class, 'logout']);
 
 // Route SSO de redirection côté serveur (contourne JavaScript/Vue Router)
+// IMPORTANT: Cette route doit être définie AVANT la route de fallback
 // Pas de middleware auth ici - on vérifie l'auth dans le contrôleur pour supporter session ET token
 Route::get('/sso/redirect', [App\Http\Controllers\Web\SSORedirectController::class, 'redirect']);
 
@@ -26,7 +27,7 @@ Route::get('/dashboard', function () {
     return view('welcome');
 });
 
-// Route de fallback pour toutes les routes Vue.js (sauf API)
+// Route de fallback pour toutes les routes Vue.js (sauf API et sso/redirect)
 Route::get('/{any}', function () {
     return view('welcome');
-})->where('any', '^(?!api).*');
+})->where('any', '^(?!api|sso).*');
