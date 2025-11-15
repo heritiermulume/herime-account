@@ -260,6 +260,14 @@ router.beforeEach(async (to, from, next) => {
       return
     }
     
+    // IMPORTANT: Si on a force_token=1, NE JAMAIS rediriger vers /dashboard
+    // Laisser Auth.vue gérer complètement la redirection SSO
+    if (hasForceToken) {
+      console.log('[ROUTER] force_token=1 detected, allowing access to login page for SSO redirect')
+      next()
+      return
+    }
+    
     // Vérifier si on doit rediriger vers un site externe (SSO)
     const redirectParam = to.query.redirect
     if (redirectParam && typeof redirectParam === 'string') {
