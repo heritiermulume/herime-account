@@ -223,8 +223,9 @@ export default {
       
       // Vérifier si on est dans une boucle (AVANT toute autre vérification)
       if (checkForRedirectLoop()) {
-        console.log('[SSO] Loop detected, stopping redirect and breaking the loop')
-        // Si on est dans une boucle, nettoyer TOUT et casser la boucle en supprimant les paramètres de l'URL
+        console.log('[SSO] Loop detected, stopping redirect and showing login form')
+        // Si on est dans une boucle, nettoyer TOUT et afficher le formulaire de login
+        // NE PAS supprimer les paramètres de l'URL car cela pourrait causer une redirection vers le dashboard
         isRedirecting.value = false
         authStore.isSSORedirecting = false
         if (typeof window !== 'undefined') {
@@ -234,21 +235,24 @@ export default {
           sessionStorage.removeItem('sso_redirect_attempts')
           sessionStorage.removeItem('sso_last_redirect_to')
           
-          // CASSER LA BOUCLE : Rediriger vers /login sans les paramètres force_token et redirect
-          // Cela empêche la boucle de continuer
-          const currentUrl = new URL(window.location.href)
-          if (currentUrl.searchParams.has('force_token') || currentUrl.searchParams.has('redirect')) {
-            console.log('[SSO] Removing force_token and redirect parameters to break the loop')
-            currentUrl.searchParams.delete('force_token')
-            currentUrl.searchParams.delete('redirect')
-            // Utiliser replace pour éviter d'ajouter une entrée dans l'historique
-            window.location.replace(currentUrl.toString())
-            return
-          }
+          // Marquer qu'on a détecté une boucle pour éviter de réessayer
+          sessionStorage.setItem('sso_loop_detected', 'true')
+          // Nettoyer ce flag après 30 secondes pour permettre une nouvelle tentative
+          setTimeout(() => {
+            sessionStorage.removeItem('sso_loop_detected')
+          }, 30000)
         }
         // S'assurer que le formulaire de login s'affiche
         console.log('[SSO] Login form should now be visible. isRedirecting:', isRedirecting.value, 'authStore.isSSORedirecting:', authStore.isSSORedirecting)
         // Ne pas essayer de rediriger, juste afficher le formulaire
+        return
+      }
+      
+      // Vérifier si une boucle a été détectée récemment (dans les 30 dernières secondes)
+      if (typeof window !== 'undefined' && sessionStorage.getItem('sso_loop_detected') === 'true') {
+        console.log('[SSO] Loop was recently detected, skipping redirect attempt')
+        isRedirecting.value = false
+        authStore.isSSORedirecting = false
         return
       }
       
