@@ -84,11 +84,11 @@ export default {
       // C'est probablement une boucle car on revient de la redirection
       if (hasForceToken && currentHost === 'compte.herime.com' && lastRedirectTo) {
         const now = Date.now()
-        const elapsed = redirectingTimestamp ? now - parseInt(redirectingTimestamp, 10) : 0
+        const elapsed = redirectingTimestamp ? now - parseInt(redirectingTimestamp, 10) : null
         
-        // Si on a redirigé vers un domaine externe récemment (moins de 15 secondes)
+        // Si on a un timestamp valide ET qu'on a redirigé vers un domaine externe récemment (moins de 15 secondes)
         // ET qu'on est de retour sur compte.herime.com avec force_token, c'est une boucle
-        if (elapsed < 15000 && lastRedirectTo !== 'compte.herime.com') {
+        if (elapsed !== null && elapsed < 15000 && lastRedirectTo !== 'compte.herime.com') {
           console.error('[SSO] LOOP DETECTED: Returned to compte.herime.com with force_token after redirecting to', lastRedirectTo, 'too quickly (', elapsed, 'ms)')
           sessionStorage.removeItem(redirectingKey)
           sessionStorage.removeItem(redirectingTimestampKey)
@@ -96,6 +96,18 @@ export default {
           sessionStorage.removeItem(redirectAttemptsKey)
           sessionStorage.removeItem(lastRedirectToKey)
           return true
+        }
+        
+        // Si on n'a pas de timestamp mais qu'on a lastRedirectTo, c'est peut-être une ancienne redirection
+        // Nettoyer les flags pour permettre une nouvelle tentative
+        if (elapsed === null && lastRedirectTo !== 'compte.herime.com') {
+          console.log('[SSO] No timestamp found but lastRedirectTo exists, cleaning flags to allow new attempt')
+          sessionStorage.removeItem(redirectingKey)
+          sessionStorage.removeItem(redirectingTimestampKey)
+          sessionStorage.removeItem(redirectingUrlKey)
+          sessionStorage.removeItem(redirectAttemptsKey)
+          sessionStorage.removeItem(lastRedirectToKey)
+          // Ne pas retourner true, permettre la redirection
         }
       }
       
