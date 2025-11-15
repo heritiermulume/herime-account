@@ -71,8 +71,10 @@ export default {
       const redirectingKey = 'sso_redirecting'
       const redirectingTimestampKey = 'sso_redirecting_timestamp'
       const redirectingUrlKey = 'sso_redirecting_url'
+      const redirectAttemptsKey = 'sso_redirect_attempts'
       const redirectingTimestamp = sessionStorage.getItem(redirectingTimestampKey)
       const redirectingUrl = sessionStorage.getItem(redirectingUrlKey)
+      const redirectAttempts = parseInt(sessionStorage.getItem(redirectAttemptsKey) || '0', 10)
       const currentUrl = window.location.href
       
       // Vérifier si on vient d'un autre domaine (academie.herime.com, etc.)
@@ -88,10 +90,32 @@ export default {
             sessionStorage.removeItem(redirectingKey)
             sessionStorage.removeItem(redirectingTimestampKey)
             sessionStorage.removeItem(redirectingUrlKey)
+            sessionStorage.removeItem(redirectAttemptsKey)
             return false
           }
         } catch (e) {
           // Ignorer les erreurs de parsing
+        }
+      }
+      
+      // Vérifier le nombre de tentatives - si plus de 3 tentatives en moins de 10 secondes, c'est une boucle
+      if (redirectAttempts >= 3) {
+        const now = Date.now()
+        const elapsed = redirectingTimestamp ? now - parseInt(redirectingTimestamp, 10) : 0
+        
+        if (elapsed < 10000) {
+          // Plus de 3 tentatives en moins de 10 secondes = boucle
+          sessionStorage.removeItem(redirectingKey)
+          sessionStorage.removeItem(redirectingTimestampKey)
+          sessionStorage.removeItem(redirectingUrlKey)
+          sessionStorage.removeItem(redirectAttemptsKey)
+          isRedirecting.value = false
+          authStore.isSSORedirecting = false
+          console.error('SSO redirect loop detected: too many attempts')
+          return true
+        } else {
+          // Plus de 10 secondes, réinitialiser le compteur
+          sessionStorage.setItem(redirectAttemptsKey, '0')
         }
       }
       
@@ -100,21 +124,26 @@ export default {
         const now = Date.now()
         const elapsed = now - parseInt(redirectingTimestamp, 10)
         
-        // Si moins de 5 secondes se sont écoulées ET qu'on est sur la même URL, on est dans une boucle
-        if (elapsed < 5000 && redirectingUrl === currentUrl) {
-          // Nettoyer et arrêter - ne pas rediriger pour éviter une autre boucle
-          sessionStorage.removeItem(redirectingKey)
-          sessionStorage.removeItem(redirectingTimestampKey)
-          sessionStorage.removeItem(redirectingUrlKey)
-          isRedirecting.value = false
-          authStore.isSSORedirecting = false
-          return true
+        // Si moins de 3 secondes se sont écoulées ET qu'on est sur la même URL, on est dans une boucle
+        if (elapsed < 3000 && redirectingUrl === currentUrl) {
+          // Incrémenter le compteur de tentatives
+          sessionStorage.setItem(redirectAttemptsKey, (redirectAttempts + 1).toString())
+          
+          // Si trop de tentatives, arrêter
+          if (redirectAttempts + 1 >= 3) {
+            sessionStorage.removeItem(redirectingKey)
+            sessionStorage.removeItem(redirectingTimestampKey)
+            sessionStorage.removeItem(redirectingUrlKey)
+            sessionStorage.removeItem(redirectAttemptsKey)
+            isRedirecting.value = false
+            authStore.isSSORedirecting = false
+            console.error('SSO redirect loop detected: same URL in less than 3 seconds')
+            return true
+          }
         }
-        // Plus de 5 secondes ou URL différente, considérer que c'est une nouvelle tentative
-        if (elapsed >= 5000 || redirectingUrl !== currentUrl) {
-          sessionStorage.removeItem(redirectingKey)
-          sessionStorage.removeItem(redirectingTimestampKey)
-          sessionStorage.removeItem(redirectingUrlKey)
+        // Plus de 3 secondes ou URL différente, réinitialiser le compteur
+        if (elapsed >= 3000 || redirectingUrl !== currentUrl) {
+          sessionStorage.setItem(redirectAttemptsKey, '0')
         }
       }
       
@@ -158,9 +187,11 @@ export default {
         // Marquer IMMÉDIATEMENT les flags AVANT toute vérification
         // Cela empêche App.vue de rendre l'interface même pendant la vérification
         if (typeof window !== 'undefined') {
+          const currentAttempts = parseInt(sessionStorage.getItem('sso_redirect_attempts') || '0', 10)
           sessionStorage.setItem('sso_redirecting', 'true')
           sessionStorage.setItem('sso_redirecting_timestamp', Date.now().toString())
           sessionStorage.setItem('sso_redirecting_url', window.location.href)
+          sessionStorage.setItem('sso_redirect_attempts', (currentAttempts + 1).toString())
         }
         isRedirecting.value = true
         authStore.isSSORedirecting = true
@@ -174,6 +205,7 @@ export default {
             sessionStorage.removeItem('sso_redirecting')
             sessionStorage.removeItem('sso_redirecting_timestamp')
             sessionStorage.removeItem('sso_redirecting_url')
+            sessionStorage.removeItem('sso_redirect_attempts')
           }
           isRedirecting.value = false
           authStore.isSSORedirecting = false
@@ -194,6 +226,7 @@ export default {
             sessionStorage.removeItem('sso_redirecting')
             sessionStorage.removeItem('sso_redirecting_timestamp')
             sessionStorage.removeItem('sso_redirecting_url')
+            sessionStorage.removeItem('sso_redirect_attempts')
           }
           isRedirecting.value = false
           authStore.isSSORedirecting = false
@@ -206,6 +239,7 @@ export default {
             sessionStorage.removeItem('sso_redirecting')
             sessionStorage.removeItem('sso_redirecting_timestamp')
             sessionStorage.removeItem('sso_redirecting_url')
+            sessionStorage.removeItem('sso_redirect_attempts')
           }
           isRedirecting.value = false
           authStore.isSSORedirecting = false
@@ -224,6 +258,7 @@ export default {
             sessionStorage.removeItem('sso_redirecting')
             sessionStorage.removeItem('sso_redirecting_timestamp')
             sessionStorage.removeItem('sso_redirecting_url')
+            sessionStorage.removeItem('sso_redirect_attempts')
           }
           isRedirecting.value = false
           authStore.isSSORedirecting = false
@@ -362,6 +397,7 @@ export default {
             sessionStorage.removeItem('sso_redirecting')
             sessionStorage.removeItem('sso_redirecting_timestamp')
             sessionStorage.removeItem('sso_redirecting_url')
+            sessionStorage.removeItem('sso_redirect_attempts')
             isRedirecting.value = false
             authStore.isSSORedirecting = false
           } else {
