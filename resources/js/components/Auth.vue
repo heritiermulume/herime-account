@@ -187,6 +187,7 @@ export default {
           sessionStorage.removeItem('sso_redirecting_url')
           sessionStorage.removeItem('sso_redirect_attempts')
           sessionStorage.removeItem('sso_last_redirect_to')
+          sessionStorage.removeItem('sso_last_redirect_to')
         }
         // Ne pas essayer de rediriger, juste afficher le formulaire
         return
@@ -241,6 +242,7 @@ export default {
             sessionStorage.removeItem('sso_redirecting_timestamp')
             sessionStorage.removeItem('sso_redirecting_url')
             sessionStorage.removeItem('sso_redirect_attempts')
+          sessionStorage.removeItem('sso_last_redirect_to')
           }
           isRedirecting.value = false
           authStore.isSSORedirecting = false
@@ -265,6 +267,7 @@ export default {
             sessionStorage.removeItem('sso_redirecting_timestamp')
             sessionStorage.removeItem('sso_redirecting_url')
             sessionStorage.removeItem('sso_redirect_attempts')
+          sessionStorage.removeItem('sso_last_redirect_to')
           }
           isRedirecting.value = false
           authStore.isSSORedirecting = false
@@ -279,6 +282,7 @@ export default {
             sessionStorage.removeItem('sso_redirecting_timestamp')
             sessionStorage.removeItem('sso_redirecting_url')
             sessionStorage.removeItem('sso_redirect_attempts')
+          sessionStorage.removeItem('sso_last_redirect_to')
           }
           isRedirecting.value = false
           authStore.isSSORedirecting = false
@@ -302,6 +306,7 @@ export default {
             sessionStorage.removeItem('sso_redirecting_timestamp')
             sessionStorage.removeItem('sso_redirecting_url')
             sessionStorage.removeItem('sso_redirect_attempts')
+          sessionStorage.removeItem('sso_last_redirect_to')
           }
           isRedirecting.value = false
           authStore.isSSORedirecting = false
@@ -344,6 +349,7 @@ export default {
                     sessionStorage.removeItem('sso_redirecting_timestamp')
                     sessionStorage.removeItem('sso_redirecting_url')
                     sessionStorage.removeItem('sso_redirect_attempts')
+          sessionStorage.removeItem('sso_last_redirect_to')
                   }
                   isRedirecting.value = false
                   authStore.isSSORedirecting = false
@@ -361,6 +367,7 @@ export default {
                 sessionStorage.removeItem('sso_redirecting_timestamp')
                 sessionStorage.removeItem('sso_redirecting_url')
                 sessionStorage.removeItem('sso_redirect_attempts')
+          sessionStorage.removeItem('sso_last_redirect_to')
               }
               
               // Extraire le hostname de la destination pour détecter les boucles
@@ -460,6 +467,7 @@ export default {
             sessionStorage.removeItem('sso_redirecting_timestamp')
             sessionStorage.removeItem('sso_redirecting_url')
             sessionStorage.removeItem('sso_redirect_attempts')
+          sessionStorage.removeItem('sso_last_redirect_to')
             isRedirecting.value = false
             authStore.isSSORedirecting = false
           } else {
