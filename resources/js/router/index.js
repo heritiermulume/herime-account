@@ -118,6 +118,15 @@ router.beforeEach(async (to, from, next) => {
                        to.query.force_token === 'yes' ||
                        to.query.force_token === 'on'
   
+  // Vérifier si une boucle SSO a été détectée - si oui, permettre l'accès à la page de login
+  if (typeof window !== 'undefined' && sessionStorage.getItem('sso_loop_detected') === 'true') {
+    console.log('[ROUTER] SSO loop detected, allowing access to login page')
+    if (to.path === '/login' || to.path === '/register') {
+      next()
+      return
+    }
+  }
+  
   if (hasForceToken && to.path === '/login') {
     // OPTIMISATION: Éviter toute vérification dans le router quand on a force_token
     // Laisser Auth.vue gérer complètement la logique de redirection SSO
