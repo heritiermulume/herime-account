@@ -18,69 +18,69 @@ class SSORedirectController extends Controller
      */
     public function redirect(Request $request)
     {
-        // DEBUG: Forcer l'exécution du contrôleur - SI VOUS VOYEZ CE MESSAGE, LE CONTRÔLEUR S'EXÉCUTE
-        // Envoyons d'abord une réponse HTTP 302 directe pour tester
-        // Si cela fonctionne, nous verrons la redirection
-        
-        \Log::info('SSO Redirect Controller EXECUTING', [
-            'url' => $request->fullUrl(),
-            'has_token' => $request->has('_token'),
-            'session_id' => $request->session()->getId(),
-            'method' => $request->method(),
-            'path' => $request->path(),
-            'all_queries' => $request->query->all(),
-        ]);
-        
-        // PRIORITÉ 1: Récupérer le token depuis le paramètre _token (le plus fiable)
-        // L'utilisateur vient de JavaScript avec un token dans localStorage
-        $tokenString = $request->query('_token');
-        $user = null;
-        
-        \Log::info('SSO Redirect - Starting', [
-            'has_token' => !empty($tokenString),
-            'token_length' => $tokenString ? strlen($tokenString) : 0,
-        ]);
-        
-        if ($tokenString) {
-            // Trouver l'utilisateur via le token Passport
-            $accessToken = $this->findAccessToken($tokenString);
-            
-            if ($accessToken && $accessToken->user) {
-                $user = $accessToken->user;
-                \Log::info('SSO Redirect - User found from token', [
-                    'user_id' => $user->id,
-                ]);
-            } else {
-                \Log::warning('SSO Redirect - Token not found or invalid');
-            }
-        }
-        
-        // PRIORITÉ 2: Si pas de token, essayer la session web
-        if (!$user) {
-            $user = Auth::guard('web')->user();
-            if ($user) {
-                \Log::info('SSO Redirect - User found from session', [
-                    'user_id' => $user->id,
-                ]);
-            }
-        }
-        
-        // Si toujours pas d'utilisateur, rediriger vers login AVEC réponse HTTP 302 directe
-        if (!$user) {
-            \Log::warning('SSO Redirect - No user found, redirecting to login');
-            $redirect = $request->query('redirect');
-            $redirectParam = $redirect ? '?redirect=' . urlencode($redirect) . '&force_token=1' : '';
-            $loginUrl = url('/login' . $redirectParam);
-            return response('', 302)->header('Location', $loginUrl);
-        }
-
-        $redirectUrl = $request->query('redirect');
-
-        if (!$redirectUrl) {
-            return response('', 302)->header('Location', url('/dashboard'));
-        }
-
         try {
+            // DEBUG: Forcer l'exécution du contrôleur - SI VOUS VOYEZ CE MESSAGE, LE CONTRÔLEUR S'EXÉCUTE
+            // Envoyons d'abord une réponse HTTP 302 directe pour tester
+            // Si cela fonctionne, nous verrons la redirection
+            
+            \Log::info('SSO Redirect Controller EXECUTING', [
+                'url' => $request->fullUrl(),
+                'has_token' => $request->has('_token'),
+                'session_id' => $request->hasSession() ? $request->session()->getId() : 'no-session',
+                'method' => $request->method(),
+                'path' => $request->path(),
+                'all_queries' => $request->query->all(),
+            ]);
+            
+            // PRIORITÉ 1: Récupérer le token depuis le paramètre _token (le plus fiable)
+            // L'utilisateur vient de JavaScript avec un token dans localStorage
+            $tokenString = $request->query('_token');
+            $user = null;
+            
+            \Log::info('SSO Redirect - Starting', [
+                'has_token' => !empty($tokenString),
+                'token_length' => $tokenString ? strlen($tokenString) : 0,
+            ]);
+            
+            if ($tokenString) {
+                // Trouver l'utilisateur via le token Passport
+                $accessToken = $this->findAccessToken($tokenString);
+                
+                if ($accessToken && $accessToken->user) {
+                    $user = $accessToken->user;
+                    \Log::info('SSO Redirect - User found from token', [
+                        'user_id' => $user->id,
+                    ]);
+                } else {
+                    \Log::warning('SSO Redirect - Token not found or invalid');
+                }
+            }
+            
+            // PRIORITÉ 2: Si pas de token, essayer la session web
+            if (!$user) {
+                $user = Auth::guard('web')->user();
+                if ($user) {
+                    \Log::info('SSO Redirect - User found from session', [
+                        'user_id' => $user->id,
+                    ]);
+                }
+            }
+            
+            // Si toujours pas d'utilisateur, rediriger vers login AVEC réponse HTTP 302 directe
+            if (!$user) {
+                \Log::warning('SSO Redirect - No user found, redirecting to login');
+                $redirect = $request->query('redirect');
+                $redirectParam = $redirect ? '?redirect=' . urlencode($redirect) . '&force_token=1' : '';
+                $loginUrl = url('/login' . $redirectParam);
+                return response('', 302)->header('Location', $loginUrl);
+            }
+
+            $redirectUrl = $request->query('redirect');
+
+            if (!$redirectUrl) {
+                return response('', 302)->header('Location', url('/dashboard'));
+            }
+
             // Vérifier que l'utilisateur est actif
             if (!$user->isActive()) {
                 return response('', 302)->header('Location', url('/dashboard'));
@@ -154,11 +154,12 @@ class SSORedirectController extends Controller
         } catch (\Exception $e) {
             \Log::error('SSO Redirect Error', [
                 'error' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
                 'trace' => $e->getTraceAsString(),
-                'user_id' => $user->id ?? null,
-                'redirect_url' => $redirectUrl ?? null
             ]);
 
+            // En cas d'erreur, rediriger vers le dashboard
             return response('', 302)->header('Location', url('/dashboard'));
         }
     }
