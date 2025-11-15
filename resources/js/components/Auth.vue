@@ -174,7 +174,6 @@ export default {
             sessionStorage.removeItem('sso_redirecting')
             sessionStorage.removeItem('sso_redirecting_timestamp')
             sessionStorage.removeItem('sso_redirecting_url')
-            sessionStorage.removeItem('sso_redirecting_url')
           }
           isRedirecting.value = false
           authStore.isSSORedirecting = false
@@ -195,7 +194,6 @@ export default {
             sessionStorage.removeItem('sso_redirecting')
             sessionStorage.removeItem('sso_redirecting_timestamp')
             sessionStorage.removeItem('sso_redirecting_url')
-            sessionStorage.removeItem('sso_redirecting_url')
           }
           isRedirecting.value = false
           authStore.isSSORedirecting = false
@@ -207,7 +205,6 @@ export default {
           if (typeof window !== 'undefined') {
             sessionStorage.removeItem('sso_redirecting')
             sessionStorage.removeItem('sso_redirecting_timestamp')
-            sessionStorage.removeItem('sso_redirecting_url')
             sessionStorage.removeItem('sso_redirecting_url')
           }
           isRedirecting.value = false
@@ -251,31 +248,35 @@ export default {
               
               // Vérifier une dernière fois que callbackUrl ne pointe pas vers le même domaine
               try {
-                const callbackHost = new URL(callbackUrl).hostname
-                const currentHost = window.location.hostname
+                const callbackHost = new URL(callbackUrl).hostname.replace(/^www\./, '').toLowerCase()
+                const currentHost = window.location.hostname.replace(/^www\./, '').toLowerCase()
                 
+                // Si le callback pointe vers compte.herime.com, c'est une boucle - arrêter
                 if (callbackHost === currentHost || callbackHost === 'compte.herime.com') {
                   if (typeof window !== 'undefined') {
                     sessionStorage.removeItem('sso_redirecting')
                     sessionStorage.removeItem('sso_redirecting_timestamp')
+                    sessionStorage.removeItem('sso_redirecting_url')
                   }
                   isRedirecting.value = false
                   authStore.isSSORedirecting = false
+                  // Afficher un message d'erreur ou rediriger vers dashboard
+                  console.error('SSO redirect loop detected: callback URL points to same domain')
                   return
                 }
               } catch (e) {
+                console.error('Error parsing callback URL:', e)
               }
               
-              // IMPORTANT: S'assurer que les flags sont bien à true avant la redirection
+              // IMPORTANT: Nettoyer les flags AVANT la redirection pour éviter les boucles
+              // Ne pas garder les flags car on va quitter cette page
               if (typeof window !== 'undefined') {
-                sessionStorage.setItem('sso_redirecting', 'true')
-                sessionStorage.setItem('sso_redirecting_timestamp', Date.now().toString())
-                sessionStorage.setItem('sso_redirecting_url', window.location.href)
+                sessionStorage.removeItem('sso_redirecting')
+                sessionStorage.removeItem('sso_redirecting_timestamp')
+                sessionStorage.removeItem('sso_redirecting_url')
               }
-              isRedirecting.value = true
-              authStore.isSSORedirecting = true
               
-              // Redirection immédiate et définitive
+              // Redirection immédiate et définitive - utiliser replace pour éviter de revenir en arrière
               window.location.replace(callbackUrl)
               
               // Cette ligne ne sera jamais exécutée

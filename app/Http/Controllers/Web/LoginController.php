@@ -72,7 +72,44 @@ class LoginController extends Controller
 
             // Si une URL de redirection a été détectée, rediriger directement via HTTP
             if ($redirectUrl) {
-                $callbackUrl = $redirectUrl . (strpos($redirectUrl, '?') !== false ? '&' : '?') . 'token=' . urlencode($token);
+                // Vérifier que l'URL de redirection ne pointe pas vers le même domaine
+                $redirectHost = parse_url($redirectUrl, PHP_URL_HOST);
+                $currentHost = $request->getHost();
+                
+                // Normaliser les hostnames
+                $redirectHost = preg_replace('/^www\./', '', strtolower($redirectHost ?? ''));
+                $currentHost = preg_replace('/^www\./', '', strtolower($currentHost));
+                
+                // Si l'URL de redirection pointe vers le même domaine, ne pas rediriger (éviter boucle)
+                if ($redirectHost === $currentHost || $redirectHost === 'compte.herime.com') {
+                    // Rediriger vers le dashboard au lieu de créer une boucle
+                    return redirect('/dashboard');
+                }
+                
+                // Construire l'URL de callback avec le token
+                $parsedUrl = parse_url($redirectUrl);
+                $queryParams = [];
+                
+                if (isset($parsedUrl['query'])) {
+                    parse_str($parsedUrl['query'], $queryParams);
+                }
+                
+                $queryParams['token'] = $token;
+                $newQuery = http_build_query($queryParams);
+                
+                $callbackUrl = $parsedUrl['scheme'] . '://' . $parsedUrl['host'];
+                if (isset($parsedUrl['port'])) {
+                    $callbackUrl .= ':' . $parsedUrl['port'];
+                }
+                if (isset($parsedUrl['path'])) {
+                    $callbackUrl .= $parsedUrl['path'];
+                }
+                if ($newQuery) {
+                    $callbackUrl .= '?' . $newQuery;
+                }
+                if (isset($parsedUrl['fragment'])) {
+                    $callbackUrl .= '#' . $parsedUrl['fragment'];
+                }
                 
                 // Redirection HTTP directe - plus fiable qu'une redirection JavaScript
                 return redirect($callbackUrl);
