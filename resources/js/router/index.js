@@ -128,6 +128,7 @@ router.beforeEach(async (to, from, next) => {
   }
   
   // Vérifier la boucle directement dans le router AVANT toute autre vérification
+  // MAIS seulement si l'utilisateur n'est pas authentifié
   if (hasForceToken && to.path === '/login' && typeof window !== 'undefined') {
     const lastRedirectTo = sessionStorage.getItem('sso_last_redirect_to')
     const redirectingTimestamp = sessionStorage.getItem('sso_redirecting_timestamp')
@@ -138,23 +139,40 @@ router.beforeEach(async (to, from, next) => {
       const currentHost = window.location.hostname.replace(/^www\./, '').toLowerCase()
       
       // Si on a redirigé vers un domaine externe récemment (moins de 10 secondes)
-      // ET qu'on est de retour sur compte.herime.com avec force_token, c'est une boucle
+      // ET qu'on est de retour sur compte.herime.com avec force_token, c'est probablement une boucle
+      // MAIS seulement si l'utilisateur n'est pas authentifié
       if (elapsed < 10000 && lastRedirectTo !== 'compte.herime.com' && currentHost === 'compte.herime.com') {
-        console.log('[ROUTER] SSO loop detected in router, setting flag and allowing access to login page')
-        sessionStorage.setItem('sso_loop_detected', 'true')
-        // Nettoyer les flags
-        sessionStorage.removeItem('sso_redirecting')
-        sessionStorage.removeItem('sso_redirecting_timestamp')
-        sessionStorage.removeItem('sso_redirecting_url')
-        sessionStorage.removeItem('sso_redirect_attempts')
-        sessionStorage.removeItem('sso_last_redirect_to')
-        // Nettoyer ce flag après 30 secondes
-        setTimeout(() => {
+        // Vérifier si l'utilisateur est authentifié avant de détecter une boucle
+        const token = localStorage.getItem('access_token')
+        if (!token) {
+          // Pas de token, c'est probablement une boucle
+          console.log('[ROUTER] SSO loop detected in router (no token), setting flag and allowing access to login page')
+          sessionStorage.setItem('sso_loop_detected', 'true')
+          // Nettoyer les flags
+          sessionStorage.removeItem('sso_redirecting')
+          sessionStorage.removeItem('sso_redirecting_timestamp')
+          sessionStorage.removeItem('sso_redirecting_url')
+          sessionStorage.removeItem('sso_redirect_attempts')
+          sessionStorage.removeItem('sso_last_redirect_to')
+          // Nettoyer ce flag après 30 secondes
+          setTimeout(() => {
+            sessionStorage.removeItem('sso_loop_detected')
+          }, 30000)
+          // Permettre l'accès à la page de login
+          next()
+          return
+        } else {
+          // L'utilisateur a un token, ce n'est probablement pas une boucle
+          // Nettoyer les anciens flags pour permettre une nouvelle tentative
+          console.log('[ROUTER] User has token, clearing old redirect flags to allow new attempt')
+          sessionStorage.removeItem('sso_redirecting')
+          sessionStorage.removeItem('sso_redirecting_timestamp')
+          sessionStorage.removeItem('sso_redirecting_url')
+          sessionStorage.removeItem('sso_redirect_attempts')
+          sessionStorage.removeItem('sso_last_redirect_to')
           sessionStorage.removeItem('sso_loop_detected')
-        }, 30000)
-        // Permettre l'accès à la page de login
-        next()
-        return
+          // Continuer normalement, laisser Auth.vue gérer la redirection
+        }
       }
     }
   }

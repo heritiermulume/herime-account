@@ -249,12 +249,46 @@ export default {
       }
       
       // Vérifier si une boucle a été détectée récemment (dans les 30 dernières secondes)
+      // MAIS seulement si l'utilisateur n'est pas authentifié
       if (typeof window !== 'undefined' && sessionStorage.getItem('sso_loop_detected') === 'true') {
-        console.log('[SSO] Loop was recently detected, skipping redirect attempt')
-        isRedirecting.value = false
-        authStore.isSSORedirecting = false
-        console.log('[SSO] Flags reset. isRedirecting:', isRedirecting.value, 'authStore.isSSORedirecting:', authStore.isSSORedirecting, 'shouldShowSSOOverlay:', shouldShowSSOOverlay.value)
-        return
+        // Vérifier si l'utilisateur est authentifié avant de skip la redirection
+        const token = localStorage.getItem('access_token')
+        if (token) {
+          // Si l'utilisateur a un token, vérifier l'authentification
+          try {
+            const isAuthenticated = await Promise.race([
+              authStore.checkAuth(),
+              new Promise((_, reject) => setTimeout(() => reject(new Error('Auth check timeout')), 2000))
+            ])
+            
+            if (isAuthenticated) {
+              // L'utilisateur est authentifié, nettoyer le flag et permettre la redirection
+              console.log('[SSO] User is authenticated, clearing loop detection flag and allowing redirect')
+              sessionStorage.removeItem('sso_loop_detected')
+              // Ne pas return, continuer avec la logique de redirection ci-dessous
+            } else {
+              // L'utilisateur n'est pas authentifié, skip la redirection
+              console.log('[SSO] Loop was recently detected and user is not authenticated, skipping redirect attempt')
+              isRedirecting.value = false
+              authStore.isSSORedirecting = false
+              console.log('[SSO] Flags reset. isRedirecting:', isRedirecting.value, 'authStore.isSSORedirecting:', authStore.isSSORedirecting, 'shouldShowSSOOverlay:', shouldShowSSOOverlay.value)
+              return
+            }
+          } catch (error) {
+            // En cas d'erreur, considérer comme non authentifié et skip la redirection
+            console.log('[SSO] Auth check failed, skipping redirect attempt due to loop detection')
+            isRedirecting.value = false
+            authStore.isSSORedirecting = false
+            return
+          }
+        } else {
+          // Pas de token, skip la redirection
+          console.log('[SSO] Loop was recently detected and no token found, skipping redirect attempt')
+          isRedirecting.value = false
+          authStore.isSSORedirecting = false
+          console.log('[SSO] Flags reset. isRedirecting:', isRedirecting.value, 'authStore.isSSORedirecting:', authStore.isSSORedirecting, 'shouldShowSSOOverlay:', shouldShowSSOOverlay.value)
+          return
+        }
       }
       
       // Vérifier immédiatement si on doit rediriger SSO

@@ -79,6 +79,18 @@ export const useAuthStore = defineStore('auth', {
           const token = response.data.data.access_token
           localStorage.setItem('access_token', token)
           
+          // Nettoyer le flag sso_loop_detected après une connexion réussie
+          // Cela permet de réessayer la redirection SSO après connexion
+          if (typeof window !== 'undefined' && sessionStorage) {
+            sessionStorage.removeItem('sso_loop_detected')
+            // Nettoyer aussi les autres flags de redirection pour permettre une nouvelle tentative
+            sessionStorage.removeItem('sso_redirecting')
+            sessionStorage.removeItem('sso_redirecting_timestamp')
+            sessionStorage.removeItem('sso_redirecting_url')
+            sessionStorage.removeItem('sso_redirect_attempts')
+            sessionStorage.removeItem('sso_last_redirect_to')
+          }
+          
           return response.data
         } else {
           throw new Error(response.data.message || 'Login failed')
@@ -151,6 +163,18 @@ export const useAuthStore = defineStore('auth', {
           localStorage.setItem('access_token', token)
           this.twoFactorToken = null
           
+          // Nettoyer le flag sso_loop_detected après une connexion réussie (2FA)
+          // Cela permet de réessayer la redirection SSO après connexion
+          if (typeof window !== 'undefined' && sessionStorage) {
+            sessionStorage.removeItem('sso_loop_detected')
+            // Nettoyer aussi les autres flags de redirection pour permettre une nouvelle tentative
+            sessionStorage.removeItem('sso_redirecting')
+            sessionStorage.removeItem('sso_redirecting_timestamp')
+            sessionStorage.removeItem('sso_redirecting_url')
+            sessionStorage.removeItem('sso_redirect_attempts')
+            sessionStorage.removeItem('sso_last_redirect_to')
+          }
+          
           return response.data
         } else {
           throw new Error(response.data.message || '2FA verification failed')
@@ -186,6 +210,18 @@ export const useAuthStore = defineStore('auth', {
           localStorage.setItem('user', JSON.stringify(this.user))
           localStorage.setItem('authenticated', 'true')
           localStorage.setItem('access_token', response.data.data.access_token)
+          
+          // Nettoyer le flag sso_loop_detected après une inscription réussie
+          // Cela permet de réessayer la redirection SSO après inscription
+          if (typeof window !== 'undefined' && sessionStorage) {
+            sessionStorage.removeItem('sso_loop_detected')
+            // Nettoyer aussi les autres flags de redirection pour permettre une nouvelle tentative
+            sessionStorage.removeItem('sso_redirecting')
+            sessionStorage.removeItem('sso_redirecting_timestamp')
+            sessionStorage.removeItem('sso_redirecting_url')
+            sessionStorage.removeItem('sso_redirect_attempts')
+            sessionStorage.removeItem('sso_last_redirect_to')
+          }
           
           return response.data
         } else {
