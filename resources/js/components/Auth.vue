@@ -513,84 +513,90 @@ export default {
               
               console.log('[SSO] Redirecting to:', callbackUrl)
               
-              // IMPORTANT: Utiliser une redirection synchrone et directe pour garantir l'exécution
-              // window.location.href est plus fiable pour forcer une navigation navigationale
-              // qui contourne complètement Vue Router et force une navigation de page complète
+              // IMPORTANT: Approche agressive pour forcer la redirection
+              // Certains navigateurs/extensions bloquent les redirections programmatiques
+              // On utilise plusieurs méthodes en cascade pour garantir la navigation
               
+              // Méthode 1: Utiliser un lien <a> avec click() pour simuler un clic utilisateur
+              // Cette méthode contourne souvent les bloqueurs car elle simule une action utilisateur
               try {
-                console.log('[SSO] Executing redirect with window.location.href')
-                // Méthode principale: window.location.href force une navigation navigationale complète
-                // Si cette méthode fonctionne, la page changera immédiatement et le setTimeout ne s'exécutera jamais
-                window.location.href = callbackUrl
-                
-                // Fallback de sécurité: Si la redirection ci-dessus échoue silencieusement
-                // (par exemple à cause d'une extension de navigateur ou d'un bloqueur),
-                // ce setTimeout tentera une méthode alternative après un court délai.
-                // Note: Si la redirection a fonctionné, ce code ne s'exécutera jamais car la page aura changé.
-                setTimeout(() => {
-                  console.warn('[SSO] Primary redirect may have failed, attempting fallback with window.location.assign')
-                  try {
-                    window.location.assign(callbackUrl)
-                    
-                    // Fallback ultime après un délai supplémentaire
-                    setTimeout(() => {
-                      console.warn('[SSO] Secondary redirect may have failed, attempting last resort with window.location.replace')
-                      try {
-                        window.location.replace(callbackUrl)
-                      } catch (e) {
-                        console.error('[SSO] All redirect methods failed, showing manual redirect link')
-                        isRedirecting.value = false
-                        authStore.isSSORedirecting = false
-                        const redirectMessage = document.createElement('div')
-                        redirectMessage.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#ef4444;color:white;padding:20px;text-align:center;z-index:999999;'
-                        redirectMessage.innerHTML = `
-                          <p style="margin:0 0 10px 0;font-weight:bold;">Redirection automatique échouée</p>
-                          <a href="${callbackUrl}" style="color:#fff;text-decoration:underline;font-weight:bold;">Cliquez ici pour continuer</a>
-                        `
-                        document.body.appendChild(redirectMessage)
-                      }
-                    }, 150)
-                  } catch (e) {
-                    console.error('[SSO] Fallback redirect failed:', e)
-                    // Dernier recours immédiat
-                    try {
-                      window.location.replace(callbackUrl)
-                    } catch (e2) {
-                      console.error('[SSO] All redirect methods failed:', e2)
-                      isRedirecting.value = false
-                      authStore.isSSORedirecting = false
-                      const redirectMessage = document.createElement('div')
-                      redirectMessage.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#ef4444;color:white;padding:20px;text-align:center;z-index:999999;'
-                      redirectMessage.innerHTML = `
-                        <p style="margin:0 0 10px 0;font-weight:bold;">Redirection automatique échouée</p>
-                        <a href="${callbackUrl}" style="color:#fff;text-decoration:underline;font-weight:bold;">Cliquez ici pour continuer</a>
-                      `
-                      document.body.appendChild(redirectMessage)
-                    }
-                  }
-                }, 100)
-              } catch (error) {
-                console.error('[SSO] Exception during primary redirect:', error)
-                // Essayer les méthodes de fallback immédiatement en cas d'exception
+                const link = document.createElement('a')
+                link.href = callbackUrl
+                link.style.display = 'none'
+                document.body.appendChild(link)
+                link.click()
+                document.body.removeChild(link)
+                console.log('[SSO] Redirect attempted via link.click()')
+              } catch (e) {
+                console.warn('[SSO] Link.click() failed, trying window.location:', e)
+              }
+              
+              // Méthode 2: window.location.href (immédiatement après)
+              // Ne pas attendre car certaines méthodes peuvent fonctionner même si d'autres échouent
+              try {
+                // Utiliser window.top si on est dans un iframe, sinon window
+                const targetWindow = window.top || window
+                targetWindow.location.href = callbackUrl
+                console.log('[SSO] Redirect attempted via window.location.href')
+              } catch (e) {
+                console.warn('[SSO] window.location.href failed:', e)
+              }
+              
+              // Méthode 3: window.location.assign (fallback immédiat)
+              try {
+                window.location.assign(callbackUrl)
+                console.log('[SSO] Redirect attempted via window.location.assign')
+              } catch (e) {
+                console.warn('[SSO] window.location.assign failed:', e)
+              }
+              
+              // Méthode 4: Dernier recours avec setTimeout pour donner une chance à la navigation
+              // Si aucune des méthodes précédentes n'a fonctionné après 50ms, utiliser replace
+              setTimeout(() => {
+                // Vérifier si on est toujours sur la même page en comparant l'URL
+                // (bien que pour un domaine externe, on ne puisse pas vraiment vérifier)
+                // Donc on essaie simplement replace
                 try {
-                  window.location.assign(callbackUrl)
-                } catch (e) {
-                  try {
-                    window.location.replace(callbackUrl)
-                  } catch (e2) {
-                    console.error('[SSO] All redirect methods failed:', e2)
+                  console.warn('[SSO] Fallback: Attempting window.location.replace after delay')
+                  window.location.replace(callbackUrl)
+                  
+                  // Si toujours pas de redirection après 200ms, afficher un message
+                  setTimeout(() => {
+                    console.error('[SSO] All redirect methods appear to have failed')
                     isRedirecting.value = false
                     authStore.isSSORedirecting = false
+                    
+                    // Créer un message avec un bouton de redirection manuelle
                     const redirectMessage = document.createElement('div')
-                    redirectMessage.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#ef4444;color:white;padding:20px;text-align:center;z-index:999999;'
+                    redirectMessage.id = 'sso-redirect-fallback'
+                    redirectMessage.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.9);color:white;padding:40px;text-align:center;z-index:999999;display:flex;flex-direction:column;justify-content:center;align-items:center;'
                     redirectMessage.innerHTML = `
-                      <p style="margin:0 0 10px 0;font-weight:bold;">Erreur de redirection</p>
-                      <a href="${callbackUrl}" style="color:#fff;text-decoration:underline;font-weight:bold;">Cliquez ici pour continuer</a>
+                      <div style="background:#ef4444;padding:30px;border-radius:10px;max-width:500px;">
+                        <h2 style="margin:0 0 20px 0;font-size:24px;">Redirection automatique échouée</h2>
+                        <p style="margin:0 0 20px 0;font-size:16px;">Veuillez cliquer sur le bouton ci-dessous pour continuer :</p>
+                        <a href="${callbackUrl}" style="display:inline-block;background:#fff;color:#ef4444;padding:12px 24px;border-radius:5px;text-decoration:none;font-weight:bold;font-size:16px;">Continuer vers ${new URL(callbackUrl).hostname}</a>
+                      </div>
                     `
                     document.body.appendChild(redirectMessage)
-                  }
+                  }, 200)
+                } catch (e) {
+                  console.error('[SSO] window.location.replace failed:', e)
+                  // Afficher le message immédiatement en cas d'exception
+                  isRedirecting.value = false
+                  authStore.isSSORedirecting = false
+                  const redirectMessage = document.createElement('div')
+                  redirectMessage.id = 'sso-redirect-fallback'
+                  redirectMessage.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.9);color:white;padding:40px;text-align:center;z-index:999999;display:flex;flex-direction:column;justify-content:center;align-items:center;'
+                  redirectMessage.innerHTML = `
+                    <div style="background:#ef4444;padding:30px;border-radius:10px;max-width:500px;">
+                      <h2 style="margin:0 0 20px 0;font-size:24px;">Erreur de redirection</h2>
+                      <p style="margin:0 0 20px 0;font-size:16px;">Veuillez cliquer sur le lien ci-dessous :</p>
+                      <a href="${callbackUrl}" style="display:inline-block;background:#fff;color:#ef4444;padding:12px 24px;border-radius:5px;text-decoration:none;font-weight:bold;font-size:16px;">Continuer</a>
+                    </div>
+                  `
+                  document.body.appendChild(redirectMessage)
                 }
-              }
+              }, 50)
               
               // Cette ligne ne sera jamais exécutée si la redirection fonctionne
               return
@@ -717,12 +723,28 @@ export default {
                         sessionStorage.setItem('sso_redirecting', 'true')
                         sessionStorage.setItem('sso_redirecting_timestamp', Date.now().toString())
                       }
-                      // Utiliser window.location.href pour forcer la navigation navigationale
+                      
+                      // Utiliser la même approche agressive que dans onBeforeMount
                       console.log('[SSO] onMounted: Redirecting to:', callbackUrl)
+                      
+                      // Méthode 1: Lien <a> avec click()
                       try {
-                        window.location.href = callbackUrl
+                        const link = document.createElement('a')
+                        link.href = callbackUrl
+                        link.style.display = 'none'
+                        document.body.appendChild(link)
+                        link.click()
+                        document.body.removeChild(link)
                       } catch (e) {
-                        console.error('[SSO] onMounted: Redirect error, trying fallback:', e)
+                        console.warn('[SSO] onMounted: Link.click() failed:', e)
+                      }
+                      
+                      // Méthode 2: window.location.href
+                      try {
+                        const targetWindow = window.top || window
+                        targetWindow.location.href = callbackUrl
+                      } catch (e) {
+                        console.warn('[SSO] onMounted: window.location.href failed:', e)
                         try {
                           window.location.assign(callbackUrl)
                         } catch (e2) {
