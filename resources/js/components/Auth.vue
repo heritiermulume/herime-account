@@ -381,23 +381,30 @@ export default {
                 console.error('[SSO] Error parsing callback URL:', e)
               }
               
-              // IMPORTANT: Nettoyer les flags AVANT la redirection pour éviter les boucles
-              // Ne pas garder les flags car on va quitter cette page
+              // IMPORTANT: Garder le timestamp et la destination pour détecter les boucles
+              // Ne pas nettoyer ces flags car on en a besoin pour détecter les boucles au retour
               if (typeof window !== 'undefined') {
+                // Nettoyer seulement les flags de redirection en cours
                 sessionStorage.removeItem('sso_redirecting')
-                sessionStorage.removeItem('sso_redirecting_timestamp')
                 sessionStorage.removeItem('sso_redirecting_url')
                 sessionStorage.removeItem('sso_redirect_attempts')
-          sessionStorage.removeItem('sso_last_redirect_to')
-              }
-              
-              // Extraire le hostname de la destination pour détecter les boucles
-              try {
-                const callbackHost = new URL(callbackUrl).hostname.replace(/^www\./, '').toLowerCase()
-                sessionStorage.setItem('sso_last_redirect_to', callbackHost)
-                console.log('[SSO] Storing last redirect destination:', callbackHost)
-              } catch (e) {
-                // Ignorer les erreurs
+                
+                // GARDER le timestamp et stocker la destination pour détecter les boucles
+                // Le timestamp permet de savoir quand on a redirigé
+                const now = Date.now()
+                sessionStorage.setItem('sso_redirecting_timestamp', now.toString())
+                
+                // Extraire le hostname de la destination pour détecter les boucles
+                try {
+                  const callbackHost = new URL(callbackUrl).hostname.replace(/^www\./, '').toLowerCase()
+                  sessionStorage.setItem('sso_last_redirect_to', callbackHost)
+                  console.log('[SSO] Storing redirect info for loop detection:', {
+                    destination: callbackHost,
+                    timestamp: now
+                  })
+                } catch (e) {
+                  // Ignorer les erreurs
+                }
               }
               
               console.log('[SSO] Redirecting to:', callbackUrl)
