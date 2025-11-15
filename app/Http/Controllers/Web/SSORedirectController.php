@@ -35,11 +35,21 @@ class SSORedirectController extends Controller
             // PRIORITÉ 1: Récupérer le token depuis le paramètre _token (le plus fiable)
             // L'utilisateur vient de JavaScript avec un token dans localStorage
             $tokenString = $request->query('_token');
+            
+            // Décoder le token si nécessaire (il peut être encodé dans l'URL)
+            if ($tokenString) {
+                $decodedToken = urldecode($tokenString);
+                if ($decodedToken !== $tokenString && filter_var($decodedToken, FILTER_VALIDATE_URL) === false) {
+                    $tokenString = $decodedToken;
+                }
+            }
+            
             $user = null;
             
             \Log::info('SSO Redirect - Starting', [
                 'has_token' => !empty($tokenString),
                 'token_length' => $tokenString ? strlen($tokenString) : 0,
+                'token_preview' => $tokenString ? substr($tokenString, 0, 50) . '...' : null,
             ]);
             
             if ($tokenString) {
@@ -51,9 +61,12 @@ class SSORedirectController extends Controller
                         $user = $accessToken->user;
                         \Log::info('SSO Redirect - User found from token', [
                             'user_id' => $user->id,
+                            'token_id' => $accessToken->id,
                         ]);
                     } else {
-                        \Log::warning('SSO Redirect - Token not found or invalid');
+                        \Log::warning('SSO Redirect - Token not found or invalid', [
+                            'token_preview' => substr($tokenString, 0, 50) . '...',
+                        ]);
                     }
                 } catch (\Exception $e) {
                     \Log::error('SSO Redirect - Error finding access token', [
@@ -84,14 +97,39 @@ class SSORedirectController extends Controller
                 }
             }
             
-            // Si toujours pas d'utilisateur, rediriger vers login AVEC réponse HTTP 302 directe
+            // Si toujours pas d'utilisateur, vérifier si on vient déjà de /login pour éviter la boucle
             if (!$user) {
-                \Log::warning('SSO Redirect - No user found, redirecting to login');
+                \Log::warning('SSO Redirect - No user found');
+                
+                // Vérifier si on vient de /login avec force_token=1 (boucle détectée)
+                $referer = $request->header('Referer');
+                $isFromLogin = $referer && str_contains($referer, '/login') && str_contains($referer, 'force_token=1');
+                
+                // Vérifier aussi dans la session si on a déjà tenté une redirection
+                $redirectAttempts = $request->session()->get('sso_redirect_attempts', 0);
+                if ($redirectAttempts >= 2 || $isFromLogin) {
+                    \Log::warning('SSO Redirect - Loop detected, redirecting to dashboard instead of login', [
+                        'redirect_attempts' => $redirectAttempts,
+                        'is_from_login' => $isFromLogin,
+                    ]);
+                    // Nettoyer la session
+                    $request->session()->forget('sso_redirect_attempts');
+                    // Éviter la boucle en redirigeant vers le dashboard
+                    return response('', 302)->header('Location', url('/dashboard'));
+                }
+                
+                // Incrémenter le compteur de tentatives
+                $request->session()->put('sso_redirect_attempts', $redirectAttempts + 1);
+                
+                // Rediriger vers login normalement (sans force_token pour éviter la boucle)
                 $redirect = $request->query('redirect');
-                $redirectParam = $redirect ? '?redirect=' . urlencode($redirect) . '&force_token=1' : '';
+                $redirectParam = $redirect ? '?redirect=' . urlencode($redirect) : '';
                 $loginUrl = url('/login' . $redirectParam);
                 return response('', 302)->header('Location', $loginUrl);
             }
+            
+            // Si on a trouvé un utilisateur, nettoyer le compteur de tentatives
+            $request->session()->forget('sso_redirect_attempts');
 
             $redirectUrl = $request->query('redirect');
 
