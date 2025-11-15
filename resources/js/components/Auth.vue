@@ -86,28 +86,34 @@ export default {
         const now = Date.now()
         const elapsed = redirectingTimestamp ? now - parseInt(redirectingTimestamp, 10) : null
         
-        // Si on a un timestamp valide ET qu'on a redirigé vers un domaine externe récemment (moins de 10 secondes)
+        // Si on a un timestamp valide ET qu'on a redirigé vers un domaine externe récemment (moins de 30 secondes)
         // ET qu'on est de retour sur compte.herime.com avec force_token, c'est une boucle
-        // Utiliser 10 secondes au lieu de 15 pour être plus strict
-        if (elapsed !== null && elapsed < 10000 && lastRedirectTo !== 'compte.herime.com') {
+        // Augmenter à 30 secondes pour être plus sûr de détecter les boucles
+        if (elapsed !== null && elapsed < 30000 && lastRedirectTo !== 'compte.herime.com') {
           console.error('[SSO] LOOP DETECTED: Returned to compte.herime.com with force_token after redirecting to', lastRedirectTo, 'too quickly (', elapsed, 'ms)')
+          sessionStorage.setItem('sso_loop_detected', 'true')
           sessionStorage.removeItem(redirectingKey)
           sessionStorage.removeItem(redirectingTimestampKey)
           sessionStorage.removeItem(redirectingUrlKey)
           sessionStorage.removeItem(redirectAttemptsKey)
           sessionStorage.removeItem(lastRedirectToKey)
+          // Nettoyer le flag après 60 secondes
+          setTimeout(() => {
+            sessionStorage.removeItem('sso_loop_detected')
+          }, 60000)
           return true
         }
         
-        // Si plus de 10 secondes se sont écoulées, c'est probablement une nouvelle tentative légitime
+        // Si plus de 30 secondes se sont écoulées, c'est probablement une nouvelle tentative légitime
         // Nettoyer les flags pour permettre une nouvelle tentative
-        if (elapsed !== null && elapsed >= 10000) {
-          console.log('[SSO] More than 10 seconds elapsed since last redirect, allowing new attempt')
+        if (elapsed !== null && elapsed >= 30000) {
+          console.log('[SSO] More than 30 seconds elapsed since last redirect, allowing new attempt')
           sessionStorage.removeItem(redirectingKey)
           sessionStorage.removeItem(redirectingTimestampKey)
           sessionStorage.removeItem(redirectingUrlKey)
           sessionStorage.removeItem(redirectAttemptsKey)
           sessionStorage.removeItem(lastRedirectToKey)
+          sessionStorage.removeItem('sso_loop_detected')
           // Ne pas retourner true, permettre la redirection
         }
         
@@ -120,6 +126,7 @@ export default {
           sessionStorage.removeItem(redirectingUrlKey)
           sessionStorage.removeItem(redirectAttemptsKey)
           sessionStorage.removeItem(lastRedirectToKey)
+          sessionStorage.removeItem('sso_loop_detected')
           // Ne pas retourner true, permettre la redirection
         }
       }
@@ -131,34 +138,55 @@ export default {
         try {
           const refererHost = new URL(referer).hostname.replace(/^www\./, '').toLowerCase()
           
-          // Si on vient d'academie.herime.com et qu'on est sur compte.herime.com avec force_token
-          // ET qu'on a déjà redirigé vers academie.herime.com récemment, c'est une boucle
-          if (refererHost === 'academie.herime.com' && currentHost === 'compte.herime.com') {
-            if (hasForceToken && lastRedirectTo === 'academie.herime.com') {
+          // DÉTECTION CRITIQUE : Si on vient d'un domaine externe (academie.herime.com, etc.)
+          // ET qu'on est sur compte.herime.com avec force_token
+          // ET qu'on a déjà redirigé vers ce domaine récemment, c'est une boucle
+          if (refererHost !== 'compte.herime.com' && refererHost !== currentHost && currentHost === 'compte.herime.com') {
+            if (hasForceToken) {
               const now = Date.now()
               const elapsed = redirectingTimestamp ? now - parseInt(redirectingTimestamp, 10) : 0
               
-              // Si moins de 15 secondes se sont écoulées, c'est une boucle
-              if (elapsed < 15000) {
-                console.error('[SSO] LOOP DETECTED: Returned from academie.herime.com too quickly (referer check)')
+              // Si on a redirigé vers ce domaine récemment (moins de 30 secondes), c'est une boucle
+              if (lastRedirectTo === refererHost && elapsed < 30000) {
+                console.error('[SSO] LOOP DETECTED: Returned from', refererHost, 'too quickly (', elapsed, 'ms) - referer check')
+                sessionStorage.setItem('sso_loop_detected', 'true')
                 sessionStorage.removeItem(redirectingKey)
                 sessionStorage.removeItem(redirectingTimestampKey)
                 sessionStorage.removeItem(redirectingUrlKey)
                 sessionStorage.removeItem(redirectAttemptsKey)
                 sessionStorage.removeItem(lastRedirectToKey)
+                // Nettoyer le flag après 60 secondes
+                setTimeout(() => {
+                  sessionStorage.removeItem('sso_loop_detected')
+                }, 60000)
+                return true
+              }
+              
+              // Si on vient d'un domaine externe mais qu'on n'a pas de lastRedirectTo correspondant
+              // ET qu'on a un timestamp récent, c'est peut-être une boucle aussi
+              if (elapsed < 5000 && redirectingTimestamp) {
+                console.error('[SSO] LOOP DETECTED: Returned from external domain', refererHost, 'too quickly (', elapsed, 'ms) - potential loop')
+                sessionStorage.setItem('sso_loop_detected', 'true')
+                sessionStorage.removeItem(redirectingKey)
+                sessionStorage.removeItem(redirectingTimestampKey)
+                sessionStorage.removeItem(redirectingUrlKey)
+                sessionStorage.removeItem(redirectAttemptsKey)
+                sessionStorage.removeItem(lastRedirectToKey)
+                setTimeout(() => {
+                  sessionStorage.removeItem('sso_loop_detected')
+                }, 60000)
                 return true
               }
             }
           }
           
-          // Si on vient d'un autre domaine (pas compte.herime.com), nettoyer les flags
+          // Si on vient d'un autre domaine (pas compte.herime.com), nettoyer les flags de redirection en cours
+          // MAIS garder lastRedirectTo et timestamp pour détecter les boucles
           if (refererHost !== currentHost && refererHost !== 'compte.herime.com' && currentHost === 'compte.herime.com') {
-            // Mais garder lastRedirectTo pour détecter les boucles
             sessionStorage.removeItem(redirectingKey)
-            sessionStorage.removeItem(redirectingTimestampKey)
             sessionStorage.removeItem(redirectingUrlKey)
             sessionStorage.removeItem(redirectAttemptsKey)
-            return false
+            // Ne pas supprimer lastRedirectTo et timestamp, on en a besoin pour détecter les boucles
           }
         } catch (e) {
           // Ignorer les erreurs de parsing
@@ -458,16 +486,10 @@ export default {
                 console.error('[SSO] Error parsing callback URL:', e)
               }
               
-              // IMPORTANT: Garder le timestamp et la destination pour détecter les boucles
-              // Ne pas nettoyer ces flags car on en a besoin pour détecter les boucles au retour
+              // IMPORTANT: Stocker le timestamp et la destination AVANT de rediriger
+              // Cela permet de détecter les boucles au retour
               if (typeof window !== 'undefined') {
-                // Nettoyer seulement les flags de redirection en cours
-                sessionStorage.removeItem('sso_redirecting')
-                sessionStorage.removeItem('sso_redirecting_url')
-                sessionStorage.removeItem('sso_redirect_attempts')
-                
-                // GARDER le timestamp et stocker la destination pour détecter les boucles
-                // Le timestamp permet de savoir quand on a redirigé
+                // Stocker le timestamp et la destination AVANT la redirection
                 const now = Date.now()
                 sessionStorage.setItem('sso_redirecting_timestamp', now.toString())
                 
@@ -475,13 +497,18 @@ export default {
                 try {
                   const callbackHost = new URL(callbackUrl).hostname.replace(/^www\./, '').toLowerCase()
                   sessionStorage.setItem('sso_last_redirect_to', callbackHost)
-                  console.log('[SSO] Storing redirect info for loop detection:', {
+                  console.log('[SSO] Storing redirect info for loop detection BEFORE redirect:', {
                     destination: callbackHost,
                     timestamp: now
                   })
                 } catch (e) {
                   // Ignorer les erreurs
                 }
+                
+                // Nettoyer seulement les flags de redirection en cours
+                sessionStorage.removeItem('sso_redirecting')
+                sessionStorage.removeItem('sso_redirecting_url')
+                sessionStorage.removeItem('sso_redirect_attempts')
               }
               
               console.log('[SSO] Redirecting to:', callbackUrl)
