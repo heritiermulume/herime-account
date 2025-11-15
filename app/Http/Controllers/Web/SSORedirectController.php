@@ -115,10 +115,18 @@ class SSORedirectController extends Controller
                 
                 // Vérifier aussi dans la session si on a déjà tenté une redirection
                 $redirectAttempts = $request->session()->get('sso_redirect_attempts', 0);
-                if ($redirectAttempts >= 2 || $isFromLogin) {
+                
+                // Vérifier si force_token=1 est présent dans l'URL actuelle (signe de boucle)
+                $hasForceToken = $request->query('force_token') === '1' || 
+                                $request->query('force_token') === 1 || 
+                                $request->query('force_token') === true || 
+                                $request->query('force_token') === 'true';
+                
+                if ($redirectAttempts >= 2 || $isFromLogin || $hasForceToken) {
                     \Log::warning('SSO Redirect - Loop detected, redirecting to dashboard instead of login', [
                         'redirect_attempts' => $redirectAttempts,
                         'is_from_login' => $isFromLogin,
+                        'has_force_token' => $hasForceToken,
                     ]);
                     // Nettoyer la session
                     $request->session()->forget('sso_redirect_attempts');
@@ -129,10 +137,14 @@ class SSORedirectController extends Controller
                 // Incrémenter le compteur de tentatives
                 $request->session()->put('sso_redirect_attempts', $redirectAttempts + 1);
                 
-                // Rediriger vers login normalement (sans force_token pour éviter la boucle)
+                // Rediriger vers login SANS force_token pour éviter la boucle
+                // Ne pas inclure force_token=1 dans la redirection
                 $redirect = $request->query('redirect');
                 $redirectParam = $redirect ? '?redirect=' . urlencode($redirect) : '';
                 $loginUrl = url('/login' . $redirectParam);
+                \Log::info('SSO Redirect - Redirecting to login without force_token', [
+                    'login_url' => $loginUrl,
+                ]);
                 return response('', 302)->header('Location', $loginUrl);
             }
             

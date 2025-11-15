@@ -329,6 +329,26 @@ export default {
       
       
       if (hasForceToken) {
+        // Vérifier si on vient déjà de /sso/redirect (boucle détectée)
+        const referer = document.referer
+        if (referer && referer.includes('/sso/redirect')) {
+          console.log('[SSO] Loop detected: coming from /sso/redirect, stopping redirect')
+          isRedirecting.value = false
+          authStore.isSSORedirecting = false
+          if (typeof window !== 'undefined') {
+            sessionStorage.removeItem('sso_redirecting')
+            sessionStorage.removeItem('sso_redirecting_timestamp')
+            sessionStorage.removeItem('sso_redirecting_url')
+            sessionStorage.removeItem('sso_redirect_attempts')
+            sessionStorage.removeItem('sso_last_redirect_to')
+            sessionStorage.setItem('sso_loop_detected', 'true')
+            setTimeout(() => {
+              sessionStorage.removeItem('sso_loop_detected')
+            }, 30000)
+          }
+          return
+        }
+        
         // Vérifier que le redirect ne pointe pas vers compte.herime.com (éviter boucle)
         const redirectUrl = route.query.redirect
         if (redirectUrl && typeof redirectUrl === 'string') {
