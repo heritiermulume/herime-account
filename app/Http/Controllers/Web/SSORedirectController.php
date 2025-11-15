@@ -58,11 +58,19 @@ class SSORedirectController extends Controller
                     $accessToken = $this->findAccessToken($tokenString);
                     
                     if ($accessToken && $accessToken->user) {
-                        $user = $accessToken->user;
-                        \Log::info('SSO Redirect - User found from token', [
-                            'user_id' => $user->id,
-                            'token_id' => $accessToken->id,
-                        ]);
+                        // Vérifier que le token n'est pas expiré
+                        if ($accessToken->expires_at && $accessToken->expires_at->isPast()) {
+                            \Log::warning('SSO Redirect - Token expired', [
+                                'token_id' => $accessToken->id,
+                                'expires_at' => $accessToken->expires_at,
+                            ]);
+                        } else {
+                            $user = $accessToken->user;
+                            \Log::info('SSO Redirect - User found from token', [
+                                'user_id' => $user->id,
+                                'token_id' => $accessToken->id,
+                            ]);
+                        }
                     } else {
                         \Log::warning('SSO Redirect - Token not found or invalid', [
                             'token_preview' => substr($tokenString, 0, 50) . '...',

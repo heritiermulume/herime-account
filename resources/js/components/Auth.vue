@@ -388,12 +388,13 @@ export default {
           ])
         } catch (error) {
           // En cas d'erreur ou timeout, nettoyer les flags et considérer comme non authentifié
+          console.log('[SSO] Auth check failed or timeout:', error)
           if (typeof window !== 'undefined') {
             sessionStorage.removeItem('sso_redirecting')
             sessionStorage.removeItem('sso_redirecting_timestamp')
             sessionStorage.removeItem('sso_redirecting_url')
             sessionStorage.removeItem('sso_redirect_attempts')
-          sessionStorage.removeItem('sso_last_redirect_to')
+            sessionStorage.removeItem('sso_last_redirect_to')
           }
           isRedirecting.value = false
           authStore.isSSORedirecting = false
@@ -408,12 +409,48 @@ export default {
             sessionStorage.removeItem('sso_redirecting_timestamp')
             sessionStorage.removeItem('sso_redirecting_url')
             sessionStorage.removeItem('sso_redirect_attempts')
-          sessionStorage.removeItem('sso_last_redirect_to')
+            sessionStorage.removeItem('sso_last_redirect_to')
           }
           isRedirecting.value = false
           authStore.isSSORedirecting = false
           // Ne pas retourner, laisser le composant afficher le formulaire de login
           // L'utilisateur pourra se connecter et ensuite être redirigé
+          return
+        }
+        
+        // Vérifier une dernière fois que l'utilisateur est bien authentifié
+        // et que le token est valide en appelant /me directement
+        try {
+          const meResponse = await Promise.race([
+            axios.get('/me', { timeout: 2000 }),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Me check timeout')), 2000))
+          ])
+          
+          if (!meResponse.data?.success || !meResponse.data?.data?.user) {
+            console.log('[SSO] /me check failed, user not authenticated')
+            if (typeof window !== 'undefined') {
+              sessionStorage.removeItem('sso_redirecting')
+              sessionStorage.removeItem('sso_redirecting_timestamp')
+              sessionStorage.removeItem('sso_redirecting_url')
+              sessionStorage.removeItem('sso_redirect_attempts')
+              sessionStorage.removeItem('sso_last_redirect_to')
+            }
+            isRedirecting.value = false
+            authStore.isSSORedirecting = false
+            return
+          }
+        } catch (error) {
+          // Si /me échoue, ne pas rediriger
+          console.log('[SSO] /me check failed:', error)
+          if (typeof window !== 'undefined') {
+            sessionStorage.removeItem('sso_redirecting')
+            sessionStorage.removeItem('sso_redirecting_timestamp')
+            sessionStorage.removeItem('sso_redirecting_url')
+            sessionStorage.removeItem('sso_redirect_attempts')
+            sessionStorage.removeItem('sso_last_redirect_to')
+          }
+          isRedirecting.value = false
+          authStore.isSSORedirecting = false
           return
         }
         
