@@ -86,7 +86,7 @@ class SSORedirectController extends Controller
                 }
             }
             
-            // PRIORITÉ 2: Si pas de token, essayer la session web
+            // PRIORITÉ 2: Si pas de token trouvé, essayer la session web
             if (!$user) {
                 try {
                     $user = Auth::guard('web')->user();
@@ -105,9 +105,37 @@ class SSORedirectController extends Controller
                 }
             }
             
+            // PRIORITÉ 3: Si toujours pas d'utilisateur, essayer de décoder le JWT pour obtenir l'user_id
+            // et créer une session web temporaire
+            if (!$user && $tokenString) {
+                try {
+                    $payload = $this->decodeJwtPayload($tokenString);
+                    if ($payload && isset($payload['sub'])) {
+                        $userId = $payload['sub'];
+                        $user = User::find($userId);
+                        if ($user && $user->isActive()) {
+                            // Créer une session web temporaire pour cet utilisateur
+                            Auth::guard('web')->login($user);
+                            \Log::info('SSO Redirect - User found from JWT payload and session created', [
+                                'user_id' => $user->id,
+                            ]);
+                        }
+                    }
+                } catch (\Exception $e) {
+                    \Log::error('SSO Redirect - Error creating session from JWT', [
+                        'error' => $e->getMessage(),
+                        'file' => $e->getFile(),
+                        'line' => $e->getLine(),
+                    ]);
+                }
+            }
+            
             // Si toujours pas d'utilisateur, rediriger vers dashboard pour éviter la boucle
             if (!$user) {
-                \Log::warning('SSO Redirect - No user found, redirecting to dashboard to avoid loop');
+                \Log::warning('SSO Redirect - No user found, redirecting to dashboard to avoid loop', [
+                    'has_token' => !empty($tokenString),
+                    'has_session' => $request->hasSession(),
+                ]);
                 
                 // Nettoyer la session
                 $request->session()->forget('sso_redirect_attempts');

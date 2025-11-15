@@ -178,6 +178,26 @@ router.beforeEach(async (to, from, next) => {
   }
   
   if (hasForceToken && to.path === '/login') {
+    // Vérifier si on vient de /sso/redirect ou /dashboard (signe de boucle)
+    const referer = typeof window !== 'undefined' ? document.referer : ''
+    if (referer && (referer.includes('/sso/redirect') || referer.includes('/dashboard'))) {
+      console.log('[ROUTER] Coming from /sso/redirect or /dashboard with force_token, removing force_token to avoid loop')
+      // Supprimer force_token de l'URL
+      const newUrl = new URL(window.location.href)
+      newUrl.searchParams.delete('force_token')
+      window.history.replaceState({}, '', newUrl.toString())
+      // Marquer la boucle
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('sso_loop_detected', 'true')
+        setTimeout(() => {
+          sessionStorage.removeItem('sso_loop_detected')
+        }, 30000)
+      }
+      // Continuer sans force_token
+      next()
+      return
+    }
+    
     // OPTIMISATION: Éviter toute vérification dans le router quand on a force_token
     // Laisser Auth.vue gérer complètement la logique de redirection SSO
     // Cela évite les appels redondants à checkAuth()

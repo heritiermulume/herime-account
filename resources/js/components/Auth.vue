@@ -365,6 +365,24 @@ export default {
           return
         }
         
+        // Vérifier si on vient de /dashboard (signe que le backend a redirigé)
+        if (referer && referer.includes('/dashboard')) {
+          console.log('[SSO] Coming from /dashboard, removing force_token to avoid loop')
+          // Supprimer force_token de l'URL pour éviter la boucle
+          const newUrl = new URL(window.location.href)
+          newUrl.searchParams.delete('force_token')
+          window.history.replaceState({}, '', newUrl.toString())
+          isRedirecting.value = false
+          authStore.isSSORedirecting = false
+          if (typeof window !== 'undefined') {
+            sessionStorage.setItem('sso_loop_detected', 'true')
+            setTimeout(() => {
+              sessionStorage.removeItem('sso_loop_detected')
+            }, 30000)
+          }
+          return
+        }
+        
         // Vérifier que le redirect ne pointe pas vers compte.herime.com (éviter boucle)
         const redirectUrl = route.query.redirect
         if (redirectUrl && typeof redirectUrl === 'string') {
