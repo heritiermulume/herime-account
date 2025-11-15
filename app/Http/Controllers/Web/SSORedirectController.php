@@ -31,99 +31,61 @@ class SSORedirectController extends Controller
             'all_queries' => $request->query->all(),
         ]);
         
-        // TEST TEMPORAIRE: Envoyer une réponse HTTP 302 directe IMMÉDIATEMENT vers Google
-        // Si le contrôleur s'exécute, cette redirection devrait fonctionner
-        // Si le template Blade se charge toujours, c'est que la route n'est pas prise
-        // TODO: Retirer ce test après vérification
+        // PRIORITÉ 1: Récupérer le token depuis le paramètre _token (le plus fiable)
+        // L'utilisateur vient de JavaScript avec un token dans localStorage
+        $tokenString = $request->query('_token');
+        $user = null;
         
-        // TEMPORAIRE: Rediriger vers Google pour tester si le contrôleur s'exécute
-        // DÉCOMMENTER CETTE LIGNE POUR TESTER
-        // return response('', 302)->header('Location', 'https://www.google.com');
-        
-        // PRIORITÉ 1: Vérifier la session web (l'utilisateur est déjà connecté via la session Laravel)
-        // C'est la méthode la plus fiable car l'utilisateur vient de la page de login
-        $user = Auth::guard('web')->user();
-        
-        \Log::info('SSO Redirect - Session check', [
-            'user_from_session' => $user ? $user->id : null,
+        \Log::info('SSO Redirect - Starting', [
+            'has_token' => !empty($tokenString),
+            'token_length' => $tokenString ? strlen($tokenString) : 0,
         ]);
         
-        // PRIORITÉ 2: Si pas de session, essayer le token Passport depuis le paramètre _token
-        if (!$user) {
-            $tokenString = $request->query('_token');
+        if ($tokenString) {
+            // Trouver l'utilisateur via le token Passport
+            $accessToken = $this->findAccessToken($tokenString);
             
-            \Log::info('SSO Redirect - Token check', [
-                'has_token_param' => $request->has('_token'),
-                'token_length' => $tokenString ? strlen($tokenString) : 0,
-                'token_preview' => $tokenString ? substr($tokenString, 0, 50) . '...' : null,
-            ]);
-            
-            if ($tokenString) {
-                \Log::info('SSO Redirect - Trying token authentication', [
-                    'token_length' => strlen($tokenString),
-                    'token_starts_with' => substr($tokenString, 0, 20),
+            if ($accessToken && $accessToken->user) {
+                $user = $accessToken->user;
+                \Log::info('SSO Redirect - User found from token', [
+                    'user_id' => $user->id,
                 ]);
-                
-                $accessToken = $this->findAccessToken($tokenString);
-                
-                \Log::info('SSO Redirect - Token lookup result', [
-                    'access_token_found' => $accessToken !== null,
-                    'has_user' => $accessToken && $accessToken->user ? true : false,
-                    'user_id' => $accessToken && $accessToken->user ? $accessToken->user->id : null,
-                ]);
-                
-                if ($accessToken && $accessToken->user) {
-                    $user = $accessToken->user;
-                    \Log::info('SSO Redirect - User found from token', [
-                        'user_id' => $user->id,
-                        'user_email' => $user->email,
-                    ]);
-                    
-                    // Connecter l'utilisateur dans la session web pour les prochaines requêtes
-                    Auth::guard('web')->login($user);
-                    \Log::info('SSO Redirect - User logged in to web session');
-                } else {
-                    \Log::warning('SSO Redirect - Token not found or invalid', [
-                        'token_length' => strlen($tokenString),
-                        'tried_hash' => hash('sha256', $tokenString),
-                    ]);
-                }
             } else {
-                \Log::warning('SSO Redirect - No token parameter found');
+                \Log::warning('SSO Redirect - Token not found or invalid');
             }
         }
         
-        // PRIORITÉ 3: Essayer Auth::user() (guard par défaut)
+        // PRIORITÉ 2: Si pas de token, essayer la session web
         if (!$user) {
-            $user = Auth::user();
-            \Log::info('SSO Redirect - Default guard check', [
-                'user_from_default_guard' => $user ? $user->id : null,
-            ]);
+            $user = Auth::guard('web')->user();
+            if ($user) {
+                \Log::info('SSO Redirect - User found from session', [
+                    'user_id' => $user->id,
+                ]);
+            }
         }
         
-        // Si toujours pas d'utilisateur, rediriger vers login
+        // Si toujours pas d'utilisateur, rediriger vers login AVEC réponse HTTP 302 directe
         if (!$user) {
-            \Log::warning('SSO Redirect - No user found, redirecting to login', [
-                'redirect_param' => $request->query('redirect'),
-            ]);
-            
-            // Rediriger vers la page de login avec les paramètres
-            // Utiliser redirect()->to() pour forcer une redirection interne
+            \Log::warning('SSO Redirect - No user found, redirecting to login');
             $redirect = $request->query('redirect');
             $redirectParam = $redirect ? '?redirect=' . urlencode($redirect) . '&force_token=1' : '';
-            return redirect()->to('/login' . $redirectParam);
+            $loginUrl = url('/login' . $redirectParam);
+            return response('', 302)->header('Location', $loginUrl);
         }
 
         $redirectUrl = $request->query('redirect');
 
         if (!$redirectUrl) {
-            return redirect()->to('/dashboard')->with('error', 'Redirect URL is required');
+            $dashboardUrl = url('/dashboard');
+            return response('', 302)->header('Location', $dashboardUrl);
         }
 
         try {
             // Vérifier que l'utilisateur est actif
             if (!$user->isActive()) {
-                return redirect()->to('/dashboard')->with('error', 'Your account has been deactivated');
+                $dashboardUrl = url('/dashboard');
+                return response('', 302)->header('Location', $dashboardUrl);
             }
 
             // Vérifier que le redirect URL ne pointe pas vers le même domaine
@@ -135,7 +97,8 @@ class SSORedirectController extends Controller
                 $currentHost = preg_replace('/^www\./', '', strtolower($currentHost));
                 
                 if ($redirectHost === $currentHost || $redirectHost === 'compte.herime.com') {
-                    return redirect()->to('/dashboard')->with('error', 'Redirect URL cannot point to the same domain');
+                    $dashboardUrl = url('/dashboard');
+                    return response('', 302)->header('Location', $dashboardUrl);
                 }
             }
 
@@ -146,7 +109,8 @@ class SSORedirectController extends Controller
             $parsedUrl = parse_url($redirectUrl);
             
             if (!$parsedUrl || !isset($parsedUrl['scheme']) || !isset($parsedUrl['host'])) {
-                return redirect()->to('/dashboard')->with('error', 'Invalid redirect URL format');
+                $dashboardUrl = url('/dashboard');
+                return response('', 302)->header('Location', $dashboardUrl);
             }
             
             $queryParams = [];
@@ -173,9 +137,10 @@ class SSORedirectController extends Controller
             $callbackHost = parse_url($callbackUrl, PHP_URL_HOST);
             if ($callbackHost) {
                 $callbackHost = preg_replace('/^www\./', '', strtolower($callbackHost));
-                    if ($callbackHost === $currentHost || $callbackHost === 'compte.herime.com') {
-                        return redirect()->to('/dashboard')->with('error', 'Generated callback URL points to the same domain');
-                    }
+                if ($callbackHost === $currentHost || $callbackHost === 'compte.herime.com') {
+                    $dashboardUrl = url('/dashboard');
+                    return response('', 302)->header('Location', $dashboardUrl);
+                }
             }
 
             \Log::info('SSO Redirect - Redirecting to callback', [
@@ -184,9 +149,12 @@ class SSORedirectController extends Controller
             ]);
 
             // Redirection HTTP 302 directe - contourne JavaScript et Vue Router complètement
-            // Utiliser une réponse HTTP 302 directe pour forcer la redirection
-            // Cela empêche Laravel d'interpréter la redirection comme interne
-            return response('', 302)->header('Location', $callbackUrl);
+            // Utiliser une réponse HTTP 302 avec header Location pour forcer la redirection
+            return response('', 302)
+                ->header('Location', $callbackUrl)
+                ->header('Cache-Control', 'no-cache, no-store, must-revalidate')
+                ->header('Pragma', 'no-cache')
+                ->header('Expires', '0');
 
         } catch (\Exception $e) {
             \Log::error('SSO Redirect Error', [
@@ -196,7 +164,8 @@ class SSORedirectController extends Controller
                 'redirect_url' => $redirectUrl ?? null
             ]);
 
-            return redirect()->to('/dashboard')->with('error', 'An error occurred during SSO redirect');
+            $dashboardUrl = url('/dashboard');
+            return response('', 302)->header('Location', $dashboardUrl);
         }
     }
     
