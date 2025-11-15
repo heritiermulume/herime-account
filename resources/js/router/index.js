@@ -240,6 +240,16 @@ router.beforeEach(async (to, from, next) => {
   // Vérifier les routes qui nécessitent une authentification
   if (to.meta.requiresAuth) {
     if (!isAuthenticated) {
+      // Si on vient de /dashboard et qu'on a force_token=1, ne pas rediriger vers /login avec force_token
+      // pour éviter la boucle
+      const referer = typeof window !== 'undefined' ? document.referer : ''
+      if (referer && referer.includes('/dashboard') && hasForceToken) {
+        console.log('[ROUTER] Coming from /dashboard with force_token, redirecting to /login without force_token to avoid loop')
+        const newQuery = { ...to.query }
+        delete newQuery.force_token
+        next({ path: '/login', query: newQuery })
+        return
+      }
       next('/login')
       return
     }
