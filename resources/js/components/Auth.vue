@@ -133,9 +133,11 @@ export default {
 
     // Gérer la redirection SSO AVANT que le composant ne soit monté
     onBeforeMount(async () => {
+      console.log('[SSO] onBeforeMount called, URL:', window.location.href)
       
       // Vérifier si on est dans une boucle (AVANT toute autre vérification)
       if (checkForRedirectLoop()) {
+        console.log('[SSO] Loop detected, stopping redirect')
         // Si on est dans une boucle, nettoyer TOUT et afficher le formulaire de login
         isRedirecting.value = false
         authStore.isSSORedirecting = false
@@ -191,6 +193,7 @@ export default {
         const token = localStorage.getItem('access_token')
         
         if (!token) {
+          console.log('[SSO] No token found, showing login form')
           // Nettoyer les flags si pas de token - l'utilisateur n'est pas connecté, afficher le formulaire
           if (typeof window !== 'undefined') {
             sessionStorage.removeItem('sso_redirecting')
@@ -203,6 +206,8 @@ export default {
           // Ne pas retourner, laisser le composant afficher le formulaire de login
           return
         }
+        
+        console.log('[SSO] Token found, checking authentication...')
         
         // OPTIMISATION: Vérifier l'authentification avec timeout court (3 secondes) pour accélérer
         let isAuthenticated = false
@@ -226,6 +231,7 @@ export default {
         }
         
         if (!isAuthenticated) {
+          console.log('[SSO] User not authenticated, showing login form')
           // Nettoyer les flags si l'utilisateur n'est pas authentifié - afficher le formulaire de login
           if (typeof window !== 'undefined') {
             sessionStorage.removeItem('sso_redirecting')
@@ -239,6 +245,8 @@ export default {
           // L'utilisateur pourra se connecter et ensuite être redirigé
           return
         }
+        
+        console.log('[SSO] User authenticated, proceeding with redirect')
         
         // Utilisateur authentifié, continuer avec la génération du token SSO
         // Les flags sont déjà marqués au début, pas besoin de les remettre
@@ -263,6 +271,7 @@ export default {
         // Utiliser une fonction async et l'exécuter immédiatement
         const performRedirect = async () => {
           try {
+            console.log('[SSO] Starting token generation for redirect:', redirect)
             // OPTIMISATION: Timeout court pour la génération du token SSO (3 secondes)
             const response = await Promise.race([
               axios.post('/sso/generate-token', {
@@ -271,30 +280,37 @@ export default {
               new Promise((_, reject) => setTimeout(() => reject(new Error('SSO token generation timeout')), 3000))
             ])
             
+            console.log('[SSO] Token generation response:', response.data)
+            
             
             if (response.data && response.data.success && response.data.data && response.data.data.callback_url) {
               const callbackUrl = response.data.data.callback_url
+              
+              console.log('[SSO] Callback URL received:', callbackUrl)
               
               // Vérifier une dernière fois que callbackUrl ne pointe pas vers le même domaine
               try {
                 const callbackHost = new URL(callbackUrl).hostname.replace(/^www\./, '').toLowerCase()
                 const currentHost = window.location.hostname.replace(/^www\./, '').toLowerCase()
                 
+                console.log('[SSO] Checking callback host:', callbackHost, 'vs current host:', currentHost)
+                
                 // Si le callback pointe vers compte.herime.com, c'est une boucle - arrêter
                 if (callbackHost === currentHost || callbackHost === 'compte.herime.com') {
+                  console.error('[SSO] LOOP DETECTED: Callback URL points to same domain, stopping redirect')
                   if (typeof window !== 'undefined') {
                     sessionStorage.removeItem('sso_redirecting')
                     sessionStorage.removeItem('sso_redirecting_timestamp')
                     sessionStorage.removeItem('sso_redirecting_url')
+                    sessionStorage.removeItem('sso_redirect_attempts')
                   }
                   isRedirecting.value = false
                   authStore.isSSORedirecting = false
-                  // Afficher un message d'erreur ou rediriger vers dashboard
-                  console.error('SSO redirect loop detected: callback URL points to same domain')
+                  // Afficher le formulaire de login au lieu de créer une boucle
                   return
                 }
               } catch (e) {
-                console.error('Error parsing callback URL:', e)
+                console.error('[SSO] Error parsing callback URL:', e)
               }
               
               // IMPORTANT: Nettoyer les flags AVANT la redirection pour éviter les boucles
@@ -303,8 +319,10 @@ export default {
                 sessionStorage.removeItem('sso_redirecting')
                 sessionStorage.removeItem('sso_redirecting_timestamp')
                 sessionStorage.removeItem('sso_redirecting_url')
+                sessionStorage.removeItem('sso_redirect_attempts')
               }
               
+              console.log('[SSO] Redirecting to:', callbackUrl)
               // Redirection immédiate et définitive - utiliser replace pour éviter de revenir en arrière
               window.location.replace(callbackUrl)
               
