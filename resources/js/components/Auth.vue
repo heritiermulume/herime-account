@@ -253,6 +253,7 @@ export default {
         console.log('[SSO] Loop was recently detected, skipping redirect attempt')
         isRedirecting.value = false
         authStore.isSSORedirecting = false
+        console.log('[SSO] Flags reset. isRedirecting:', isRedirecting.value, 'authStore.isSSORedirecting:', authStore.isSSORedirecting, 'shouldShowSSOOverlay:', shouldShowSSOOverlay.value)
         return
       }
       
