@@ -13,7 +13,7 @@
 </template>
 
 <script>
-import { ref, computed, onMounted, onBeforeMount } from 'vue'
+import { ref, computed, onMounted, onBeforeMount, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import axios from 'axios'
@@ -536,107 +536,107 @@ export default {
               
               console.log('[SSO] Executing redirect to:', callbackUrl)
               
-              try {
-                // Méthode 1: Essayer la redirection standard d'abord
-                console.log('[SSO] Method 1: Trying window.location.replace()')
-                window.location.replace(callbackUrl)
-                
-                // Attendre un peu pour voir si la redirection fonctionne
-                // Si elle ne fonctionne pas, utiliser la méthode du formulaire
-                setTimeout(() => {
-                  console.log('[SSO] Method 2: Redirect may have failed, trying form submission')
+              // Utiliser nextTick pour attendre que Vue termine son cycle de rendu
+              // Cela évite que Vue Router ou d'autres composants interceptent la redirection
+              nextTick(() => {
+                try {
+                  // Méthode 1: Essayer la redirection standard d'abord
+                  console.log('[SSO] Method 1: Trying window.location.replace()')
+                  window.location.replace(callbackUrl)
                   
-                  // Méthode 2: Créer un formulaire invisible et le soumettre
-                  // Cette méthode contourne souvent les bloqueurs de redirection
-                  try {
-                    const form = document.createElement('form')
-                    form.method = 'GET'
-                    form.action = callbackUrl
-                    form.style.display = 'none'
+                  // Si replace() ne fonctionne pas immédiatement, essayer les fallbacks
+                  // après un court délai
+                  setTimeout(() => {
+                    console.log('[SSO] Method 2: Redirect may have failed, trying form submission')
                     
-                    // Ajouter un target pour s'assurer que la redirection se fait dans la même fenêtre
-                    form.target = '_self'
-                    
-                    document.body.appendChild(form)
-                    
-                    // Soumettre le formulaire automatiquement
-                    form.submit()
-                    
-                    // Nettoyer après un court délai (le formulaire sera supprimé avec la page)
-                    setTimeout(() => {
-                      try {
-                        document.body.removeChild(form)
-                      } catch (e) {
-                        // Ignorer si le formulaire a déjà été supprimé
-                      }
-                    }, 1000)
-                    
-                  } catch (formError) {
-                    console.error('[SSO] Form submission failed:', formError)
-                    
-                    // Méthode 3: Dernier recours - window.location.href
+                    // Méthode 2: Créer un formulaire invisible et le soumettre
+                    // Cette méthode contourne souvent les bloqueurs de redirection
                     try {
-                      console.log('[SSO] Method 3: Trying window.location.href as last resort')
-                      window.location.href = callbackUrl
-                    } catch (hrefError) {
-                      console.error('[SSO] All redirect methods failed:', hrefError)
-                      throw hrefError
+                      const form = document.createElement('form')
+                      form.method = 'GET'
+                      form.action = callbackUrl
+                      form.style.display = 'none'
+                      form.target = '_self'
+                      
+                      document.body.appendChild(form)
+                      
+                      // Soumettre le formulaire automatiquement
+                      form.submit()
+                      
+                      // Nettoyer après un court délai
+                      setTimeout(() => {
+                        try {
+                          document.body.removeChild(form)
+                        } catch (e) {
+                          // Ignorer si le formulaire a déjà été supprimé
+                        }
+                      }, 1000)
+                      
+                    } catch (formError) {
+                      console.error('[SSO] Form submission failed:', formError)
+                      
+                      // Méthode 3: Dernier recours - window.location.href
+                      try {
+                        console.log('[SSO] Method 3: Trying window.location.href as last resort')
+                        window.location.href = callbackUrl
+                      } catch (hrefError) {
+                        console.error('[SSO] All redirect methods failed:', hrefError)
+                        throw hrefError
+                      }
                     }
+                  }, 100)
+                  
+                } catch (error) {
+                  console.error('[SSO] Direct redirect failed:', error)
+                  
+                  // En cas d'échec total dans nextTick, afficher l'overlay immédiatement
+                  // Créer un overlay avec un lien cliquable
+                  const redirectOverlay = document.createElement('div')
+                  redirectOverlay.id = 'sso-redirect-overlay'
+                  redirectOverlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.95);color:white;padding:40px;text-align:center;z-index:999999;display:flex;flex-direction:column;justify-content:center;align-items:center;cursor:pointer;'
+                  
+                  const overlayContent = document.createElement('div')
+                  overlayContent.style.cssText = 'background:linear-gradient(135deg, #667eea 0%, #764ba2 100%);padding:40px;border-radius:15px;max-width:600px;box-shadow:0 20px 60px rgba(0,0,0,0.3);'
+                  
+                  const title = document.createElement('h2')
+                  title.textContent = 'Redirection vers ' + new URL(callbackUrl).hostname
+                  title.style.cssText = 'margin:0 0 20px 0;font-size:28px;font-weight:bold;'
+                  
+                  const message = document.createElement('p')
+                  message.textContent = 'Vous allez être redirigé automatiquement...'
+                  message.style.cssText = 'margin:0 0 30px 0;font-size:18px;opacity:0.9;'
+                  
+                  const link = document.createElement('a')
+                  link.href = callbackUrl
+                  link.textContent = 'Cliquez ici si la redirection ne fonctionne pas'
+                  link.style.cssText = 'display:inline-block;background:#fff;color:#667eea;padding:15px 30px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:18px;transition:transform 0.2s;'
+                  link.onmouseover = () => link.style.transform = 'scale(1.05)'
+                  link.onmouseout = () => link.style.transform = 'scale(1)'
+                  
+                  overlayContent.appendChild(title)
+                  overlayContent.appendChild(message)
+                  overlayContent.appendChild(link)
+                  redirectOverlay.appendChild(overlayContent)
+                  
+                  // Ajouter un clic sur l'overlay lui-même pour rediriger
+                  redirectOverlay.onclick = () => {
+                    window.location.href = callbackUrl
                   }
-                }, 50)
-                
-                // Force un arrêt immédiat - ne rien faire d'autre après
-                return
-              } catch (error) {
-                console.error('[SSO] Direct redirect failed:', error)
-                
-                // En cas d'échec total, utiliser un lien visible que l'utilisateur peut cliquer
-                // Créer un overlay avec un lien cliquable
-                const redirectOverlay = document.createElement('div')
-                redirectOverlay.id = 'sso-redirect-overlay'
-                redirectOverlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.95);color:white;padding:40px;text-align:center;z-index:999999;display:flex;flex-direction:column;justify-content:center;align-items:center;cursor:pointer;'
-                
-                const overlayContent = document.createElement('div')
-                overlayContent.style.cssText = 'background:linear-gradient(135deg, #667eea 0%, #764ba2 100%);padding:40px;border-radius:15px;max-width:600px;box-shadow:0 20px 60px rgba(0,0,0,0.3);'
-                
-                const title = document.createElement('h2')
-                title.textContent = 'Redirection vers ' + new URL(callbackUrl).hostname
-                title.style.cssText = 'margin:0 0 20px 0;font-size:28px;font-weight:bold;'
-                
-                const message = document.createElement('p')
-                message.textContent = 'Vous allez être redirigé automatiquement...'
-                message.style.cssText = 'margin:0 0 30px 0;font-size:18px;opacity:0.9;'
-                
-                const link = document.createElement('a')
-                link.href = callbackUrl
-                link.textContent = 'Cliquez ici si la redirection ne fonctionne pas'
-                link.style.cssText = 'display:inline-block;background:#fff;color:#667eea;padding:15px 30px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:18px;transition:transform 0.2s;'
-                link.onmouseover = () => link.style.transform = 'scale(1.05)'
-                link.onmouseout = () => link.style.transform = 'scale(1)'
-                
-                overlayContent.appendChild(title)
-                overlayContent.appendChild(message)
-                overlayContent.appendChild(link)
-                redirectOverlay.appendChild(overlayContent)
-                
-                // Ajouter un clic sur l'overlay lui-même pour rediriger
-                redirectOverlay.onclick = () => {
-                  window.location.href = callbackUrl
+                  
+                  document.body.appendChild(redirectOverlay)
+                  
+                  // Réessayer automatiquement après 2 secondes
+                  setTimeout(() => {
+                    console.log('[SSO] Retrying redirect after 2 seconds')
+                    window.location.href = callbackUrl
+                  }, 2000)
+                  
+                  isRedirecting.value = false
+                  authStore.isSSORedirecting = false
                 }
-                
-                document.body.appendChild(redirectOverlay)
-                
-                // Réessayer automatiquement après 2 secondes
-                setTimeout(() => {
-                  console.log('[SSO] Retrying redirect after 2 seconds')
-                  window.location.href = callbackUrl
-                }, 2000)
-                
-                isRedirecting.value = false
-                authStore.isSSORedirecting = false
-              }
+              })
               
-              // Cette ligne ne sera jamais exécutée si la redirection fonctionne
+              // Force un arrêt immédiat - ne rien faire d'autre après
               return
             } else {
               if (typeof window !== 'undefined') {
