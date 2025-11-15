@@ -60,14 +60,44 @@ export default {
       const lastRedirectTo = sessionStorage.getItem(lastRedirectToKey)
       const currentUrl = window.location.href
       
+      const route = useRoute()
+      const hasForceToken = route.query.force_token === '1' || 
+                           route.query.force_token === 1 || 
+                           route.query.force_token === true || 
+                           route.query.force_token === 'true' ||
+                           route.query.force_token === 'yes' ||
+                           route.query.force_token === 'on'
+      const currentHost = window.location.hostname.replace(/^www\./, '').toLowerCase()
+      
       console.log('[SSO] Checking for redirect loop:', {
         redirectAttempts,
         redirectingTimestamp,
         redirectingUrl,
         lastRedirectTo,
         currentUrl,
-        referer: document.referer
+        referer: document.referer,
+        hasForceToken,
+        currentHost
       })
+      
+      // DÉTECTION PRINCIPALE : Si on a lastRedirectTo ET force_token ET qu'on est sur compte.herime.com
+      // C'est probablement une boucle car on revient de la redirection
+      if (hasForceToken && currentHost === 'compte.herime.com' && lastRedirectTo) {
+        const now = Date.now()
+        const elapsed = redirectingTimestamp ? now - parseInt(redirectingTimestamp, 10) : 0
+        
+        // Si on a redirigé vers un domaine externe récemment (moins de 15 secondes)
+        // ET qu'on est de retour sur compte.herime.com avec force_token, c'est une boucle
+        if (elapsed < 15000 && lastRedirectTo !== 'compte.herime.com') {
+          console.error('[SSO] LOOP DETECTED: Returned to compte.herime.com with force_token after redirecting to', lastRedirectTo, 'too quickly (', elapsed, 'ms)')
+          sessionStorage.removeItem(redirectingKey)
+          sessionStorage.removeItem(redirectingTimestampKey)
+          sessionStorage.removeItem(redirectingUrlKey)
+          sessionStorage.removeItem(redirectAttemptsKey)
+          sessionStorage.removeItem(lastRedirectToKey)
+          return true
+        }
+      }
       
       // Vérifier si on vient d'un autre domaine (academie.herime.com, etc.)
       // Si oui, vérifier si on a déjà redirigé vers ce domaine récemment
@@ -75,26 +105,17 @@ export default {
       if (referer) {
         try {
           const refererHost = new URL(referer).hostname.replace(/^www\./, '').toLowerCase()
-          const currentHost = window.location.hostname.replace(/^www\./, '').toLowerCase()
           
           // Si on vient d'academie.herime.com et qu'on est sur compte.herime.com avec force_token
           // ET qu'on a déjà redirigé vers academie.herime.com récemment, c'est une boucle
           if (refererHost === 'academie.herime.com' && currentHost === 'compte.herime.com') {
-            const route = useRoute()
-            const hasForceToken = route.query.force_token === '1' || 
-                                 route.query.force_token === 1 || 
-                                 route.query.force_token === true || 
-                                 route.query.force_token === 'true' ||
-                                 route.query.force_token === 'yes' ||
-                                 route.query.force_token === 'on'
-            
             if (hasForceToken && lastRedirectTo === 'academie.herime.com') {
               const now = Date.now()
               const elapsed = redirectingTimestamp ? now - parseInt(redirectingTimestamp, 10) : 0
               
-              // Si moins de 10 secondes se sont écoulées, c'est une boucle
-              if (elapsed < 10000) {
-                console.error('[SSO] LOOP DETECTED: Returned from academie.herime.com too quickly')
+              // Si moins de 15 secondes se sont écoulées, c'est une boucle
+              if (elapsed < 15000) {
+                console.error('[SSO] LOOP DETECTED: Returned from academie.herime.com too quickly (referer check)')
                 sessionStorage.removeItem(redirectingKey)
                 sessionStorage.removeItem(redirectingTimestampKey)
                 sessionStorage.removeItem(redirectingUrlKey)
