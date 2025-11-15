@@ -53,21 +53,61 @@ export default {
       const redirectingTimestampKey = 'sso_redirecting_timestamp'
       const redirectingUrlKey = 'sso_redirecting_url'
       const redirectAttemptsKey = 'sso_redirect_attempts'
+      const lastRedirectToKey = 'sso_last_redirect_to'
       const redirectingTimestamp = sessionStorage.getItem(redirectingTimestampKey)
       const redirectingUrl = sessionStorage.getItem(redirectingUrlKey)
       const redirectAttempts = parseInt(sessionStorage.getItem(redirectAttemptsKey) || '0', 10)
+      const lastRedirectTo = sessionStorage.getItem(lastRedirectToKey)
       const currentUrl = window.location.href
       
+      console.log('[SSO] Checking for redirect loop:', {
+        redirectAttempts,
+        redirectingTimestamp,
+        redirectingUrl,
+        lastRedirectTo,
+        currentUrl,
+        referer: document.referer
+      })
+      
       // Vérifier si on vient d'un autre domaine (academie.herime.com, etc.)
-      // Si oui, nettoyer sessionStorage car c'est une nouvelle session
+      // Si oui, vérifier si on a déjà redirigé vers ce domaine récemment
       const referer = document.referer
       if (referer) {
         try {
           const refererHost = new URL(referer).hostname.replace(/^www\./, '').toLowerCase()
           const currentHost = window.location.hostname.replace(/^www\./, '').toLowerCase()
           
-          // Si on vient d'un autre domaine (pas compte.herime.com), c'est normal, nettoyer
+          // Si on vient d'academie.herime.com et qu'on est sur compte.herime.com avec force_token
+          // ET qu'on a déjà redirigé vers academie.herime.com récemment, c'est une boucle
+          if (refererHost === 'academie.herime.com' && currentHost === 'compte.herime.com') {
+            const route = useRoute()
+            const hasForceToken = route.query.force_token === '1' || 
+                                 route.query.force_token === 1 || 
+                                 route.query.force_token === true || 
+                                 route.query.force_token === 'true' ||
+                                 route.query.force_token === 'yes' ||
+                                 route.query.force_token === 'on'
+            
+            if (hasForceToken && lastRedirectTo === 'academie.herime.com') {
+              const now = Date.now()
+              const elapsed = redirectingTimestamp ? now - parseInt(redirectingTimestamp, 10) : 0
+              
+              // Si moins de 10 secondes se sont écoulées, c'est une boucle
+              if (elapsed < 10000) {
+                console.error('[SSO] LOOP DETECTED: Returned from academie.herime.com too quickly')
+                sessionStorage.removeItem(redirectingKey)
+                sessionStorage.removeItem(redirectingTimestampKey)
+                sessionStorage.removeItem(redirectingUrlKey)
+                sessionStorage.removeItem(redirectAttemptsKey)
+                sessionStorage.removeItem(lastRedirectToKey)
+                return true
+              }
+            }
+          }
+          
+          // Si on vient d'un autre domaine (pas compte.herime.com), nettoyer les flags
           if (refererHost !== currentHost && refererHost !== 'compte.herime.com' && currentHost === 'compte.herime.com') {
+            // Mais garder lastRedirectTo pour détecter les boucles
             sessionStorage.removeItem(redirectingKey)
             sessionStorage.removeItem(redirectingTimestampKey)
             sessionStorage.removeItem(redirectingUrlKey)
@@ -146,6 +186,7 @@ export default {
           sessionStorage.removeItem('sso_redirecting_timestamp')
           sessionStorage.removeItem('sso_redirecting_url')
           sessionStorage.removeItem('sso_redirect_attempts')
+          sessionStorage.removeItem('sso_last_redirect_to')
         }
         // Ne pas essayer de rediriger, juste afficher le formulaire
         return
@@ -320,6 +361,15 @@ export default {
                 sessionStorage.removeItem('sso_redirecting_timestamp')
                 sessionStorage.removeItem('sso_redirecting_url')
                 sessionStorage.removeItem('sso_redirect_attempts')
+              }
+              
+              // Extraire le hostname de la destination pour détecter les boucles
+              try {
+                const callbackHost = new URL(callbackUrl).hostname.replace(/^www\./, '').toLowerCase()
+                sessionStorage.setItem('sso_last_redirect_to', callbackHost)
+                console.log('[SSO] Storing last redirect destination:', callbackHost)
+              } catch (e) {
+                // Ignorer les erreurs
               }
               
               console.log('[SSO] Redirecting to:', callbackUrl)
