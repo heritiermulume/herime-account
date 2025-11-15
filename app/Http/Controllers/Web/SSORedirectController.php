@@ -17,51 +17,61 @@ class SSORedirectController extends Controller
      */
     public function redirect(Request $request)
     {
-        // NOUVEAU SYSTÈME: Vérifier l'authentification depuis le token dans localStorage
-        // Puisque l'utilisateur vient de JavaScript, il a un token dans localStorage
-        // On doit lire le token depuis l'header Authorization ou le passer en paramètre
+        \Log::info('SSO Redirect started', [
+            'url' => $request->fullUrl(),
+            'has_token' => $request->has('_token'),
+            'session_id' => $request->session()->getId(),
+        ]);
         
-        $user = null;
-        $token = null;
+        // PRIORITÉ 1: Vérifier la session web (l'utilisateur est déjà connecté via la session Laravel)
+        // C'est la méthode la plus fiable car l'utilisateur vient de la page de login
+        $user = Auth::guard('web')->user();
         
-        // Méthode 1: Lire le token depuis l'header Authorization (Bearer)
-        if ($request->bearerToken()) {
-            $token = $request->bearerToken();
-        }
+        \Log::info('SSO Redirect - Session check', [
+            'user_from_session' => $user ? $user->id : null,
+        ]);
         
-        // Méthode 2: Lire le token depuis le paramètre _token (si passé depuis JS)
-        if (!$token && $request->has('_token')) {
-            $token = $request->query('_token');
-        }
-        
-        // Si on a un token, tenter de trouver l'utilisateur
-        if ($token) {
-            try {
-                // Trouver le token dans la base de données Passport
-                $accessToken = Token::where('id', hash('sha256', $token))
-                    ->where('revoked', false)
-                    ->first();
+        // PRIORITÉ 2: Si pas de session, essayer le token Passport depuis le paramètre _token
+        if (!$user) {
+            $tokenString = $request->query('_token');
+            
+            if ($tokenString) {
+                \Log::info('SSO Redirect - Trying token authentication', [
+                    'token_length' => strlen($tokenString),
+                ]);
+                
+                $accessToken = $this->findAccessToken($tokenString);
                 
                 if ($accessToken && $accessToken->user) {
                     $user = $accessToken->user;
+                    \Log::info('SSO Redirect - User found from token', [
+                        'user_id' => $user->id,
+                    ]);
+                    
+                    // Connecter l'utilisateur dans la session web pour les prochaines requêtes
+                    Auth::guard('web')->login($user);
+                } else {
+                    \Log::warning('SSO Redirect - Token not found or invalid', [
+                        'token_length' => strlen($tokenString),
+                    ]);
                 }
-            } catch (\Exception $e) {
-                // Ignorer les erreurs
             }
         }
         
-        // Si toujours pas d'utilisateur, essayer la session web (pour compatibilité)
-        if (!$user) {
-            $user = Auth::guard('web')->user();
-        }
-        
-        // Si toujours pas d'utilisateur, essayer Auth::user() (guard par défaut)
+        // PRIORITÉ 3: Essayer Auth::user() (guard par défaut)
         if (!$user) {
             $user = Auth::user();
+            \Log::info('SSO Redirect - Default guard check', [
+                'user_from_default_guard' => $user ? $user->id : null,
+            ]);
         }
         
         // Si toujours pas d'utilisateur, rediriger vers login
         if (!$user) {
+            \Log::warning('SSO Redirect - No user found, redirecting to login', [
+                'redirect_param' => $request->query('redirect'),
+            ]);
+            
             // Rediriger vers la page de login avec les paramètres
             $redirect = $request->query('redirect');
             $redirectParam = $redirect ? '?redirect=' . urlencode($redirect) . '&force_token=1' : '';
@@ -132,6 +142,11 @@ class SSORedirectController extends Controller
                 }
             }
 
+            \Log::info('SSO Redirect - Redirecting to callback', [
+                'user_id' => $user->id,
+                'callback_url' => $callbackUrl,
+            ]);
+
             // Redirection HTTP 302 directe - contourne JavaScript et Vue Router complètement
             return redirect($callbackUrl);
 
@@ -140,10 +155,77 @@ class SSORedirectController extends Controller
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
                 'user_id' => $user->id ?? null,
-                'redirect_url' => $redirectUrl
+                'redirect_url' => $redirectUrl ?? null
             ]);
 
             return redirect('/dashboard')->with('error', 'An error occurred during SSO redirect');
+        }
+    }
+    
+    /**
+     * Trouver un token Passport depuis un JWT
+     * Utilise la même logique que SSOController::findAccessToken
+     */
+    private function findAccessToken(string $token): ?Token
+    {
+        if (!$token) {
+            return null;
+        }
+
+        // Méthode 1: Hash SHA-256 du token complet
+        $tokenHash = hash('sha256', $token);
+        $accessToken = Token::where('id', $tokenHash)
+            ->where('revoked', false)
+            ->first();
+
+        if ($accessToken) {
+            return $accessToken;
+        }
+
+        // Méthode 2: Décoder le JWT et utiliser le jti
+        $payload = $this->decodeJwtPayload($token);
+
+        if ($payload && isset($payload['jti'])) {
+            $jti = $payload['jti'];
+
+            // Essayer avec le jti directement
+            $accessToken = Token::where('id', $jti)
+                ->where('revoked', false)
+                ->first();
+
+            if ($accessToken) {
+                return $accessToken;
+            }
+
+            // Essayer avec le hash du jti
+            $accessToken = Token::where('id', hash('sha256', $jti))
+                ->where('revoked', false)
+                ->first();
+
+            if ($accessToken) {
+                return $accessToken;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Décoder le payload d'un JWT sans vérification
+     */
+    private function decodeJwtPayload(string $token): ?array
+    {
+        try {
+            $parts = explode('.', $token);
+            if (count($parts) !== 3) {
+                return null;
+            }
+
+            $payload = json_decode(base64_decode(strtr($parts[1], '-_', '+/')), true);
+
+            return is_array($payload) ? $payload : null;
+        } catch (\Throwable $e) {
+            return null;
         }
     }
 }
