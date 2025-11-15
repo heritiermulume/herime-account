@@ -14,6 +14,10 @@ Route::get('/login', [LoginController::class, 'show']);
 // Route de logout avec gestion du paramètre redirect
 Route::get('/logout', [LoginController::class, 'logout']);
 
+// Route SSO de redirection côté serveur (contourne JavaScript/Vue Router)
+// Pas de middleware auth ici - on vérifie l'auth dans le contrôleur pour supporter session ET token
+Route::get('/sso/redirect', [App\Http\Controllers\Web\SSORedirectController::class, 'redirect']);
+
 Route::get('/register', function () {
     return view('welcome');
 });

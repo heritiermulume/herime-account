@@ -13,7 +13,7 @@
 </template>
 
 <script>
-import { ref, computed, onMounted, onBeforeMount, nextTick } from 'vue'
+import { ref, computed, onMounted, onBeforeMount } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import axios from 'axios'
@@ -419,248 +419,62 @@ export default {
         
         console.log('[SSO] User authenticated, proceeding with redirect')
         
-        // Utilisateur authentifié, continuer avec la génération du token SSO
-        // Les flags sont déjà marqués au début, pas besoin de les remettre
+        // NOUVEAU SYSTÈME: Redirection côté serveur
+        // Au lieu de générer le token côté client et rediriger avec JavaScript,
+        // on utilise une route Laravel qui fait tout : génération du token + redirection HTTP 302
+        // Cela contourne complètement Vue Router et les problèmes JavaScript
         
-        // Générer le token SSO et rediriger immédiatement
-        // Exécuter la fonction async immédiatement
         const redirect = route.query.redirect
         
         if (!redirect) {
+          // Pas d'URL de redirection, nettoyer et afficher le formulaire
           if (typeof window !== 'undefined') {
             sessionStorage.removeItem('sso_redirecting')
             sessionStorage.removeItem('sso_redirecting_timestamp')
             sessionStorage.removeItem('sso_redirecting_url')
             sessionStorage.removeItem('sso_redirect_attempts')
-          sessionStorage.removeItem('sso_last_redirect_to')
+            sessionStorage.removeItem('sso_last_redirect_to')
           }
           isRedirecting.value = false
           authStore.isSSORedirecting = false
           return
         }
         
-        // Exécuter la génération du token et la redirection immédiatement
-        // Utiliser une fonction async et l'exécuter immédiatement
-        const performRedirect = async () => {
-          try {
-            console.log('[SSO] Starting token generation for redirect:', redirect)
-            // OPTIMISATION: Timeout court pour la génération du token SSO (3 secondes)
-            const response = await Promise.race([
-              axios.post('/sso/generate-token', {
-                redirect: redirect
-              }, { timeout: 3000 }),
-              new Promise((_, reject) => setTimeout(() => reject(new Error('SSO token generation timeout')), 3000))
-            ])
-            
-            console.log('[SSO] Token generation response:', response.data)
-            
-            
-            if (response.data && response.data.success && response.data.data && response.data.data.callback_url) {
-              const callbackUrl = response.data.data.callback_url
-              
-              console.log('[SSO] Callback URL received:', callbackUrl)
-              
-              // Vérifier une dernière fois que callbackUrl ne pointe pas vers le même domaine
-              try {
-                const callbackHost = new URL(callbackUrl).hostname.replace(/^www\./, '').toLowerCase()
-                const currentHost = window.location.hostname.replace(/^www\./, '').toLowerCase()
-                
-                console.log('[SSO] Checking callback host:', callbackHost, 'vs current host:', currentHost)
-                
-                // Si le callback pointe vers compte.herime.com, c'est une boucle - arrêter
-                if (callbackHost === currentHost || callbackHost === 'compte.herime.com') {
-                  console.error('[SSO] LOOP DETECTED: Callback URL points to same domain, stopping redirect')
-                  if (typeof window !== 'undefined') {
-                    sessionStorage.removeItem('sso_redirecting')
-                    sessionStorage.removeItem('sso_redirecting_timestamp')
-                    sessionStorage.removeItem('sso_redirecting_url')
-                    sessionStorage.removeItem('sso_redirect_attempts')
+        // SIMPLE REDIRECTION vers la route serveur qui fait tout
+        // Cette route génère le token et redirige via HTTP 302
+        // Cela évite tous les problèmes de JavaScript/Vue Router
+        
+        // Récupérer le token depuis localStorage pour l'envoyer au serveur
+        const accessToken = localStorage.getItem('access_token')
+        
+        // Construire l'URL avec le token et l'URL de redirection
+        const serverRedirectUrl = '/sso/redirect?redirect=' + encodeURIComponent(redirect) + 
+          (accessToken ? '&_token=' + encodeURIComponent(accessToken) : '')
+        
+        console.log('[SSO] Redirecting to server-side redirect endpoint:', serverRedirectUrl)
+        
+        // Simple redirection - Laravel fait le reste (génération token + redirection HTTP 302)
+        window.location.href = serverRedirectUrl
+        
+        // Nettoyer les flags
+        if (typeof window !== 'undefined') {
+          sessionStorage.removeItem('sso_redirecting')
+          sessionStorage.removeItem('sso_redirecting_timestamp')
+          sessionStorage.removeItem('sso_redirecting_url')
+          sessionStorage.removeItem('sso_redirect_attempts')
           sessionStorage.removeItem('sso_last_redirect_to')
-                  }
-                  isRedirecting.value = false
-                  authStore.isSSORedirecting = false
-                  // Afficher le formulaire de login au lieu de créer une boucle
-                  return
-                }
-              } catch (e) {
-                console.error('[SSO] Error parsing callback URL:', e)
-              }
-              
-              // IMPORTANT: Stocker le timestamp et la destination AVANT de rediriger
-              // Cela permet de détecter les boucles au retour
-              if (typeof window !== 'undefined') {
-                // Stocker le timestamp et la destination AVANT la redirection
-                const now = Date.now()
-                sessionStorage.setItem('sso_redirecting_timestamp', now.toString())
-                
-                // Extraire le hostname de la destination pour détecter les boucles
-                try {
-                  const callbackHost = new URL(callbackUrl).hostname.replace(/^www\./, '').toLowerCase()
-                  sessionStorage.setItem('sso_last_redirect_to', callbackHost)
-                  console.log('[SSO] Storing redirect info for loop detection BEFORE redirect:', {
-                    destination: callbackHost,
-                    timestamp: now
-                  })
-                } catch (e) {
-                  // Ignorer les erreurs
-                }
-                
-                // Nettoyer seulement les flags de redirection en cours
-                sessionStorage.removeItem('sso_redirecting')
-                sessionStorage.removeItem('sso_redirecting_url')
-                sessionStorage.removeItem('sso_redirect_attempts')
-              }
-              
-              console.log('[SSO] Redirecting to:', callbackUrl)
-              
-              // APPROCHE DIRECTE: Utiliser une seule méthode très simple et directe
-              // Le problème avec les méthodes multiples est qu'elles peuvent interférer entre elles
-              // On utilise window.location directement et on arrête tout chargement en cours
-              
-              // Arrêter tout chargement/traitement en cours pour permettre la redirection
-              try {
-                if (window.stop) {
-                  window.stop()
-                }
-              } catch (e) {
-                // Ignorer si window.stop n'est pas disponible
-              }
-              
-              // Nettoyer les event listeners qui pourraient bloquer
-              // Désactiver Vue Router temporairement en vidant les guards
-              const originalBeforeEach = router.beforeEach
-              
-              // MÉTHODE PAR FORMULAIRE: Créer un formulaire et le soumettre automatiquement
-              // Cette méthode contourne souvent les bloqueurs car elle simule une soumission de formulaire
-              // qui est considérée comme une action utilisateur légitime
-              
-              console.log('[SSO] Executing SYNCHRONOUS redirect to:', callbackUrl)
-              
-              // SOLUTION CRITIQUE: Redirection SYNCHRONE et DIRECTE - PAS d'asynchronie
-              // PROBLÈME IDENTIFIÉ: nextTick() et setTimeout() permettent au code de continuer
-              // même après window.location.replace(), ce qui fait que le fallback s'exécute
-              // SOLUTION: Redirection IMMÉDIATE et SYNCHRONE, puis ARRÊT TOTAL du code
-              
-              // IMPORTANT: window.location.replace() est SYNCHRONE et devrait changer
-              // la page IMMÉDIATEMENT. Si le code continue après, c'est un problème.
-              
-              try {
-                // MÉTHODE UNIQUE: window.location.replace() - SYNCHRONE et immédiat
-                // Cette méthode remplace l'URL dans l'historique et force une navigation complète
-                // Elle devrait ARRÊTER l'exécution JavaScript immédiatement
-                console.log('[SSO] Executing window.location.replace() - this should stop execution')
-                window.location.replace(callbackUrl)
-                
-                // Si on arrive ici, c'est que replace() n'a PAS fonctionné (ne devrait jamais arriver)
-                // Essayer window.location.href immédiatement (sans délai)
-                console.warn('[SSO] replace() did not redirect - trying href immediately')
-                window.location.href = callbackUrl
-                
-                // Si href() ne fonctionne pas non plus, essayer assign()
-                window.location.assign(callbackUrl)
-                
-                // Si TOUTES les méthodes échouent, c'est qu'il y a un blocage fondamental
-                // Afficher un lien manuel IMMÉDIATEMENT (pas de setTimeout)
-                console.error('[SSO] All redirect methods failed - showing manual link immediately')
-                
-                // Créer un overlay visible IMMÉDIATEMENT
-                const redirectOverlay = document.createElement('div')
-                redirectOverlay.id = 'sso-redirect-overlay'
-                redirectOverlay.style.cssText = 'position:fixed !important;top:0 !important;left:0 !important;right:0 !important;bottom:0 !important;background:rgba(0,0,0,0.95) !important;color:white !important;padding:40px !important;text-align:center !important;z-index:999999 !important;display:flex !important;flex-direction:column !important;justify-content:center !important;align-items:center !important;cursor:pointer !important;'
-                
-                const overlayContent = document.createElement('div')
-                overlayContent.style.cssText = 'background:linear-gradient(135deg, #667eea 0%, #764ba2 100%);padding:40px;border-radius:15px;max-width:600px;box-shadow:0 20px 60px rgba(0,0,0,0.3);'
-                
-                const title = document.createElement('h2')
-                title.textContent = 'Redirection vers ' + new URL(callbackUrl).hostname
-                title.style.cssText = 'margin:0 0 20px 0;font-size:28px;font-weight:bold;'
-                
-                const message = document.createElement('p')
-                message.textContent = 'Cliquez sur le bouton ci-dessous pour continuer :'
-                message.style.cssText = 'margin:0 0 30px 0;font-size:18px;opacity:0.9;'
-                
-                const link = document.createElement('a')
-                link.href = callbackUrl
-                link.textContent = 'Continuer vers ' + new URL(callbackUrl).hostname
-                link.style.cssText = 'display:inline-block;background:#fff;color:#667eea;padding:15px 30px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:18px;'
-                link.onclick = (e) => {
-                  e.preventDefault()
-                  window.location.href = callbackUrl
-                  return false
-                }
-                
-                overlayContent.appendChild(title)
-                overlayContent.appendChild(message)
-                overlayContent.appendChild(link)
-                redirectOverlay.appendChild(overlayContent)
-                
-                redirectOverlay.onclick = () => {
-                  window.location.href = callbackUrl
-                }
-                
-                document.body.appendChild(redirectOverlay)
-                
-                isRedirecting.value = false
-                authStore.isSSORedirecting = false
-                
-              } catch (error) {
-                console.error('[SSO] Exception during redirect:', error)
-                // Dernier recours absolu
-                window.location.href = callbackUrl
-              }
-              
-              // ARRÊT TOTAL - ne rien faire d'autre après cette ligne
-              // Si la redirection a fonctionné, cette ligne ne sera jamais atteinte
-              return
-            } else {
-              if (typeof window !== 'undefined') {
-                sessionStorage.removeItem('sso_redirecting')
-                sessionStorage.removeItem('sso_redirecting_timestamp')
-              }
-              isRedirecting.value = false
-              authStore.isSSORedirecting = false
-              return
-            }
-          } catch (error) {
-            if (typeof window !== 'undefined') {
-              sessionStorage.removeItem('sso_redirecting')
-              sessionStorage.removeItem('sso_redirecting_timestamp')
-            }
-            isRedirecting.value = false
-            authStore.isSSORedirecting = false
-            return
-          }
         }
         
-        // Exécuter immédiatement et stocker la promesse pour éviter les doubles exécutions
-        if (!redirectPromise.value) {
-          redirectPromise.value = performRedirect()
-        }
-        
-        // Ne pas continuer, la redirection est en cours
         return
       } else {
       }
     })
 
     onMounted(async () => {
+      // NOUVEAU SYSTÈME: onMounted ne fait plus de redirection SSO
+      // La redirection est gérée entièrement dans onBeforeMount avec le nouveau système serveur
       
-      // Si une redirection est déjà en cours (promesse en cours), ne rien faire de plus
-      if (redirectPromise.value) {
-        try {
-          await redirectPromise.value
-        } catch (e) {
-        }
-        return
-      }
-      
-      // TOUJOURS réinitialiser isRedirecting au début de onMounted (sauf si redirection en cours)
-      // Mais seulement si on n'a pas de paramètres SSO
-      if (!route.query.redirect && !route.query.force_token) {
-        isRedirecting.value = false
-      }
-      
-      // Réinitialiser le flag SSO si on arrive sur la page sans paramètre redirect/force_token
+      // Nettoyer les flags si on n'a pas de paramètres SSO
       if (!route.query.redirect && !route.query.force_token) {
         authStore.isSSORedirecting = false
         isRedirecting.value = false
@@ -668,142 +482,32 @@ export default {
         if (typeof window !== 'undefined') {
           sessionStorage.removeItem('sso_redirecting')
           sessionStorage.removeItem('sso_redirecting_timestamp')
-        }
-      }
-      
-      // OPTIMISATION: Si onBeforeMount a déjà géré la redirection (redirectPromise existe), ne rien faire
-      // Cela évite les appels redondants et les boucles
-      if (redirectPromise.value) {
-        return
-      }
-      
-      // Si une redirection SSO est en cours ET qu'on a les paramètres, vérifier si c'est vraiment nécessaire
-      // Mais seulement si onBeforeMount n'a pas déjà géré la redirection
-      if (typeof window !== 'undefined' && sessionStorage.getItem('sso_redirecting') === 'true' && !redirectPromise.value) {
-        // Si on n'a pas de paramètres redirect/force_token, nettoyer le flag
-        if (!route.query.redirect && !route.query.force_token) {
-          sessionStorage.removeItem('sso_redirecting')
-          sessionStorage.removeItem('sso_redirecting_timestamp')
-          isRedirecting.value = false
-          authStore.isSSORedirecting = false
-        } else {
-          // On a les paramètres, vérifier si l'utilisateur est authentifié
-          const token = localStorage.getItem('access_token')
-          if (!token) {
-            sessionStorage.removeItem('sso_redirecting')
-            sessionStorage.removeItem('sso_redirecting_timestamp')
-            sessionStorage.removeItem('sso_redirecting_url')
-            sessionStorage.removeItem('sso_redirect_attempts')
+          sessionStorage.removeItem('sso_redirecting_url')
+          sessionStorage.removeItem('sso_redirect_attempts')
           sessionStorage.removeItem('sso_last_redirect_to')
-            isRedirecting.value = false
-            authStore.isSSORedirecting = false
-          } else {
-            // OPTIMISATION: Vérifier l'authentification avec timeout
-            let isAuthenticated = false
-            try {
-              isAuthenticated = await Promise.race([
-                authStore.checkAuth(),
-                new Promise((_, reject) => setTimeout(() => reject(new Error('Auth check timeout')), 3000))
-              ])
-            } catch (error) {
-              // En cas de timeout, considérer comme non authentifié
-              isAuthenticated = false
-            }
-            
-            if (!isAuthenticated) {
-              sessionStorage.removeItem('sso_redirecting')
-              sessionStorage.removeItem('sso_redirecting_timestamp')
-              isRedirecting.value = false
-              authStore.isSSORedirecting = false
-            } else {
-              // Si la redirection n'a pas déjà été déclenchée dans onBeforeMount, la déclencher ici
-              if (!redirectPromise.value && route.query.redirect) {
-                isRedirecting.value = true
-                const performRedirect = async () => {
-                  try {
-                    // OPTIMISATION: Timeout court pour la génération du token SSO (3 secondes)
-                    const response = await Promise.race([
-                      axios.post('/sso/generate-token', {
-                        redirect: route.query.redirect
-                      }, { timeout: 3000 }),
-                      new Promise((_, reject) => setTimeout(() => reject(new Error('SSO token generation timeout')), 3000))
-                    ])
-                    
-                    if (response.data?.success && response.data?.data?.callback_url) {
-                      const callbackUrl = response.data.data.callback_url
-                      if (typeof window !== 'undefined') {
-                        sessionStorage.setItem('sso_redirecting', 'true')
-                        sessionStorage.setItem('sso_redirecting_timestamp', Date.now().toString())
-                      }
-                      
-                      // Utiliser la même approche que dans onBeforeMount
-                      console.log('[SSO] onMounted: Redirecting to:', callbackUrl)
-                      
-                      try {
-                        // Méthode 1: window.location.replace()
-                        console.log('[SSO] onMounted Method 1: Trying window.location.replace()')
-                        window.location.replace(callbackUrl)
-                        
-                        // Fallback avec formulaire après un court délai
-                        setTimeout(() => {
-                          try {
-                            const form = document.createElement('form')
-                            form.method = 'GET'
-                            form.action = callbackUrl
-                            form.target = '_self'
-                            form.style.display = 'none'
-                            document.body.appendChild(form)
-                            form.submit()
-                          } catch (e) {
-                            console.warn('[SSO] onMounted: Form submission failed, trying window.location.href:', e)
-                            window.location.href = callbackUrl
-                          }
-                        }, 50)
-                      } catch (e) {
-                        console.error('[SSO] onMounted: All redirect methods failed:', e)
-                        window.location.href = callbackUrl
-                      }
-                    }
-                  } catch (error) {
-                    sessionStorage.removeItem('sso_redirecting')
-                    sessionStorage.removeItem('sso_redirecting_timestamp')
-                    isRedirecting.value = false
-                    authStore.isSSORedirecting = false
-                  }
-                }
-                redirectPromise.value = performRedirect()
-              } else {
-                isRedirecting.value = true
-              }
-              return
-            }
-          }
         }
       }
       
-      // Si on est en train de rediriger, ne pas continuer
-      if (isRedirecting.value || redirectPromise.value) {
-        return
-      }
-      
-      // Determine view based on current route
+      // Déterminer la vue basée sur la route actuelle
       if (route.path === '/register') {
         currentView.value = 'register'
       } else {
         currentView.value = 'login'
       }
 
-      // Check if user is already authenticated (pour redirection normale sans force_token)
+      // Vérifier si l'utilisateur est déjà authentifié (pour redirection normale sans force_token)
       const hasForceToken = route.query.force_token === '1' || 
                            route.query.force_token === 1 || 
                            route.query.force_token === true || 
                            route.query.force_token === 'true'
       
+      // Si on a force_token, ne pas faire de redirection automatique vers dashboard
+      // Laisser onBeforeMount gérer la redirection SSO
       if (hasForceToken) {
         return
       }
       
-      // OPTIMISATION: Vérifier l'authentification avec timeout
+      // Vérifier l'authentification seulement pour redirection normale (sans SSO)
       let isAuthenticated = false
       try {
         isAuthenticated = await Promise.race([
@@ -815,9 +519,9 @@ export default {
         isAuthenticated = authStore.authenticated
       }
       
-      if (isAuthenticated && !isRedirecting.value) {
-        // Redirection normale vers dashboard seulement si pas de force_token
-          router.push('/dashboard')
+      // Redirection normale vers dashboard seulement si pas de force_token et pas de redirection SSO
+      if (isAuthenticated && !isRedirecting.value && !hasForceToken) {
+        router.push('/dashboard')
       }
     })
 
