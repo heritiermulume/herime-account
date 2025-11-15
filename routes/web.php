@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Illuminate\Http\Request;
 use App\Http\Controllers\Web\LoginController;
 
 // Route principale - affiche l'application Vue.js
@@ -27,8 +28,13 @@ Route::get('/dashboard', function () {
     return view('welcome');
 });
 
-// Route de fallback pour toutes les routes Vue.js (sauf API et sso/redirect)
-// IMPORTANT: Exclure explicitement /sso/redirect pour éviter qu'elle soit capturée
-Route::get('/{any}', function () {
+// Route de fallback pour toutes les routes Vue.js (sauf API et sso)
+// IMPORTANT: Exclure explicitement /sso/* pour éviter qu'elle soit capturée
+Route::get('/{any}', function (Request $request) {
+    // Double vérification : ne pas rendre le template si c'est sso/redirect
+    $path = $request->path();
+    if ($path === 'sso/redirect' || str_starts_with($path, 'sso/')) {
+        abort(404);
+    }
     return view('welcome');
-})->where('any', '^(?!api|sso/redirect).*');
+})->where('any', '^(?!api|sso).*');

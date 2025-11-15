@@ -71,19 +71,19 @@ class SSORedirectController extends Controller
             $redirect = $request->query('redirect');
             $redirectParam = $redirect ? '?redirect=' . urlencode($redirect) . '&force_token=1' : '';
             $loginUrl = url('/login' . $redirectParam);
-            return redirect($loginUrl);
+            return response('', 302)->header('Location', $loginUrl);
         }
 
         $redirectUrl = $request->query('redirect');
 
         if (!$redirectUrl) {
-            return redirect('/dashboard');
+            return response('', 302)->header('Location', url('/dashboard'));
         }
 
         try {
             // Vérifier que l'utilisateur est actif
             if (!$user->isActive()) {
-                return redirect('/dashboard');
+                return response('', 302)->header('Location', url('/dashboard'));
             }
 
             // Vérifier que le redirect URL ne pointe pas vers le même domaine
@@ -95,7 +95,7 @@ class SSORedirectController extends Controller
                 $currentHost = preg_replace('/^www\./', '', strtolower($currentHost));
                 
                 if ($redirectHost === $currentHost || $redirectHost === 'compte.herime.com') {
-                    return redirect('/dashboard');
+                    return response('', 302)->header('Location', url('/dashboard'));
                 }
             }
 
@@ -106,7 +106,7 @@ class SSORedirectController extends Controller
             $parsedUrl = parse_url($redirectUrl);
             
             if (!$parsedUrl || !isset($parsedUrl['scheme']) || !isset($parsedUrl['host'])) {
-                return redirect('/dashboard');
+                return response('', 302)->header('Location', url('/dashboard'));
             }
             
             $queryParams = [];
@@ -134,7 +134,7 @@ class SSORedirectController extends Controller
             if ($callbackHost) {
                 $callbackHost = preg_replace('/^www\./', '', strtolower($callbackHost));
                 if ($callbackHost === $currentHost || $callbackHost === 'compte.herime.com') {
-                    return redirect('/dashboard');
+                    return response('', 302)->header('Location', url('/dashboard'));
                 }
             }
 
@@ -143,9 +143,10 @@ class SSORedirectController extends Controller
                 'callback_url' => $callbackUrl,
             ]);
 
-            // Redirection HTTP 302 directe - utiliser redirect()->away() pour les URLs externes
-            // Cela garantit une redirection correcte sans rendre le template Blade
-            return redirect()->away($callbackUrl)
+            // Redirection HTTP 302 directe - utiliser une réponse HTTP brute
+            // pour éviter que le template Blade ne se charge
+            return response('', 302)
+                ->header('Location', $callbackUrl)
                 ->header('Cache-Control', 'no-cache, no-store, must-revalidate')
                 ->header('Pragma', 'no-cache')
                 ->header('Expires', '0');
@@ -158,7 +159,7 @@ class SSORedirectController extends Controller
                 'redirect_url' => $redirectUrl ?? null
             ]);
 
-            return redirect('/dashboard');
+            return response('', 302)->header('Location', url('/dashboard'));
         }
     }
     
