@@ -210,7 +210,7 @@ export default {
       
       // Vérifier si on est dans une boucle (AVANT toute autre vérification)
       if (checkForRedirectLoop()) {
-        console.log('[SSO] Loop detected, stopping redirect')
+        console.log('[SSO] Loop detected, stopping redirect and showing login form')
         // Si on est dans une boucle, nettoyer TOUT et afficher le formulaire de login
         isRedirecting.value = false
         authStore.isSSORedirecting = false
@@ -220,8 +220,9 @@ export default {
           sessionStorage.removeItem('sso_redirecting_url')
           sessionStorage.removeItem('sso_redirect_attempts')
           sessionStorage.removeItem('sso_last_redirect_to')
-          sessionStorage.removeItem('sso_last_redirect_to')
         }
+        // S'assurer que le formulaire de login s'affiche
+        console.log('[SSO] Login form should now be visible. isRedirecting:', isRedirecting.value, 'authStore.isSSORedirecting:', authStore.isSSORedirecting)
         // Ne pas essayer de rediriger, juste afficher le formulaire
         return
       }
