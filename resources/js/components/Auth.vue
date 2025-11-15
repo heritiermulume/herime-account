@@ -210,8 +210,8 @@ export default {
       
       // Vérifier si on est dans une boucle (AVANT toute autre vérification)
       if (checkForRedirectLoop()) {
-        console.log('[SSO] Loop detected, stopping redirect and showing login form')
-        // Si on est dans une boucle, nettoyer TOUT et afficher le formulaire de login
+        console.log('[SSO] Loop detected, stopping redirect and breaking the loop')
+        // Si on est dans une boucle, nettoyer TOUT et casser la boucle en supprimant les paramètres de l'URL
         isRedirecting.value = false
         authStore.isSSORedirecting = false
         if (typeof window !== 'undefined') {
@@ -220,6 +220,18 @@ export default {
           sessionStorage.removeItem('sso_redirecting_url')
           sessionStorage.removeItem('sso_redirect_attempts')
           sessionStorage.removeItem('sso_last_redirect_to')
+          
+          // CASSER LA BOUCLE : Rediriger vers /login sans les paramètres force_token et redirect
+          // Cela empêche la boucle de continuer
+          const currentUrl = new URL(window.location.href)
+          if (currentUrl.searchParams.has('force_token') || currentUrl.searchParams.has('redirect')) {
+            console.log('[SSO] Removing force_token and redirect parameters to break the loop')
+            currentUrl.searchParams.delete('force_token')
+            currentUrl.searchParams.delete('redirect')
+            // Utiliser replace pour éviter d'ajouter une entrée dans l'historique
+            window.location.replace(currentUrl.toString())
+            return
+          }
         }
         // S'assurer que le formulaire de login s'affiche
         console.log('[SSO] Login form should now be visible. isRedirecting:', isRedirecting.value, 'authStore.isSSORedirecting:', authStore.isSSORedirecting)
