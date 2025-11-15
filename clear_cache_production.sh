@@ -16,6 +16,10 @@ fi
 echo "✅ SSORedirectController.php existe"
 echo ""
 
+echo "Régénération de l'autoload Composer..."
+composer dump-autoload
+
+echo ""
 echo "Nettoyage du cache..."
 php artisan route:clear
 php artisan config:clear
