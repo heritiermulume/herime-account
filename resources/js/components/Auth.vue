@@ -332,7 +332,11 @@ export default {
         // Vérifier si on vient déjà de /sso/redirect (boucle détectée)
         const referer = document.referer
         if (referer && referer.includes('/sso/redirect')) {
-          console.log('[SSO] Loop detected: coming from /sso/redirect, stopping redirect')
+          console.log('[SSO] Loop detected: coming from /sso/redirect, removing force_token and stopping redirect')
+          // Supprimer force_token de l'URL pour éviter la boucle
+          const newUrl = new URL(window.location.href)
+          newUrl.searchParams.delete('force_token')
+          window.history.replaceState({}, '', newUrl.toString())
           isRedirecting.value = false
           authStore.isSSORedirecting = false
           if (typeof window !== 'undefined') {
@@ -346,6 +350,18 @@ export default {
               sessionStorage.removeItem('sso_loop_detected')
             }, 30000)
           }
+          return
+        }
+        
+        // Vérifier si une boucle a été détectée récemment
+        if (typeof window !== 'undefined' && sessionStorage.getItem('sso_loop_detected') === 'true') {
+          console.log('[SSO] Loop was recently detected, removing force_token and stopping redirect')
+          // Supprimer force_token de l'URL pour éviter la boucle
+          const newUrl = new URL(window.location.href)
+          newUrl.searchParams.delete('force_token')
+          window.history.replaceState({}, '', newUrl.toString())
+          isRedirecting.value = false
+          authStore.isSSORedirecting = false
           return
         }
         

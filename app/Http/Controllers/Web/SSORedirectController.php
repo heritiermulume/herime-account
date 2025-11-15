@@ -105,47 +105,16 @@ class SSORedirectController extends Controller
                 }
             }
             
-            // Si toujours pas d'utilisateur, vérifier si on vient déjà de /login pour éviter la boucle
+            // Si toujours pas d'utilisateur, rediriger vers dashboard pour éviter la boucle
             if (!$user) {
-                \Log::warning('SSO Redirect - No user found');
+                \Log::warning('SSO Redirect - No user found, redirecting to dashboard to avoid loop');
                 
-                // Vérifier si on vient de /login avec force_token=1 (boucle détectée)
-                $referer = $request->header('Referer');
-                $isFromLogin = $referer && str_contains($referer, '/login') && str_contains($referer, 'force_token=1');
+                // Nettoyer la session
+                $request->session()->forget('sso_redirect_attempts');
                 
-                // Vérifier aussi dans la session si on a déjà tenté une redirection
-                $redirectAttempts = $request->session()->get('sso_redirect_attempts', 0);
-                
-                // Vérifier si force_token=1 est présent dans l'URL actuelle (signe de boucle)
-                $hasForceToken = $request->query('force_token') === '1' || 
-                                $request->query('force_token') === 1 || 
-                                $request->query('force_token') === true || 
-                                $request->query('force_token') === 'true';
-                
-                if ($redirectAttempts >= 2 || $isFromLogin || $hasForceToken) {
-                    \Log::warning('SSO Redirect - Loop detected, redirecting to dashboard instead of login', [
-                        'redirect_attempts' => $redirectAttempts,
-                        'is_from_login' => $isFromLogin,
-                        'has_force_token' => $hasForceToken,
-                    ]);
-                    // Nettoyer la session
-                    $request->session()->forget('sso_redirect_attempts');
-                    // Éviter la boucle en redirigeant vers le dashboard
-                    return response('', 302)->header('Location', url('/dashboard'));
-                }
-                
-                // Incrémenter le compteur de tentatives
-                $request->session()->put('sso_redirect_attempts', $redirectAttempts + 1);
-                
-                // Rediriger vers login SANS force_token pour éviter la boucle
-                // Ne pas inclure force_token=1 dans la redirection
-                $redirect = $request->query('redirect');
-                $redirectParam = $redirect ? '?redirect=' . urlencode($redirect) : '';
-                $loginUrl = url('/login' . $redirectParam);
-                \Log::info('SSO Redirect - Redirecting to login without force_token', [
-                    'login_url' => $loginUrl,
-                ]);
-                return response('', 302)->header('Location', $loginUrl);
+                // TOUJOURS rediriger vers dashboard au lieu de login pour éviter la boucle
+                // Ne JAMAIS rediriger vers /login car cela crée une boucle infinie
+                return response('', 302)->header('Location', url('/dashboard'));
             }
             
             // Si on a trouvé un utilisateur, nettoyer le compteur de tentatives
