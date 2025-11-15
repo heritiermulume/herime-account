@@ -28,6 +28,7 @@ Route::get('/dashboard', function () {
 });
 
 // Route de fallback pour toutes les routes Vue.js (sauf API et sso/redirect)
+// IMPORTANT: Exclure explicitement /sso/redirect pour éviter qu'elle soit capturée
 Route::get('/{any}', function () {
     return view('welcome');
-})->where('any', '^(?!api|sso).*');
+})->where('any', '^(?!api|sso/redirect).*');

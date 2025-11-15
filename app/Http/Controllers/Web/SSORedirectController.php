@@ -18,18 +18,27 @@ class SSORedirectController extends Controller
      */
     public function redirect(Request $request)
     {
-        // DEBUG: Vérifier que le contrôleur est bien appelé
-        // Si on voit ce message dans les logs, le contrôleur s'exécute
-        \Log::info('SSO Redirect Controller called', [
+        // DEBUG: Forcer l'exécution du contrôleur - SI VOUS VOYEZ CE MESSAGE, LE CONTRÔLEUR S'EXÉCUTE
+        // Envoyons d'abord une réponse HTTP 302 directe pour tester
+        // Si cela fonctionne, nous verrons la redirection
+        
+        \Log::info('SSO Redirect Controller EXECUTING', [
             'url' => $request->fullUrl(),
             'has_token' => $request->has('_token'),
             'session_id' => $request->session()->getId(),
             'method' => $request->method(),
             'path' => $request->path(),
+            'all_queries' => $request->query->all(),
         ]);
         
-        // Forcer l'arrêt de toute exécution après redirection
-        // Ne pas permettre au template Blade de se charger
+        // TEST TEMPORAIRE: Envoyer une réponse HTTP 302 directe IMMÉDIATEMENT vers Google
+        // Si le contrôleur s'exécute, cette redirection devrait fonctionner
+        // Si le template Blade se charge toujours, c'est que la route n'est pas prise
+        // TODO: Retirer ce test après vérification
+        
+        // TEMPORAIRE: Rediriger vers Google pour tester si le contrôleur s'exécute
+        // DÉCOMMENTER CETTE LIGNE POUR TESTER
+        // return response('', 302)->header('Location', 'https://www.google.com');
         
         // PRIORITÉ 1: Vérifier la session web (l'utilisateur est déjà connecté via la session Laravel)
         // C'est la méthode la plus fiable car l'utilisateur vient de la page de login
