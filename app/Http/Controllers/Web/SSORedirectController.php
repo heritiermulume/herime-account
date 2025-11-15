@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
 use Laravel\Passport\Token;
 use App\Models\User;
@@ -42,26 +43,44 @@ class SSORedirectController extends Controller
         if (!$user) {
             $tokenString = $request->query('_token');
             
+            \Log::info('SSO Redirect - Token check', [
+                'has_token_param' => $request->has('_token'),
+                'token_length' => $tokenString ? strlen($tokenString) : 0,
+                'token_preview' => $tokenString ? substr($tokenString, 0, 50) . '...' : null,
+            ]);
+            
             if ($tokenString) {
                 \Log::info('SSO Redirect - Trying token authentication', [
                     'token_length' => strlen($tokenString),
+                    'token_starts_with' => substr($tokenString, 0, 20),
                 ]);
                 
                 $accessToken = $this->findAccessToken($tokenString);
+                
+                \Log::info('SSO Redirect - Token lookup result', [
+                    'access_token_found' => $accessToken !== null,
+                    'has_user' => $accessToken && $accessToken->user ? true : false,
+                    'user_id' => $accessToken && $accessToken->user ? $accessToken->user->id : null,
+                ]);
                 
                 if ($accessToken && $accessToken->user) {
                     $user = $accessToken->user;
                     \Log::info('SSO Redirect - User found from token', [
                         'user_id' => $user->id,
+                        'user_email' => $user->email,
                     ]);
                     
                     // Connecter l'utilisateur dans la session web pour les prochaines requêtes
                     Auth::guard('web')->login($user);
+                    \Log::info('SSO Redirect - User logged in to web session');
                 } else {
                     \Log::warning('SSO Redirect - Token not found or invalid', [
                         'token_length' => strlen($tokenString),
+                        'tried_hash' => hash('sha256', $tokenString),
                     ]);
                 }
+            } else {
+                \Log::warning('SSO Redirect - No token parameter found');
             }
         }
         
@@ -156,9 +175,9 @@ class SSORedirectController extends Controller
             ]);
 
             // Redirection HTTP 302 directe - contourne JavaScript et Vue Router complètement
-            // Utiliser redirect()->away() pour forcer une redirection externe
+            // Utiliser une réponse HTTP 302 directe pour forcer la redirection
             // Cela empêche Laravel d'interpréter la redirection comme interne
-            return redirect()->away($callbackUrl);
+            return response('', 302)->header('Location', $callbackUrl);
 
         } catch (\Exception $e) {
             \Log::error('SSO Redirect Error', [
