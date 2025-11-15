@@ -44,25 +44,43 @@ class SSORedirectController extends Controller
             
             if ($tokenString) {
                 // Trouver l'utilisateur via le token Passport
-                $accessToken = $this->findAccessToken($tokenString);
-                
-                if ($accessToken && $accessToken->user) {
-                    $user = $accessToken->user;
-                    \Log::info('SSO Redirect - User found from token', [
-                        'user_id' => $user->id,
+                try {
+                    $accessToken = $this->findAccessToken($tokenString);
+                    
+                    if ($accessToken && $accessToken->user) {
+                        $user = $accessToken->user;
+                        \Log::info('SSO Redirect - User found from token', [
+                            'user_id' => $user->id,
+                        ]);
+                    } else {
+                        \Log::warning('SSO Redirect - Token not found or invalid');
+                    }
+                } catch (\Exception $e) {
+                    \Log::error('SSO Redirect - Error finding access token', [
+                        'error' => $e->getMessage(),
+                        'file' => $e->getFile(),
+                        'line' => $e->getLine(),
                     ]);
-                } else {
-                    \Log::warning('SSO Redirect - Token not found or invalid');
+                    // Continuer sans utilisateur, on essaiera la session
                 }
             }
             
             // PRIORITÉ 2: Si pas de token, essayer la session web
             if (!$user) {
-                $user = Auth::guard('web')->user();
-                if ($user) {
-                    \Log::info('SSO Redirect - User found from session', [
-                        'user_id' => $user->id,
+                try {
+                    $user = Auth::guard('web')->user();
+                    if ($user) {
+                        \Log::info('SSO Redirect - User found from session', [
+                            'user_id' => $user->id,
+                        ]);
+                    }
+                } catch (\Exception $e) {
+                    \Log::error('SSO Redirect - Error getting user from session', [
+                        'error' => $e->getMessage(),
+                        'file' => $e->getFile(),
+                        'line' => $e->getLine(),
                     ]);
+                    // Continuer sans utilisateur
                 }
             }
             
