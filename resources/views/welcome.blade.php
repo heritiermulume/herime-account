@@ -42,6 +42,12 @@
         <meta http-equiv="refresh" content="0;url={{ addslashes($sso_redirect) }}">
         @endif
         
+        <!-- Script de test pour vérifier que JavaScript fonctionne -->
+        <script>
+            console.log('[BLADE] Template loaded, URL:', window.location.href);
+            console.log('[BLADE] Has sso_redirect:', {{ isset($sso_redirect) && !empty($sso_redirect) ? 'true' : 'false' }});
+        </script>
+        
         <!-- Styles / Scripts - Ne charger que si pas de redirection SSO -->
         @if(!isset($sso_redirect) || empty($sso_redirect))
         @vite(['resources/css/app.css', 'resources/js/app.js'])
