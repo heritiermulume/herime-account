@@ -1,6 +1,6 @@
 <template>
-  <!-- Vérifier sessionStorage directement dans le template pour réactivité immédiate -->
-  <div v-if="isRedirecting || shouldShowSSOOverlay || (typeof window !== 'undefined' && window.sessionStorage && window.sessionStorage.getItem('sso_redirecting') === 'true' && route && route.query && (route.query.redirect || route.query.force_token))" class="fixed inset-0 z-[99999] flex items-center justify-center bg-gray-900" style="position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; z-index: 99999 !important;">
+  <!-- Utiliser uniquement les variables réactives pour éviter les problèmes de synchronisation -->
+  <div v-if="isRedirecting || shouldShowSSOOverlay" class="fixed inset-0 z-[99999] flex items-center justify-center bg-gray-900" style="position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; z-index: 99999 !important;">
     <div class="text-center rounded-lg p-6 md:p-8" style="background-color: #003366;">
       <div class="animate-spin rounded-full h-10 w-10 md:h-12 md:w-12 border-4 border-t-transparent mx-auto mb-3 md:mb-4" style="border-color: #ffcc33;"></div>
       <p class="text-base md:text-lg font-medium text-white px-4">Redirection en cours...</p>
@@ -34,34 +34,15 @@ export default {
     const isRedirecting = ref(false)
     const redirectPromise = ref(null)
     
-    // Vérifier directement sessionStorage pour une réactivité immédiate
+    // Vérifier si on doit afficher l'overlay SSO
     const shouldShowSSOOverlay = computed(() => {
-      if (typeof window === 'undefined') return false
-      
-      // Vérification SYNCHRONE : si on est sur /login avec paramètres SSO et qu'on a un token
-      // Marquer immédiatement les flags pour afficher l'overlay AVANT même checkAuth()
-      if (route && route.path === '/login') {
-        const hasRedirectParams = route.query && (route.query.redirect || route.query.force_token)
-        if (hasRedirectParams) {
-          // Vérifier si on a un token de manière synchrone
-          const token = localStorage.getItem('access_token')
-          if (token) {
-            // Si on a un token ET des paramètres SSO, marquer immédiatement (synchrone)
-            // Cela affichera l'overlay avant même que checkAuth() ne soit appelé
-            if (sessionStorage.getItem('sso_redirecting') !== 'true') {
-              sessionStorage.setItem('sso_redirecting', 'true')
-              authStore.isSSORedirecting = true
-            }
-            return true
-          }
+      // Utiliser uniquement les variables réactives pour éviter les problèmes de synchronisation
+      // Ne pas vérifier sessionStorage directement dans le computed car ça peut causer des problèmes
+      if (isRedirecting.value || authStore.isSSORedirecting) {
+        // Vérifier qu'on a bien les paramètres nécessaires
+        if (route && route.query && (route.query.redirect || route.query.force_token)) {
+          return true
         }
-      }
-      
-      const ssoRedirecting = sessionStorage.getItem('sso_redirecting') === 'true'
-      if (!ssoRedirecting) return false
-      // Vérifier qu'on a bien les paramètres nécessaires
-      if (route && route.query && (route.query.redirect || route.query.force_token)) {
-        return true
       }
       return false
     })
@@ -155,6 +136,16 @@ export default {
       
       // Vérifier si on est dans une boucle (AVANT toute autre vérification)
       if (checkForRedirectLoop()) {
+        // Si on est dans une boucle, nettoyer TOUT et afficher le formulaire de login
+        isRedirecting.value = false
+        authStore.isSSORedirecting = false
+        if (typeof window !== 'undefined') {
+          sessionStorage.removeItem('sso_redirecting')
+          sessionStorage.removeItem('sso_redirecting_timestamp')
+          sessionStorage.removeItem('sso_redirecting_url')
+          sessionStorage.removeItem('sso_redirect_attempts')
+        }
+        // Ne pas essayer de rediriger, juste afficher le formulaire
         return
       }
       
@@ -200,7 +191,7 @@ export default {
         const token = localStorage.getItem('access_token')
         
         if (!token) {
-          // Nettoyer les flags si pas de token
+          // Nettoyer les flags si pas de token - l'utilisateur n'est pas connecté, afficher le formulaire
           if (typeof window !== 'undefined') {
             sessionStorage.removeItem('sso_redirecting')
             sessionStorage.removeItem('sso_redirecting_timestamp')
@@ -209,6 +200,7 @@ export default {
           }
           isRedirecting.value = false
           authStore.isSSORedirecting = false
+          // Ne pas retourner, laisser le composant afficher le formulaire de login
           return
         }
         
@@ -234,7 +226,7 @@ export default {
         }
         
         if (!isAuthenticated) {
-          // Nettoyer les flags si l'utilisateur n'est pas authentifié
+          // Nettoyer les flags si l'utilisateur n'est pas authentifié - afficher le formulaire de login
           if (typeof window !== 'undefined') {
             sessionStorage.removeItem('sso_redirecting')
             sessionStorage.removeItem('sso_redirecting_timestamp')
@@ -243,6 +235,8 @@ export default {
           }
           isRedirecting.value = false
           authStore.isSSORedirecting = false
+          // Ne pas retourner, laisser le composant afficher le formulaire de login
+          // L'utilisateur pourra se connecter et ensuite être redirigé
           return
         }
         
