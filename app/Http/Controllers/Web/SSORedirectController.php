@@ -184,10 +184,30 @@ class SSORedirectController extends Controller
             // Créer le token SSO
             try {
                 $token = $user->createToken('SSO Token', ['profile'])->accessToken;
+                
+                // Vérifier que le token est bien créé et peut être trouvé
+                $tokenHash = hash('sha256', $token);
+                $createdToken = Token::where('id', $tokenHash)->first();
+                
+                \Log::info('SSO Redirect - Token created', [
+                    'user_id' => $user->id,
+                    'token_hash' => substr($tokenHash, 0, 32) . '...',
+                    'token_found_in_db' => $createdToken ? true : false,
+                    'token_length' => strlen($token),
+                ]);
+                
+                if (!$createdToken) {
+                    \Log::warning('SSO Redirect - Token created but not found in database immediately', [
+                        'user_id' => $user->id,
+                        'token_hash' => substr($tokenHash, 0, 32) . '...',
+                    ]);
+                }
             } catch (\Exception $e) {
                 \Log::error('SSO Redirect - Error creating token', [
                     'error' => $e->getMessage(),
                     'user_id' => $user->id,
+                    'file' => $e->getFile(),
+                    'line' => $e->getLine(),
                 ]);
                 // En cas d'erreur lors de la création du token, rediriger vers le dashboard
                 return response('', 302)->header('Location', url('/dashboard'));
