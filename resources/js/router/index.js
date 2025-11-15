@@ -174,6 +174,13 @@ router.beforeEach(async (to, from, next) => {
   
   // Vérifier les routes qui nécessitent d'être un invité (non authentifié)
   if (to.meta.requiresGuest && isAuthenticated) {
+    // Vérifier si une boucle SSO a été détectée - si oui, permettre l'accès à la page de login
+    if (typeof window !== 'undefined' && sessionStorage.getItem('sso_loop_detected') === 'true') {
+      console.log('[ROUTER] SSO loop detected, allowing access to login page')
+      next()
+      return
+    }
+    
     // Vérifier si on doit rediriger vers un site externe (SSO)
     const redirectParam = to.query.redirect
     if (redirectParam && typeof redirectParam === 'string') {
