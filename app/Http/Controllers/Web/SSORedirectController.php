@@ -82,7 +82,16 @@ class SSORedirectController extends Controller
             }
 
             // Vérifier que l'utilisateur est actif
-            if (!$user->isActive()) {
+            try {
+                if (!$user->isActive()) {
+                    return response('', 302)->header('Location', url('/dashboard'));
+                }
+            } catch (\Exception $e) {
+                \Log::error('SSO Redirect - Error checking user active status', [
+                    'error' => $e->getMessage(),
+                    'user_id' => $user->id ?? null,
+                ]);
+                // En cas d'erreur, rediriger vers le dashboard
                 return response('', 302)->header('Location', url('/dashboard'));
             }
 
@@ -100,7 +109,16 @@ class SSORedirectController extends Controller
             }
 
             // Créer le token SSO
-            $token = $user->createToken('SSO Token', ['profile'])->accessToken;
+            try {
+                $token = $user->createToken('SSO Token', ['profile'])->accessToken;
+            } catch (\Exception $e) {
+                \Log::error('SSO Redirect - Error creating token', [
+                    'error' => $e->getMessage(),
+                    'user_id' => $user->id,
+                ]);
+                // En cas d'erreur lors de la création du token, rediriger vers le dashboard
+                return response('', 302)->header('Location', url('/dashboard'));
+            }
             
             // Construire l'URL callback avec le token
             $parsedUrl = parse_url($redirectUrl);
