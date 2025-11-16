@@ -112,14 +112,82 @@ class AuthController extends Controller
         // Create user session
         $this->createUserSession($user, $request);
 
+        // Vérifier si on doit générer une URL de redirection SSO
+        $ssoRedirectUrl = null;
+        $forceToken = $request->input('force_token') || $request->query('force_token');
+        $redirectUrl = $request->input('redirect') || $request->query('redirect');
+        
+        if ($forceToken && $redirectUrl) {
+            // Décoder l'URL de redirection si nécessaire
+            $decodedRedirect = $redirectUrl;
+            for ($i = 0; $i < 5; $i++) {
+                $testDecode = urldecode($decodedRedirect);
+                if ($testDecode === $decodedRedirect) {
+                    break;
+                }
+                if (filter_var($testDecode, FILTER_VALIDATE_URL)) {
+                    $decodedRedirect = $testDecode;
+                }
+            }
+            
+            // Vérifier que l'URL ne pointe pas vers le même domaine
+            $redirectHost = parse_url($decodedRedirect, PHP_URL_HOST);
+            $currentHost = $request->getHost();
+            
+            if ($redirectHost) {
+                $redirectHost = preg_replace('/^www\./', '', strtolower($redirectHost));
+                $currentHost = preg_replace('/^www\./', '', strtolower($currentHost));
+                
+                // Si c'est un domaine externe, générer l'URL de callback avec le token
+                if ($redirectHost !== $currentHost && $redirectHost !== 'compte.herime.com') {
+                    $parsedUrl = parse_url($decodedRedirect);
+                    if ($parsedUrl && isset($parsedUrl['scheme']) && isset($parsedUrl['host'])) {
+                        $queryParams = [];
+                        if (isset($parsedUrl['query'])) {
+                            parse_str($parsedUrl['query'], $queryParams);
+                        }
+                        
+                        // Ajouter le token
+                        $queryParams['token'] = $token;
+                        $newQuery = http_build_query($queryParams);
+                        
+                        $ssoRedirectUrl = $parsedUrl['scheme'] . '://' . $parsedUrl['host'];
+                        if (isset($parsedUrl['port'])) {
+                            $ssoRedirectUrl .= ':' . $parsedUrl['port'];
+                        }
+                        if (isset($parsedUrl['path'])) {
+                            $ssoRedirectUrl .= $parsedUrl['path'];
+                        }
+                        if ($newQuery) {
+                            $ssoRedirectUrl .= '?' . $newQuery;
+                        }
+                        if (isset($parsedUrl['fragment'])) {
+                            $ssoRedirectUrl .= '#' . $parsedUrl['fragment'];
+                        }
+                        
+                        \Log::info('AuthController: Generated SSO redirect URL on login', [
+                            'user_id' => $user->id,
+                            'redirect_url' => $ssoRedirectUrl,
+                        ]);
+                    }
+                }
+            }
+        }
+
+        $responseData = [
+            'user' => $user->load('currentSession'),
+            'access_token' => $token,
+            'token_type' => 'Bearer',
+        ];
+        
+        if ($ssoRedirectUrl) {
+            $responseData['sso_redirect_url'] = $ssoRedirectUrl;
+        }
+
         return response()->json([
             'success' => true,
             'message' => 'Login successful',
-            'data' => [
-                'user' => $user->load('currentSession'),
-                'access_token' => $token,
-                'token_type' => 'Bearer',
-            ]
+            'data' => $responseData
         ]);
     }
 
