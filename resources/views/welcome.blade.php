@@ -34,16 +34,18 @@
                 }
                 
                 // Redirection immédiate - utiliser replace() pour éviter l'historique
-                // Utiliser setTimeout(0) pour s'assurer que la redirection se fait après le rendu
-                setTimeout(function() {
-                    try {
-                        window.location.replace(redirectUrl);
-                    } catch (e) {
-                        console.error('[BLADE] Error redirecting:', e);
-                        // Fallback : utiliser href
-                        window.location.href = redirectUrl;
-                    }
-                }, 0);
+                // Ne PAS utiliser setTimeout car cela permet à Vue Router de s'exécuter
+                try {
+                    console.log('[BLADE] Executing immediate redirect to:', redirectUrl);
+                    window.location.replace(redirectUrl);
+                    // Si on arrive ici, la redirection n'a pas fonctionné
+                    // Essayer avec href comme fallback
+                    window.location.href = redirectUrl;
+                } catch (e) {
+                    console.error('[BLADE] Error redirecting:', e);
+                    // Dernier recours : utiliser href
+                    window.location.href = redirectUrl;
+                }
             })();
         </script>
         <!-- Meta refresh comme fallback absolu -->
