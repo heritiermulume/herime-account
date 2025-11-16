@@ -313,12 +313,12 @@ export default {
 
     const loadSessions = async () => {
       try {
-        // Cette route n'existe plus dans le nouveau système SSO
-        // Les sessions sont gérées automatiquement
-        sessions.value = []
+        const response = await axios.get('/api/user/sessions')
+        if (response.data.success) {
+          sessions.value = response.data.data.sessions
+        }
       } catch (error) {
-        sessions.value = []
-        
+        console.error('Erreur lors du chargement des sessions:', error)
         // Ne pas bloquer l'affichage si les sessions ne se chargent pas
         sessions.value = []
       }

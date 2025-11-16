@@ -60,6 +60,11 @@ Route::group(['middleware' => 'auth:api'], function () {
     Route::post('user/preferences', [UserController::class, 'updatePreferences']); // POST pour compatibilité
     Route::post('user/deactivate', [UserController::class, 'deactivateAccount']);
     Route::delete('user/delete', [UserController::class, 'deleteAccount']);
+    
+    // User sessions
+    Route::get('user/sessions', [UserController::class, 'sessions']);
+    Route::delete('user/sessions/{id}', [UserController::class, 'revokeSession']);
+    Route::post('user/sessions/revoke-all', [UserController::class, 'revokeAllSessions']);
 
     // Two-Factor Authentication routes
     Route::get('user/two-factor/status', [App\Http\Controllers\Api\TwoFactorController::class, 'status']);

@@ -126,12 +126,17 @@ export default {
     }
 
     const loadSessions = async () => {
+      loading.value = true
       try {
-        // Cette route n'existe plus dans le nouveau système SSO
-        // Les sessions sont gérées automatiquement
-        sessions.value = []
+        const response = await axios.get('/api/user/sessions')
+        if (response.data.success) {
+          sessions.value = response.data.data.sessions
+        }
       } catch (error) {
+        console.error('Erreur lors du chargement des sessions:', error)
         sessions.value = []
+      } finally {
+        loading.value = false
       }
     }
 
@@ -142,9 +147,14 @@ export default {
 
       loading.value = true
       try {
-        // Cette fonctionnalité n'est plus disponible dans le nouveau système SSO
-        alert('Cette fonctionnalité n\'est plus disponible. Utilisez la déconnexion générale.')
+        const response = await axios.delete(`/api/user/sessions/${sessionId}`)
+        if (response.data.success) {
+          // Recharger les sessions
+          await loadSessions()
+          alert('Session déconnectée avec succès')
+        }
       } catch (error) {
+        console.error('Erreur lors de la déconnexion de la session:', error)
         alert('Erreur lors de la déconnexion de la session')
       } finally {
         loading.value = false
@@ -158,9 +168,14 @@ export default {
 
       loading.value = true
       try {
-        // Cette fonctionnalité n'est plus disponible dans le nouveau système SSO
-        alert('Cette fonctionnalité n\'est plus disponible. Utilisez la déconnexion générale.')
+        const response = await axios.post('/api/user/sessions/revoke-all')
+        if (response.data.success) {
+          // Recharger les sessions
+          await loadSessions()
+          alert(response.data.message)
+        }
       } catch (error) {
+        console.error('Erreur lors de la déconnexion des sessions:', error)
         alert('Erreur lors de la déconnexion des sessions')
       } finally {
         loading.value = false

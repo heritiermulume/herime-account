@@ -372,4 +372,82 @@ class UserController extends Controller
             'message' => 'Votre compte a été désactivé avec succès. Un administrateur peut le réactiver si nécessaire.'
         ]);
     }
+
+    /**
+     * Get user sessions
+     */
+    public function sessions(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        
+        // Récupérer toutes les sessions de l'utilisateur, triées par dernière activité
+        $sessions = $user->sessions()
+            ->orderBy('last_activity', 'desc')
+            ->get();
+        
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'sessions' => $sessions
+            ]
+        ]);
+    }
+
+    /**
+     * Revoke a specific session
+     */
+    public function revokeSession(Request $request, $sessionId): JsonResponse
+    {
+        $user = $request->user();
+        
+        // Trouver la session
+        $session = $user->sessions()->find($sessionId);
+        
+        if (!$session) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Session non trouvée'
+            ], 404);
+        }
+        
+        // Ne pas permettre de révoquer la session actuelle
+        if ($session->is_current) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Vous ne pouvez pas révoquer votre session actuelle. Utilisez la déconnexion.'
+            ], 400);
+        }
+        
+        // Marquer la session comme inactive
+        $session->update([
+            'is_current' => false,
+            'last_activity' => now()
+        ]);
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'Session révoquée avec succès'
+        ]);
+    }
+
+    /**
+     * Revoke all other sessions (except current)
+     */
+    public function revokeAllSessions(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        
+        // Marquer toutes les autres sessions comme inactives
+        $count = $user->sessions()
+            ->where('is_current', false)
+            ->update([
+                'is_current' => false,
+                'last_activity' => now()
+            ]);
+        
+        return response()->json([
+            'success' => true,
+            'message' => "Toutes les autres sessions ont été révoquées ($count sessions)"
+        ]);
+    }
 }
