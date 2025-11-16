@@ -109,11 +109,9 @@ class AuthController extends Controller
         // Create access token
         $token = $user->createToken('Herime SSO', ['profile'])->accessToken;
 
-        // Create user session
-        $this->createUserSession($user, $request);
-
         // Vérifier si on doit générer une URL de redirection SSO
         $ssoRedirectUrl = null;
+        $externalDomain = null;
         $forceToken = $request->input('force_token') ?: $request->query('force_token');
         $redirectUrl = $request->input('redirect') ?: $request->query('redirect');
         
@@ -174,14 +172,21 @@ class AuthController extends Controller
                             $ssoRedirectUrl .= '#' . $parsedUrl['fragment'];
                         }
                         
+                        // Extraire le domaine externe pour la session
+                        $externalDomain = parse_url($decodedRedirect, PHP_URL_HOST);
+                        
                         \Log::info('AuthController: Generated SSO redirect URL on login', [
                             'user_id' => $user->id,
                             'redirect_url' => $ssoRedirectUrl,
+                            'external_domain' => $externalDomain,
                         ]);
                     }
                 }
             }
         }
+
+        // Create user session (avec domaine SSO si applicable)
+        $this->createUserSession($user, $request, $externalDomain);
 
         $responseData = [
             'user' => $user->load('currentSession'),
@@ -297,7 +302,7 @@ class AuthController extends Controller
     /**
      * Create user session
      */
-    private function createUserSession(User $user, Request $request): void
+    private function createUserSession(User $user, Request $request, ?string $externalDomain = null): void
     {
         try {
             // Mark all previous sessions as inactive
@@ -309,17 +314,24 @@ class AuthController extends Controller
                 'previous_sessions_count' => $previousSessionsCount,
                 'ip' => $request->ip(),
                 'user_agent' => $request->userAgent(),
+                'external_domain' => $externalDomain,
             ]);
 
             // Create new session
             $deviceInfo = $this->getDeviceInfo($request->userAgent());
+            
+            // Si c'est une connexion SSO, ajouter le domaine externe au nom de l'appareil
+            $deviceName = $deviceInfo['device_name'];
+            if ($externalDomain) {
+                $deviceName .= ' (SSO: ' . $externalDomain . ')';
+            }
             
             $session = UserSession::create([
                 'user_id' => $user->id,
                 'session_id' => Str::random(40),
                 'ip_address' => $request->ip(),
                 'user_agent' => $request->userAgent(),
-                'device_name' => $deviceInfo['device_name'],
+                'device_name' => $deviceName,
                 'platform' => $deviceInfo['platform'],
                 'browser' => $deviceInfo['browser'],
                 'is_current' => true,
@@ -329,6 +341,7 @@ class AuthController extends Controller
             \Log::info('AuthController: User session created', [
                 'user_id' => $user->id,
                 'session_id' => $session->id,
+                'device_name' => $deviceName,
                 'total_sessions' => $user->sessions()->count(),
             ]);
         } catch (\Exception $e) {
@@ -387,4 +400,5 @@ class AuthController extends Controller
             'device_name' => $deviceName,
         ];
     }
+
 }
