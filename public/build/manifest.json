@@ -8,12 +8,12 @@
     ]
   },
   "resources/js/app.js": {
-    "file": "assets/app-DPd8gBKb.js",
+    "file": "assets/app-BtCRMLoa.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,
     "css": [
-      "assets/app-6dHGaBUj.css"
+      "assets/app-BHwt7Kzl.css"
     ]
   }
 }

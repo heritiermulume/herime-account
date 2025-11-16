@@ -596,6 +596,16 @@ export default {
           }
         }
         
+        // Vérifier si une redirection SSO est en cours avant de rediriger vers le dashboard
+        if (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('sso_redirecting') === 'true') {
+          const redirectUrl = sessionStorage.getItem('sso_redirect_url');
+          if (redirectUrl) {
+            console.log('[LOGIN] SSO redirect in progress, redirecting to:', redirectUrl);
+            window.location.replace(redirectUrl);
+            return;
+          }
+        }
+        
         // Sinon, rediriger vers le dashboard local
         router.push('/dashboard')
       } catch (err) {
@@ -686,6 +696,16 @@ export default {
           
           // Cette ligne ne sera jamais exécutée
           return
+        }
+        
+        // Vérifier si une redirection SSO est en cours avant de rediriger vers le dashboard
+        if (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('sso_redirecting') === 'true') {
+          const redirectUrl = sessionStorage.getItem('sso_redirect_url');
+          if (redirectUrl) {
+            console.log('[LOGIN] SSO redirect in progress (2FA), redirecting to:', redirectUrl);
+            window.location.replace(redirectUrl);
+            return;
+          }
         }
         
         // Sinon, rediriger vers le dashboard local
