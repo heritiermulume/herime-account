@@ -30,13 +30,24 @@ class LoginController extends Controller
         
         // PROTECTION CONTRE LES BOUCLES DE REDIRECTION
         // Vérifier si on a déjà traité cette requête récemment
-        $sessionKey = 'sso_redirect_attempt_' . md5($request->fullUrl());
+        // On utilise uniquement les paramètres SSO pour la clé (pas l'URL complète qui peut changer avec _token)
+        $redirectParam = $request->input('redirect') ?: $request->query('redirect');
+        $sessionKey = 'sso_redirect_attempt_' . md5($redirectParam ?: 'no_redirect');
         $redirectAttempts = $request->session()->get($sessionKey, 0);
         
-        if ($redirectAttempts >= 2) {
+        \Log::info('LoginController: Checking redirect attempts', [
+            'attempts' => $redirectAttempts,
+            'session_key' => $sessionKey,
+            'redirect_param' => $redirectParam,
+        ]);
+        
+        if ($redirectAttempts >= 3) {
             // Trop de tentatives, arrêter la boucle
             $request->session()->forget($sessionKey);
-            \Log::warning('LoginController: Too many redirect attempts, stopping loop');
+            \Log::warning('LoginController: Too many redirect attempts, stopping loop', [
+                'attempts' => $redirectAttempts,
+                'url' => $request->fullUrl(),
+            ]);
             return redirect('/dashboard');
         }
         
@@ -47,6 +58,12 @@ class LoginController extends Controller
             $forceToken = in_array($forceTokenValue, [1, '1', true, 'true', 'yes', 'on'], true) 
                        || $request->boolean('force_token', false);
         }
+        
+        \Log::info('LoginController: Force token detection', [
+            'force_token' => $forceToken,
+            'has_force_token_param' => $request->has('force_token'),
+            'force_token_value' => $request->input('force_token'),
+        ]);
 
         // Vérifier l'authentification (session web OU token API)
         $isAuthenticated = Auth::check();
@@ -234,7 +251,11 @@ class LoginController extends Controller
             \Log::info('SSO Redirect: Redirecting to external site', [
                 'callback_url' => $callbackUrl,
                 'user_id' => $user->id,
+                'attempts_before_reset' => $redirectAttempts,
             ]);
+            
+            // Réinitialiser le compteur de tentatives car on a réussi
+            $request->session()->forget($sessionKey);
             
             // Passer l'URL de redirection au template Blade pour qu'il fasse la redirection JavaScript
             // Cela évite que Vue Router intercepte la redirection
