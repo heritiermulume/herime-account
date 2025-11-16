@@ -107,6 +107,16 @@ const router = createRouter({
 
 // Navigation guards
 router.beforeEach(async (to, from, next) => {
+  // Vérifier si une redirection SSO est en cours - si oui, ne pas intercepter
+  if (typeof window !== 'undefined' && sessionStorage.getItem('sso_redirecting') === 'true') {
+    const redirectUrl = sessionStorage.getItem('sso_redirect_url');
+    if (redirectUrl) {
+      console.log('[ROUTER] SSO redirect in progress, allowing navigation to:', redirectUrl);
+      // Ne pas intercepter, laisser la redirection se faire
+      next();
+      return;
+    }
+  }
   
   const authStore = useAuthStore()
   

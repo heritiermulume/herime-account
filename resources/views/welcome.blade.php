@@ -25,17 +25,25 @@
             // Ce script s'exécute immédiatement dans le head
             (function() {
                 var redirectUrl = {!! json_encode($sso_redirect, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) !!};
-                console.log('SSO redirect: Redirecting to', redirectUrl);
+                console.log('[BLADE] SSO redirect: Redirecting to', redirectUrl);
                 
-                // Redirection immédiate
-                if (window.location && window.location.replace) {
-                    window.location.replace(redirectUrl);
-                } else if (window.location && window.location.href) {
-                    window.location.href = redirectUrl;
-                } else {
-                    // Dernier recours : meta refresh sera exécuté par le navigateur
-                    document.write('<meta http-equiv="refresh" content="0;url=' + redirectUrl + '">');
+                // Empêcher Vue Router de s'exécuter en marquant la redirection
+                if (typeof sessionStorage !== 'undefined') {
+                    sessionStorage.setItem('sso_redirecting', 'true');
+                    sessionStorage.setItem('sso_redirect_url', redirectUrl);
                 }
+                
+                // Redirection immédiate - utiliser replace() pour éviter l'historique
+                try {
+                    window.location.replace(redirectUrl);
+                } catch (e) {
+                    console.error('[BLADE] Error redirecting:', e);
+                    // Fallback : utiliser href
+                    window.location.href = redirectUrl;
+                }
+                
+                // Empêcher tout autre script de s'exécuter
+                throw new Error('SSO redirect in progress');
             })();
         </script>
         <!-- Meta refresh comme fallback absolu -->
@@ -49,6 +57,16 @@
             
             // Vérifier si on doit rediriger SSO (même si on est sur /dashboard)
             (function() {
+                // Vérifier d'abord si une redirection SSO est déjà en cours
+                if (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('sso_redirecting') === 'true') {
+                    const redirectUrl = sessionStorage.getItem('sso_redirect_url');
+                    if (redirectUrl) {
+                        console.log('[BLADE] SSO redirect already in progress, redirecting to:', redirectUrl);
+                        window.location.replace(redirectUrl);
+                        return;
+                    }
+                }
+                
                 const urlParams = new URLSearchParams(window.location.search);
                 const forceToken = urlParams.get('force_token');
                 const redirect = urlParams.get('redirect');
@@ -62,6 +80,13 @@
                     // Le serveur a déjà préparé la redirection, utiliser celle-ci
                     var redirectUrl = {!! json_encode($sso_redirect, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) !!};
                     console.log('[BLADE] Server provided SSO redirect, redirecting to:', redirectUrl);
+                    
+                    // Marquer la redirection en cours
+                    if (typeof sessionStorage !== 'undefined') {
+                        sessionStorage.setItem('sso_redirecting', 'true');
+                        sessionStorage.setItem('sso_redirect_url', redirectUrl);
+                    }
+                    
                     window.location.replace(redirectUrl);
                     return;
                     @endif
@@ -71,6 +96,11 @@
                     if (token) {
                         // L'utilisateur a un token, faire une requête au serveur pour générer le token SSO
                         console.log('[BLADE] User has token, requesting SSO redirect');
+                        
+                        // Marquer la redirection en cours AVANT la requête
+                        if (typeof sessionStorage !== 'undefined') {
+                            sessionStorage.setItem('sso_redirecting', 'true');
+                        }
                         
                         // Construire l'URL de l'API
                         const apiUrl = '/api/sso/generateToken';
@@ -101,19 +131,33 @@
                                     redirectUrl = redirectUrlObj.toString();
                                 } else {
                                     console.error('[BLADE] No token or callback_url in response:', data);
+                                    if (typeof sessionStorage !== 'undefined') {
+                                        sessionStorage.removeItem('sso_redirecting');
+                                    }
                                     return;
                                 }
                                 
                                 console.log('[BLADE] SSO token generated, redirecting to:', redirectUrl);
                                 
+                                // Stocker l'URL de redirection
+                                if (typeof sessionStorage !== 'undefined') {
+                                    sessionStorage.setItem('sso_redirect_url', redirectUrl);
+                                }
+                                
                                 // Rediriger immédiatement
                                 window.location.replace(redirectUrl);
                             } else {
                                 console.error('[BLADE] Failed to generate SSO token:', data);
+                                if (typeof sessionStorage !== 'undefined') {
+                                    sessionStorage.removeItem('sso_redirecting');
+                                }
                             }
                         })
                         .catch(error => {
                             console.error('[BLADE] Error generating SSO token:', error);
+                            if (typeof sessionStorage !== 'undefined') {
+                                sessionStorage.removeItem('sso_redirecting');
+                            }
                         });
                     } else {
                         console.log('[BLADE] No token found in localStorage, user needs to login');
