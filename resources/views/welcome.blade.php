@@ -179,6 +179,11 @@
         
     </head>
     <body class="bg-gray-50 dark:bg-gray-900">
+        <!-- Debug info (visible only in source) -->
+        <!-- SSO_REDIRECT: {{ isset($sso_redirect) ? 'SET' : 'NOT_SET' }} -->
+        <!-- SSO_REDIRECT_VALUE: {{ isset($sso_redirect) ? $sso_redirect : 'NONE' }} -->
+        <!-- URL: {{ request()->fullUrl() }} -->
+        
         @if(isset($sso_redirect) && !empty($sso_redirect))
         <div id="app">
             <div style="display: flex; align-items: center; justify-content: center; height: 100vh; flex-direction: column; font-family: Inter, sans-serif;">
@@ -203,7 +208,43 @@
             </script>
         </div>
         @else
-        <div id="app"></div>
+        <div id="app">
+            <!-- Message de chargement par défaut (sera remplacé par Vue.js) -->
+            <div style="display: flex; align-items: center; justify-content: center; height: 100vh; flex-direction: column; font-family: Inter, sans-serif;">
+                <div style="border: 4px solid #f3f4f6; border-top: 4px solid #ffcc33; border-radius: 50%; width: 48px; height: 48px; animation: spin 1s linear infinite;"></div>
+                <p style="margin-top: 20px; color: #666; font-size: 14px;">Chargement de l'application...</p>
+                <p style="margin-top: 10px; color: #999; font-size: 12px;">Si cette page ne se charge pas, vérifiez votre connexion internet.</p>
+            </div>
+            <style>
+                @keyframes spin {
+                    0% { transform: rotate(0deg); }
+                    100% { transform: rotate(360deg); }
+                }
+            </style>
+        </div>
+        
+        <!-- Script de détection d'erreur de chargement Vue.js -->
+        <script>
+            // Si Vue.js ne se charge pas après 10 secondes, afficher un message d'erreur
+            setTimeout(function() {
+                var app = document.getElementById('app');
+                if (app && app.innerHTML.indexOf('Chargement de l\'application') !== -1) {
+                    console.error('[ERROR] Vue.js failed to load after 10 seconds');
+                    app.innerHTML = '<div style="display: flex; align-items: center; justify-content: center; height: 100vh; flex-direction: column; font-family: Inter, sans-serif;">' +
+                        '<div style="background: #fee; border: 1px solid #fcc; border-radius: 8px; padding: 20px; max-width: 500px; text-align: center;">' +
+                        '<h2 style="color: #c00; margin: 0 0 10px 0;">Erreur de chargement</h2>' +
+                        '<p style="color: #666; margin: 0;">L\'application n\'a pas pu se charger. Veuillez :</p>' +
+                        '<ul style="text-align: left; color: #666; margin: 10px 0;">' +
+                        '<li>Vider le cache de votre navigateur (Ctrl+Shift+R ou Cmd+Shift+R)</li>' +
+                        '<li>Vérifier votre connexion internet</li>' +
+                        '<li>Réessayer dans quelques instants</li>' +
+                        '</ul>' +
+                        '<button onclick="location.reload()" style="background: #003366; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; margin-top: 10px;">Recharger la page</button>' +
+                        '</div>' +
+                        '</div>';
+                }
+            }, 10000);
+        </script>
         @endif
     </body>
 </html>
