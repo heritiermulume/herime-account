@@ -70,10 +70,15 @@ export const useAuthStore = defineStore('auth', {
             this.isSSORedirecting = true
             
             // Rediriger immédiatement vers le site externe
+            // Utiliser replace() pour éviter d'ajouter à l'historique
             if (typeof window !== 'undefined') {
-              window.location.href = response.data.data.sso_redirect_url
+              console.log('[AUTH STORE] SSO redirect URL found, redirecting to:', response.data.data.sso_redirect_url)
+              window.location.replace(response.data.data.sso_redirect_url)
+              // Ne pas retourner, la redirection va se produire
               return response.data
             }
+          } else {
+            console.log('[AUTH STORE] No SSO redirect URL in response:', response.data)
           }
           
           // Nettoyer les flags SSO après une connexion réussie
@@ -152,10 +157,15 @@ export const useAuthStore = defineStore('auth', {
             this.isSSORedirecting = true
             
             // Rediriger immédiatement vers le site externe
+            // Utiliser replace() pour éviter d'ajouter à l'historique
             if (typeof window !== 'undefined') {
-              window.location.href = response.data.data.sso_redirect_url
+              console.log('[AUTH STORE] SSO redirect URL found, redirecting to:', response.data.data.sso_redirect_url)
+              window.location.replace(response.data.data.sso_redirect_url)
+              // Ne pas retourner, la redirection va se produire
               return response.data
             }
+          } else {
+            console.log('[AUTH STORE] No SSO redirect URL in response:', response.data)
           }
           
           // Nettoyer les flags SSO après une connexion réussie
