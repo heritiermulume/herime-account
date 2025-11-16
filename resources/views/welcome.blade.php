@@ -109,7 +109,7 @@
                         }
                         
                         // Construire l'URL de l'API
-                        const apiUrl = '/api/sso/generateToken';
+                        const apiUrl = '/api/sso/generate-token';
                         
                         // Faire une requête pour générer le token SSO
                         fetch(apiUrl, {
