@@ -120,7 +120,18 @@
                                 redirect: redirect
                             })
                         })
-                        .then(response => response.json())
+                        .then(response => {
+                            // Si erreur 401 (token révoqué/invalide), supprimer le token
+                            if (response.status === 401) {
+                                console.log('[BLADE] Token invalid (401), removing from localStorage');
+                                localStorage.removeItem('access_token');
+                                if (typeof sessionStorage !== 'undefined') {
+                                    sessionStorage.removeItem('sso_redirecting');
+                                }
+                                throw new Error('Token invalid (401)');
+                            }
+                            return response.json();
+                        })
                         .then(data => {
                             if (data.success && data.data) {
                                 // Utiliser callback_url si disponible, sinon construire l'URL avec le token
@@ -157,6 +168,7 @@
                         })
                         .catch(error => {
                             console.error('[BLADE] Error generating SSO token:', error);
+                            
                             if (typeof sessionStorage !== 'undefined') {
                                 sessionStorage.removeItem('sso_redirecting');
                             }
