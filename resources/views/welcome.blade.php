@@ -53,7 +53,14 @@
                 // Vérifier d'abord si une redirection SSO est déjà en cours
                 if (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('sso_redirecting') === 'true') {
                     const redirectUrl = sessionStorage.getItem('sso_redirect_url');
-                    if (redirectUrl) {
+                    const params = new URLSearchParams(window.location.search);
+                    const hasSSOParams = params.has('redirect') || params.has('force_token');
+                    
+                    // Si nous sommes revenus sur compte.herime.com sans paramètres SSO, arrêter la boucle
+                    if (!hasSSOParams) {
+                        sessionStorage.removeItem('sso_redirecting');
+                        sessionStorage.removeItem('sso_redirect_url');
+                    } else if (redirectUrl) {
                         console.log('[BLADE] SSO redirect already in progress, redirecting to:', redirectUrl);
                         window.location.replace(redirectUrl);
                         return;
