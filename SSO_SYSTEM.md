@@ -72,9 +72,21 @@ if (token) {
   if (data.success) {
     // Utilisateur authentifié
     const user = data.data.user;
+    const session = data.data.session;
+    
     // Stocker la session côté client
     localStorage.setItem('sso_token', token);
     localStorage.setItem('user', JSON.stringify(user));
+    
+    // Vérifier l'état de la session
+    if (session.active) {
+      console.log('Session active, dernière activité:', session.last_activity);
+    } else {
+      console.log('Session inactive, rediriger vers login');
+      // Rediriger vers la page de login si la session n'est pas active
+      window.location.href = 'https://compte.herime.com/login?redirect=' + 
+        encodeURIComponent(window.location.origin + '/sso/callback');
+    }
   }
 }
 ```
@@ -96,7 +108,18 @@ const checkToken = async () => {
   });
   
   const data = await response.json();
-  return data.valid === true;
+  
+  // Vérifier à la fois la validité du token et l'état de la session
+  if (!data.valid || !data.session_active) {
+    // Token invalide ou session inactive, déconnecter l'utilisateur
+    localStorage.removeItem('sso_token');
+    localStorage.removeItem('user');
+    window.location.href = 'https://compte.herime.com/login?redirect=' + 
+      encodeURIComponent(window.location.origin + '/sso/callback');
+    return false;
+  }
+  
+  return true;
 };
 ```
 
@@ -237,11 +260,12 @@ class SSOCallbackController extends Controller
             return redirect()->away($loginUrl);
         }
 
-        // 2) Valider le token (Option B générique: GET /api/user avec Bearer)
-        // Option A (si disponible côté IdP): POST /api/sso/validateToken
+        // 2) Valider le token avec POST /api/sso/validate-token (recommandé)
+        // Cette méthode retourne les infos utilisateur ET l'état de la session
         $resp = Http::acceptJson()
-            ->withToken($token)
-            ->get('https://compte.herime.com/api/user');
+            ->post('https://compte.herime.com/api/sso/validate-token', [
+                'token' => $token
+            ]);
 
         if (!$resp->ok()) {
             // Token invalide/expiré → repartir vers SSO
@@ -250,10 +274,31 @@ class SSOCallbackController extends Controller
             return redirect()->away($loginUrl);
         }
 
-        $remoteUser = $resp->json();
+        $data = $resp->json();
+        
+        // Vérifier si la réponse est un succès
+        if (!data_get($data, 'success')) {
+            $callback = route('sso.callback', ['redirect' => $finalRedirect]);
+            $loginUrl = 'https://compte.herime.com/login?force_token=1&redirect=' . urlencode($callback);
+            return redirect()->away($loginUrl);
+        }
+        
+        // Vérifier l'état de la session
+        $sessionActive = data_get($data, 'data.session.active', false);
+        if (!$sessionActive) {
+            // Session inactive (utilisateur déconnecté) → redemander connexion
+            \Log::warning('SSO: Session inactive pour l\'utilisateur', [
+                'email' => data_get($data, 'data.user.email'),
+            ]);
+            $callback = route('sso.callback', ['redirect' => $finalRedirect]);
+            $loginUrl = 'https://compte.herime.com/login?force_token=1&redirect=' . urlencode($callback);
+            return redirect()->away($loginUrl);
+        }
+
+        $remoteUser = data_get($data, 'data.user');
         $remoteId   = data_get($remoteUser, 'id');
         $email      = data_get($remoteUser, 'email');
-        $name       = data_get($remoteUser, 'name') ?? trim(data_get($remoteUser, 'first_name') . ' ' . data_get($remoteUser, 'last_name'));
+        $name       = data_get($remoteUser, 'name');
 
         if (!$email) {
             abort(403, 'SSO: email manquant');
@@ -346,12 +391,22 @@ router.get('/sso/callback', async (req, res) => {
   }
 
   try {
-    // Valider le token (Option B générique)
-    const resp = await axios.get('https://compte.herime.com/api/user', {
-      headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' }
-    });
+    // Valider le token avec POST /api/sso/validate-token (recommandé)
+    const resp = await axios.post('https://compte.herime.com/api/sso/validate-token', 
+      { token },
+      { headers: { Accept: 'application/json' } }
+    );
 
-    const remoteUser = resp.data;
+    const data = resp.data;
+    
+    // Vérifier le succès et l'état de la session
+    if (!data.success || !data.data.session.active) {
+      console.warn('SSO: Token invalide ou session inactive');
+      const callback = `https://academie.herime.com/sso/callback?redirect=${encodeURIComponent(finalRedirect)}`;
+      return res.redirect(buildSSOLoginUrl(callback));
+    }
+
+    const remoteUser = data.data.user;
     const email = remoteUser?.email;
     const name  = remoteUser?.name || `${remoteUser?.first_name || ''} ${remoteUser?.last_name || ''}`.trim();
     if (!email) return res.status(403).send('SSO: email manquant');
@@ -380,13 +435,105 @@ module.exports = router;
 - Le paramètre `redirect` est ignoré:
   - Assurez-vous de bien l’encoder à chaque niveau et de vérifier sa sûreté (domaine autorisé) avant la redirection finale.
 
-### 6) Résumé (checklist)
+### 6) État de session (session.active)
 
-- Construire l’URL SSO: `https://compte.herime.com/login?force_token=1&redirect=<ENCODED_CALLBACK>`
+Depuis la mise à jour du système SSO, tous les endpoints de validation retournent l'état de la session :
+
+#### Structure de la réponse
+
+```json
+{
+  "success": true,
+  "data": {
+    "user": {
+      "id": 2,
+      "name": "John Doe",
+      "email": "john@example.com",
+      "avatar": "https://compte.herime.com/storage/avatars/...",
+      "phone": "+243...",
+      "company": "Herime",
+      "position": "Developer",
+      "last_login_at": "2025-11-16T10:30:00.000000Z"
+    },
+    "permissions": ["profile"],
+    "session": {
+      "active": true,
+      "last_activity": "2025-11-16T10:35:00.000000Z"
+    }
+  }
+}
+```
+
+#### Comportement de `session.active`
+
+- **`true`** : L'utilisateur a une session active sur `compte.herime.com`
+  - Soit une session normale (connexion directe)
+  - Soit une session SSO pour votre domaine externe
+  - L'utilisateur peut accéder à vos ressources protégées
+
+- **`false`** : L'utilisateur s'est déconnecté
+  - Tous les tokens ont été révoqués
+  - Toutes les sessions marquées comme inactives
+  - Le site externe doit redemander une connexion
+
+#### Cas d'usage
+
+**1. Lors de la validation initiale du token**
+
+```php
+$data = $resp->json();
+
+if (!data_get($data, 'success') || !data_get($data, 'data.session.active')) {
+    // Redemander la connexion
+    return redirect()->away('https://compte.herime.com/login?force_token=1&redirect=...');
+}
+```
+
+**2. Lors du polling périodique**
+
+```javascript
+// Vérifier toutes les 5 minutes
+setInterval(async () => {
+  const response = await fetch('https://compte.herime.com/api/sso/check-token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token: localStorage.getItem('sso_token') })
+  });
+  
+  const data = await response.json();
+  
+  if (!data.valid || !data.session_active) {
+    // Déconnecter l'utilisateur et redemander connexion
+    logout();
+    window.location.href = 'https://compte.herime.com/login?redirect=...';
+  }
+}, 5 * 60 * 1000);
+```
+
+**3. Déconnexion centralisée**
+
+Quand un utilisateur se déconnecte de `compte.herime.com` :
+1. Tous ses tokens Passport sont révoqués (`revoked = true`)
+2. Toutes ses sessions sont marquées inactives (`is_current = false`)
+3. Les sites externes détectent `session.active = false` lors du prochain polling
+4. Les sites externes déconnectent automatiquement l'utilisateur
+
+#### Avantages
+
+- ✅ **Déconnexion centralisée** : Se déconnecter de `compte.herime.com` déconnecte de tous les sites
+- ✅ **Sécurité renforcée** : Les tokens révoqués sont immédiatement détectés
+- ✅ **Synchronisation** : Tous les sites externes restent synchronisés avec l'état de session central
+- ✅ **Audit** : L'historique des sessions est préservé pour l'audit
+
+### 7) Résumé (checklist)
+
+- Construire l'URL SSO: `https://compte.herime.com/login?force_token=1&redirect=<ENCODED_CALLBACK>`
 - `ENCODED_CALLBACK` = `https://votre-domaine/sso/callback?redirect=<ENCODED_FINAL_URL>`
 - Implémenter `/sso/callback`:
   - Si pas de `token` → repartir vers login SSO (avec `redirect=callback`).
-  - Sinon, valider le token via l’API de `compte.herime.com`.
-  - Trouver/créer l’utilisateur local et ouvrir la session.
+  - Sinon, valider le token via `POST /api/sso/validate-token`.
+  - **Vérifier `data.success` ET `data.data.session.active`**.
+  - Trouver/créer l'utilisateur local et ouvrir la session.
   - Rediriger vers `redirect` (vérifié et sur votre domaine).
+- Implémenter un polling périodique pour vérifier `session.active`.
 

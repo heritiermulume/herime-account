@@ -58,10 +58,42 @@ class SSOController extends Controller
             ], 401);
         }
 
+        // Vérifier si le token est révoqué (déconnexion)
+        if ($accessToken->revoked) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Token révoqué (utilisateur déconnecté)',
+                'session_active' => false,
+            ], 401);
+        }
+
+        // Récupérer l'état de la session pour ce site externe
+        $externalDomain = parse_url($request->header('Referer') ?: $request->header('Origin'), PHP_URL_HOST);
+        $sessionActive = false;
+        $currentSession = null;
+        
+        if ($externalDomain) {
+            // Chercher une session active pour ce domaine externe
+            $currentSession = $user->sessions()
+                ->where('device_name', 'like', "%(SSO: {$externalDomain})%")
+                ->where('is_current', true)
+                ->orderBy('last_activity', 'desc')
+                ->first();
+            
+            $sessionActive = $currentSession !== null;
+        }
+        
+        // Si aucune session spécifique trouvée, vérifier s'il y a au moins une session active
+        if (!$sessionActive) {
+            $sessionActive = $user->sessions()->where('is_current', true)->exists();
+        }
+
         \Log::info('SSOController: Token validated for user', [
             'user_id' => $user->id,
             'user_email' => $user->email,
             'token_preview' => substr($token, 0, 20) . '...',
+            'external_domain' => $externalDomain,
+            'session_active' => $sessionActive,
         ]);
 
         // Construire l'URL complète de l'avatar
@@ -85,6 +117,10 @@ class SSOController extends Controller
                     'last_login_at' => $user->last_login_at?->toISOString(),
                 ],
                 'permissions' => $accessToken->scopes ?? [],
+                'session' => [
+                    'active' => $sessionActive,
+                    'last_activity' => $currentSession?->last_activity?->toISOString(),
+                ],
             ]
         ]);
     }
@@ -117,12 +153,33 @@ class SSOController extends Controller
 
         $user = $accessToken->user;
         if (!$user || !$user->isActive()) {
-            return response()->json(['valid' => false]);
+            return response()->json(['valid' => false, 'session_active' => false]);
+        }
+
+        // Vérifier si le token est révoqué
+        if ($accessToken->revoked) {
+            return response()->json(['valid' => false, 'session_active' => false]);
+        }
+
+        // Récupérer l'état de la session
+        $externalDomain = parse_url($request->header('Referer') ?: $request->header('Origin'), PHP_URL_HOST);
+        $sessionActive = false;
+        
+        if ($externalDomain) {
+            $sessionActive = $user->sessions()
+                ->where('device_name', 'like', "%(SSO: {$externalDomain})%")
+                ->where('is_current', true)
+                ->exists();
+        }
+        
+        if (!$sessionActive) {
+            $sessionActive = $user->sessions()->where('is_current', true)->exists();
         }
 
         return response()->json([
             'valid' => true,
-            'user_id' => $user->id
+            'user_id' => $user->id,
+            'session_active' => $sessionActive
         ]);
     }
 
@@ -165,7 +222,31 @@ class SSOController extends Controller
 
         $user = $accessToken->user;
         if (!$user || !$user->isActive()) {
-            return response()->json(['valid' => false]);
+            return response()->json(['valid' => false, 'session_active' => false]);
+        }
+
+        // Vérifier si le token est révoqué
+        if ($accessToken->revoked) {
+            return response()->json(['valid' => false, 'session_active' => false]);
+        }
+
+        // Récupérer l'état de la session
+        $externalDomain = parse_url($request->header('Referer') ?: $request->header('Origin'), PHP_URL_HOST);
+        $sessionActive = false;
+        $currentSession = null;
+        
+        if ($externalDomain) {
+            $currentSession = $user->sessions()
+                ->where('device_name', 'like', "%(SSO: {$externalDomain})%")
+                ->where('is_current', true)
+                ->orderBy('last_activity', 'desc')
+                ->first();
+            
+            $sessionActive = $currentSession !== null;
+        }
+        
+        if (!$sessionActive) {
+            $sessionActive = $user->sessions()->where('is_current', true)->exists();
         }
 
         // Construire l'URL complète de l'avatar
@@ -185,6 +266,10 @@ class SSOController extends Controller
                 'role' => $user->role ?? 'user',
                 'is_verified' => !is_null($user->email_verified_at),
                 'is_active' => $user->is_active,
+            ],
+            'session' => [
+                'active' => $sessionActive,
+                'last_activity' => $currentSession?->last_activity?->toISOString(),
             ]
         ]);
     }
