@@ -68,7 +68,7 @@
                   Sessions actives
                 </dt>
                 <dd class="text-lg font-medium text-gray-900 dark:text-white">
-                  {{ sessions ? sessions.length : 0 }}
+                  {{ activeSessions }}
                 </dd>
               </dl>
             </div>
@@ -332,6 +332,7 @@ export default {
     const perPage = ref(15)
     const loadingSessionId = ref(null)
     const totalSessions = computed(() => sessions.value.length)
+    const activeSessions = computed(() => sessions.value.filter(s => s.is_current).length)
     const paginatedSessions = computed(() => {
       const start = (page.value - 1) * perPage.value
       return sessions.value.slice(start, start + perPage.value)
@@ -455,6 +456,7 @@ export default {
       page,
       perPage,
       totalSessions,
+      activeSessions,
       paginatedSessions,
       showProfileModal,
       showSessionsModal,

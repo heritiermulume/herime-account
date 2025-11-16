@@ -58,6 +58,12 @@ class SSOController extends Controller
             ], 401);
         }
 
+        \Log::info('SSOController: Token validated for user', [
+            'user_id' => $user->id,
+            'user_email' => $user->email,
+            'token_preview' => substr($token, 0, 20) . '...',
+        ]);
+
         // Construire l'URL complète de l'avatar
         $avatarUrl = $user->avatar_url;
         if ($avatarUrl && !str_starts_with($avatarUrl, 'http')) {
@@ -234,8 +240,15 @@ class SSOController extends Controller
             }
         }
 
-        // Créer le token SSO
+        // Créer le token SSO pour cet utilisateur spécifique
         $token = $user->createToken('SSO Token', ['profile'])->accessToken;
+        
+        \Log::info('SSOController: Token generated for user', [
+            'user_id' => $user->id,
+            'user_email' => $user->email,
+            'token_preview' => substr($token, 0, 20) . '...',
+            'redirect_url' => $redirectUrl,
+        ]);
         
         // Créer une session pour la connexion SSO
         $this->createSSOSession($user, $request, $redirectUrl);
