@@ -127,9 +127,17 @@ router.beforeEach(async (to, from, next) => {
                        to.query.force_token === 'true' ||
                        to.query.force_token === 'yes' ||
                        to.query.force_token === 'on'
+  const hasRedirectParam = typeof to.query.redirect === 'string' && to.query.redirect.length > 0
+  
+  // Si des paramètres SSO sont présents sur n'importe quelle route autre que /login|/register,
+  // router immédiatement vers /login pour laisser le flux SSO se dérouler.
+  if ((hasForceToken || hasRedirectParam) && to.path !== '/login' && to.path !== '/register') {
+    next({ path: '/login', query: to.query })
+    return
+  }
   
   // PRIORITÉ: si des paramètres SSO sont présents à la racine, router directement vers /login avec les mêmes query
-  if ((hasForceToken || (typeof to.query.redirect === 'string' && to.query.redirect.length > 0)) && to.path === '/') {
+  if ((hasForceToken || hasRedirectParam) && to.path === '/') {
     next({ path: '/login', query: to.query })
     return
   }
