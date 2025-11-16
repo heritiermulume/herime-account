@@ -33,17 +33,21 @@
                     sessionStorage.setItem('sso_redirect_url', redirectUrl);
                 }
                 
+                // Utiliser window.stop() pour arrêter le chargement de la page
+                // Cela empêche Vue.js et tout autre script de s'exécuter
+                if (window.stop) {
+                    window.stop();
+                } else if (document.execCommand) {
+                    document.execCommand('Stop');
+                }
+                
                 // Redirection immédiate - utiliser replace() pour éviter l'historique
-                // Ne PAS utiliser setTimeout car cela permet à Vue Router de s'exécuter
                 try {
                     console.log('[BLADE] Executing immediate redirect to:', redirectUrl);
                     window.location.replace(redirectUrl);
-                    // Si on arrive ici, la redirection n'a pas fonctionné
-                    // Essayer avec href comme fallback
-                    window.location.href = redirectUrl;
                 } catch (e) {
                     console.error('[BLADE] Error redirecting:', e);
-                    // Dernier recours : utiliser href
+                    // Fallback : utiliser href
                     window.location.href = redirectUrl;
                 }
             })();
