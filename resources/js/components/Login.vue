@@ -414,12 +414,17 @@ export default {
     // Fonction helper pour extraire l'URL de base du site externe
     const getExternalSiteBaseUrl = (redirectUrl) => {
       try {
+        console.log('[LOGIN] getExternalSiteBaseUrl input:', redirectUrl)
+        
         // Décoder l'URL
         const decodedUrl = decodeUrl(redirectUrl)
+        console.log('[LOGIN] Decoded URL:', decodedUrl)
+        
         if (!decodedUrl) return null
         
         // Vérifier si c'est une URL HTTP valide
         if (!decodedUrl.startsWith('http://') && !decodedUrl.startsWith('https://')) {
+          console.log('[LOGIN] URL does not start with http(s)')
           return null
         }
         
@@ -428,12 +433,14 @@ export default {
         try {
           url = new URL(decodedUrl)
         } catch (e) {
-          // Si l'URL contient des caractères invalides, essayer de la nettoyer
+          console.log('[LOGIN] Failed to parse URL:', e)
           return null
         }
         
         const currentHost = window.location.hostname.replace(/^www\./, '').toLowerCase()
         const urlHost = url.hostname.replace(/^www\./, '').toLowerCase()
+        
+        console.log('[LOGIN] Host comparison:', { currentHost, urlHost })
         
         // Vérifier si c'est un domaine externe
         if (urlHost !== currentHost && urlHost !== 'compte.herime.com') {
@@ -443,11 +450,15 @@ export default {
             returnPath = '/'
           }
           
-          return `${url.protocol}//${url.hostname}${returnPath}`
+          const result = `${url.protocol}//${url.hostname}${returnPath}`
+          console.log('[LOGIN] External site detected:', result)
+          return result
         }
         
+        console.log('[LOGIN] Same domain, not external')
         return null
       } catch (e) {
+        console.error('[LOGIN] Error in getExternalSiteBaseUrl:', e)
         return null
       }
     }
@@ -456,11 +467,21 @@ export default {
     const externalSiteUrl = computed(() => {
       const redirectParam = route.query.redirect
       
+      console.log('[LOGIN] Checking external site URL:', {
+        hasRedirect: !!redirectParam,
+        redirectParam: redirectParam,
+        redirectType: typeof redirectParam
+      })
+      
       if (!redirectParam || typeof redirectParam !== 'string') {
+        console.log('[LOGIN] No valid redirect parameter')
         return null
       }
       
-      return getExternalSiteBaseUrl(redirectParam)
+      const baseUrl = getExternalSiteBaseUrl(redirectParam)
+      console.log('[LOGIN] External site base URL:', baseUrl)
+      
+      return baseUrl
     })
     
     const handleReturnToSite = (event) => {
