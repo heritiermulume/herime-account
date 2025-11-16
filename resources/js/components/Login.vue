@@ -414,17 +414,14 @@ export default {
     // Fonction helper pour extraire l'URL de base du site externe
     const getExternalSiteBaseUrl = (redirectUrl) => {
       try {
-        console.log('[LOGIN] getExternalSiteBaseUrl input:', redirectUrl)
         
         // Décoder l'URL
         const decodedUrl = decodeUrl(redirectUrl)
-        console.log('[LOGIN] Decoded URL:', decodedUrl)
         
         if (!decodedUrl) return null
         
         // Vérifier si c'est une URL HTTP valide
         if (!decodedUrl.startsWith('http://') && !decodedUrl.startsWith('https://')) {
-          console.log('[LOGIN] URL does not start with http(s)')
           return null
         }
         
@@ -433,14 +430,12 @@ export default {
         try {
           url = new URL(decodedUrl)
         } catch (e) {
-          console.log('[LOGIN] Failed to parse URL:', e)
           return null
         }
         
         const currentHost = window.location.hostname.replace(/^www\./, '').toLowerCase()
         const urlHost = url.hostname.replace(/^www\./, '').toLowerCase()
         
-        console.log('[LOGIN] Host comparison:', { currentHost, urlHost })
         
         // Vérifier si c'est un domaine externe
         if (urlHost !== currentHost && urlHost !== 'compte.herime.com') {
@@ -451,14 +446,11 @@ export default {
           }
           
           const result = `${url.protocol}//${url.hostname}${returnPath}`
-          console.log('[LOGIN] External site detected:', result)
           return result
         }
         
-        console.log('[LOGIN] Same domain, not external')
         return null
       } catch (e) {
-        console.error('[LOGIN] Error in getExternalSiteBaseUrl:', e)
         return null
       }
     }
@@ -467,19 +459,12 @@ export default {
     const externalSiteUrl = computed(() => {
       const redirectParam = route.query.redirect
       
-      console.log('[LOGIN] Checking external site URL:', {
-        hasRedirect: !!redirectParam,
-        redirectParam: redirectParam,
-        redirectType: typeof redirectParam
-      })
       
       if (!redirectParam || typeof redirectParam !== 'string') {
-        console.log('[LOGIN] No valid redirect parameter')
         return null
       }
       
       const baseUrl = getExternalSiteBaseUrl(redirectParam)
-      console.log('[LOGIN] External site base URL:', baseUrl)
       
       return baseUrl
     })
@@ -582,12 +567,9 @@ export default {
         
         const result = await authStore.login(loginData)
         
-        console.log('[LOGIN] Login result:', result)
-        console.log('[LOGIN] Has sso_redirect_url:', !!result?.data?.sso_redirect_url)
         
         // Vérifier s'il y a une redirection SSO vers un domaine externe
         if (result?.data?.sso_redirect_url) {
-          console.log('[LOGIN] SSO redirect URL detected:', result.data.sso_redirect_url)
           
           // Marquer IMMÉDIATEMENT et SYNCHRONEMENT avant toute autre opération
           // Cela doit être fait AVANT que Vue ne puisse rendre quoi que ce soit
@@ -599,13 +581,11 @@ export default {
           // IMPORTANT: Ne PAS utiliser window.stop() car cela peut bloquer la redirection
           // Utiliser window.location.replace() pour une redirection immédiate et définitive
           // Utiliser replace au lieu de href pour éviter d'ajouter à l'historique
-          console.log('[LOGIN] Redirecting to SSO URL:', result.data.sso_redirect_url)
           window.location.replace(result.data.sso_redirect_url)
           
           // Cette ligne ne sera jamais exécutée
           return
         } else {
-          console.log('[LOGIN] No sso_redirect_url in response, checking for manual generation')
           // Si pas de sso_redirect_url mais qu'on a un redirect dans l'URL, essayer de générer le token SSO manuellement
           if (route.query.redirect && route.query.force_token) {
             try {
@@ -627,7 +607,6 @@ export default {
         if (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('sso_redirecting') === 'true') {
           const redirectUrl = sessionStorage.getItem('sso_redirect_url');
           if (redirectUrl) {
-            console.log('[LOGIN] SSO redirect in progress, redirecting to:', redirectUrl);
             window.location.replace(redirectUrl);
             return;
           }
@@ -729,7 +708,6 @@ export default {
         if (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('sso_redirecting') === 'true') {
           const redirectUrl = sessionStorage.getItem('sso_redirect_url');
           if (redirectUrl) {
-            console.log('[LOGIN] SSO redirect in progress (2FA), redirecting to:', redirectUrl);
             window.location.replace(redirectUrl);
             return;
           }

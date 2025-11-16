@@ -25,7 +25,6 @@
             // Ce script s'exécute immédiatement dans le head
             (function() {
                 var redirectUrl = {!! json_encode($sso_redirect, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) !!};
-                console.log('[BLADE] SSO redirect: Redirecting to', redirectUrl);
                 
                 // Empêcher Vue Router de s'exécuter en marquant la redirection
                 if (typeof sessionStorage !== 'undefined') {
@@ -34,8 +33,6 @@
                 }
                 
                 // Redirection immédiate - utiliser replace() pour éviter l'historique
-                // Ne PAS utiliser window.stop() car cela empêche la redirection elle-même
-                console.log('[BLADE] Executing immediate redirect to:', redirectUrl);
                 window.location.replace(redirectUrl);
             })();
         </script>
@@ -43,13 +40,8 @@
         <meta http-equiv="refresh" content="0;url={{ addslashes($sso_redirect) }}">
         @endif
         
-        <!-- Script de test pour vérifier que JavaScript fonctionne -->
+        <!-- Script de vérification SSO -->
         <script>
-            console.log('[BLADE] Template loaded, URL:', window.location.href);
-            console.log('[BLADE] Has sso_redirect:', {{ isset($sso_redirect) && !empty($sso_redirect) ? 'true' : 'false' }});
-            console.log('[BLADE] localStorage.access_token:', localStorage.getItem('access_token') ? 'EXISTS' : 'NOT_FOUND');
-            console.log('[BLADE] sessionStorage.sso_redirecting:', sessionStorage.getItem('sso_redirecting'));
-            
             // Vérifier si on doit rediriger SSO (même si on est sur /dashboard)
             (function() {
                 // Vérifier d'abord si une redirection SSO est déjà en cours
@@ -67,13 +59,11 @@
                         const hasToken = localStorage.getItem('access_token');
                         if (!hasToken) {
                             // Pas de token, nettoyer le sessionStorage et afficher le formulaire de login
-                            console.log('[BLADE] No token found, clearing SSO redirect flags and showing login form');
                             sessionStorage.removeItem('sso_redirecting');
                             sessionStorage.removeItem('sso_redirect_url');
                             return;
                         }
                         
-                        console.log('[BLADE] SSO redirect already in progress, redirecting to:', redirectUrl);
                         window.location.replace(redirectUrl);
                         return;
                     }
@@ -85,15 +75,10 @@
                 
                 // Si on a force_token et redirect dans l'URL, rediriger SSO
                 if (forceToken && redirect) {
-                    console.log('[BLADE] force_token and redirect detected, checking for SSO redirect');
-                    console.log('[BLADE] forceToken:', forceToken);
-                    console.log('[BLADE] redirect:', redirect);
-                    
                     // Vérifier si on a déjà une redirection SSO du serveur
                     @if(isset($sso_redirect) && !empty($sso_redirect))
                     // Le serveur a déjà préparé la redirection, utiliser celle-ci
                     var redirectUrl = {!! json_encode($sso_redirect, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) !!};
-                    console.log('[BLADE] Server provided SSO redirect, redirecting to:', redirectUrl);
                     
                     // Marquer la redirection en cours
                     if (typeof sessionStorage !== 'undefined') {
@@ -107,11 +92,9 @@
                     
                     // Sinon, vérifier si l'utilisateur a un token dans localStorage
                     const token = localStorage.getItem('access_token');
-                    console.log('[BLADE] Checking localStorage for token:', token ? 'FOUND' : 'NOT_FOUND');
                     
                     if (token) {
                         // L'utilisateur a un token, faire une requête au serveur pour générer le token SSO
-                        console.log('[BLADE] User has token, requesting SSO redirect');
                         
                         // Marquer la redirection en cours AVANT la requête
                         if (typeof sessionStorage !== 'undefined') {
@@ -138,14 +121,11 @@
                             // Si erreur 401, vérifier le message pour savoir si le token est révoqué
                             if (!response.ok) {
                                 return response.json().then(errorData => {
-                                    console.log('[BLADE] API error:', response.status, errorData);
-                                    
                                     // Si le message indique que le token est révoqué, le supprimer
                                     if (response.status === 401 && 
                                         (errorData.message?.includes('révoqué') || 
                                          errorData.message?.includes('revoked') ||
                                          errorData.message?.includes('Unauthenticated'))) {
-                                        console.log('[BLADE] Token revoked, removing from localStorage');
                                         localStorage.removeItem('access_token');
                                     }
                                     
@@ -168,14 +148,11 @@
                                     redirectUrlObj.searchParams.set('token', data.data.token);
                                     redirectUrl = redirectUrlObj.toString();
                                 } else {
-                                    console.error('[BLADE] No token or callback_url in response:', data);
                                     if (typeof sessionStorage !== 'undefined') {
                                         sessionStorage.removeItem('sso_redirecting');
                                     }
                                     return;
                                 }
-                                
-                                console.log('[BLADE] SSO token generated, redirecting to:', redirectUrl);
                                 
                                 // Stocker l'URL de redirection
                                 if (typeof sessionStorage !== 'undefined') {
@@ -185,28 +162,17 @@
                                 // Rediriger immédiatement
                                 window.location.replace(redirectUrl);
                             } else {
-                                console.error('[BLADE] Failed to generate SSO token:', data);
                                 if (typeof sessionStorage !== 'undefined') {
                                     sessionStorage.removeItem('sso_redirecting');
                                 }
                             }
                         })
                         .catch(error => {
-                            console.error('[BLADE] Error generating SSO token:', error);
-                            
                             if (typeof sessionStorage !== 'undefined') {
                                 sessionStorage.removeItem('sso_redirecting');
                             }
-                            // En cas d'erreur, ne PAS rediriger, laisser Vue.js charger le formulaire de login
-                            console.log('[BLADE] Will show login form after error');
                         });
-                    } else {
-                        console.log('[BLADE] No token found in localStorage, user needs to login');
-                        // Pas de token, laisser Vue.js charger le formulaire de login
-                        // Ne PAS faire de redirection
                     }
-                } else {
-                    console.log('[BLADE] No force_token or redirect, normal page load');
                 }
             })();
         </script>
@@ -246,7 +212,6 @@
                 setTimeout(function() {
                     var redirectUrl = {!! json_encode($sso_redirect, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) !!};
                     if (window.location.href.indexOf('compte.herime.com') !== -1) {
-                        console.log('Fallback redirect triggered');
                         window.location.replace(redirectUrl);
                     }
                 }, 50);
@@ -274,7 +239,6 @@
             setTimeout(function() {
                 var app = document.getElementById('app');
                 if (app && app.innerHTML.indexOf('Chargement de l\'application') !== -1) {
-                    console.error('[ERROR] Vue.js failed to load after 10 seconds');
                     app.innerHTML = '<div style="display: flex; align-items: center; justify-content: center; height: 100vh; flex-direction: column; font-family: Inter, sans-serif;">' +
                         '<div style="background: #fee; border: 1px solid #fcc; border-radius: 8px; padding: 20px; max-width: 500px; text-align: center;">' +
                         '<h2 style="color: #c00; margin: 0 0 10px 0;">Erreur de chargement</h2>' +

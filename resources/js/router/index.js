@@ -111,7 +111,6 @@ router.beforeEach(async (to, from, next) => {
   if (typeof window !== 'undefined' && sessionStorage.getItem('sso_redirecting') === 'true') {
     const redirectUrl = sessionStorage.getItem('sso_redirect_url');
     if (redirectUrl) {
-      console.log('[ROUTER] SSO redirect in progress, allowing navigation to:', redirectUrl);
       // Ne pas intercepter, laisser la redirection se faire
       next();
       return;
@@ -144,7 +143,6 @@ router.beforeEach(async (to, from, next) => {
   
   // Vérifier si une boucle SSO a été détectée - si oui, permettre l'accès à la page de login
   if (typeof window !== 'undefined' && sessionStorage.getItem('sso_loop_detected') === 'true') {
-    console.log('[ROUTER] SSO loop detected, allowing access to login page')
     if (to.path === '/login' || to.path === '/register') {
       next()
       return
@@ -170,7 +168,6 @@ router.beforeEach(async (to, from, next) => {
         const token = localStorage.getItem('access_token')
         if (!token) {
           // Pas de token, c'est probablement une boucle
-          console.log('[ROUTER] SSO loop detected in router (no token), setting flag and allowing access to login page')
           sessionStorage.setItem('sso_loop_detected', 'true')
           // Nettoyer les flags
           sessionStorage.removeItem('sso_redirecting')
@@ -188,7 +185,6 @@ router.beforeEach(async (to, from, next) => {
         } else {
           // L'utilisateur a un token, ce n'est probablement pas une boucle
           // Nettoyer les anciens flags pour permettre une nouvelle tentative
-          console.log('[ROUTER] User has token, clearing old redirect flags to allow new attempt')
           sessionStorage.removeItem('sso_redirecting')
           sessionStorage.removeItem('sso_redirecting_timestamp')
           sessionStorage.removeItem('sso_redirecting_url')
@@ -205,7 +201,6 @@ router.beforeEach(async (to, from, next) => {
     // Vérifier si on vient de /sso/redirect ou /dashboard (signe de boucle)
     const referer = typeof window !== 'undefined' ? document.referer : ''
     if (referer && (referer.includes('/sso/redirect') || referer.includes('/dashboard'))) {
-      console.log('[ROUTER] Coming from /sso/redirect or /dashboard with force_token, removing force_token to avoid loop')
       // Supprimer force_token de l'URL
       const newUrl = new URL(window.location.href)
       newUrl.searchParams.delete('force_token')
@@ -276,7 +271,6 @@ router.beforeEach(async (to, from, next) => {
       const hasForceTokenInFrom = from.query.force_token === '1' || from.query.force_token === 1 || from.query.force_token === true || from.query.force_token === 'true'
       
       if (fromDashboard && (hasForceToken || hasForceTokenInFrom)) {
-        console.log('[ROUTER] Coming from /dashboard with force_token, redirecting to /login without force_token to avoid loop')
         // Ne pas inclure force_token dans la redirection
         const newQuery = { ...to.query }
         delete newQuery.force_token
@@ -302,14 +296,12 @@ router.beforeEach(async (to, from, next) => {
   if (to.meta.requiresGuest && isAuthenticated) {
     // Si force_token est présent, ne pas rediriger - laisser le contrôleur Laravel gérer
     if (hasForceToken) {
-      console.log('[ROUTER] User authenticated with force_token, allowing access to login page for SSO redirect')
       next()
       return
     }
     
     // Vérifier si une boucle SSO a été détectée - si oui, permettre l'accès à la page de login
     if (typeof window !== 'undefined' && sessionStorage.getItem('sso_loop_detected') === 'true') {
-      console.log('[ROUTER] SSO loop detected, allowing access to login page')
       next()
       return
     }
@@ -317,7 +309,6 @@ router.beforeEach(async (to, from, next) => {
     // IMPORTANT: Si on a force_token=1, NE JAMAIS rediriger vers /dashboard
     // Laisser Auth.vue gérer complètement la redirection SSO
     if (hasForceToken) {
-      console.log('[ROUTER] force_token=1 detected, allowing access to login page for SSO redirect')
       next()
       return
     }

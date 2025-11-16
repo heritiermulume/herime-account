@@ -69,16 +69,6 @@ export default {
                            route.query.force_token === 'on'
       const currentHost = window.location.hostname.replace(/^www\./, '').toLowerCase()
       
-      console.log('[SSO] Checking for redirect loop:', {
-        redirectAttempts,
-        redirectingTimestamp,
-        redirectingUrl,
-        lastRedirectTo,
-        currentUrl,
-        referer: document.referer,
-        hasForceToken,
-        currentHost
-      })
       
       // DÉTECTION PRINCIPALE : Si on a lastRedirectTo ET force_token ET qu'on est sur compte.herime.com
       // C'est probablement une boucle car on revient de la redirection
@@ -90,7 +80,6 @@ export default {
         // ET qu'on est de retour sur compte.herime.com avec force_token, c'est une boucle
         // Augmenter à 30 secondes pour être plus sûr de détecter les boucles
         if (elapsed !== null && elapsed < 30000 && lastRedirectTo !== 'compte.herime.com') {
-          console.error('[SSO] LOOP DETECTED: Returned to compte.herime.com with force_token after redirecting to', lastRedirectTo, 'too quickly (', elapsed, 'ms)')
           sessionStorage.setItem('sso_loop_detected', 'true')
           sessionStorage.removeItem(redirectingKey)
           sessionStorage.removeItem(redirectingTimestampKey)
@@ -107,7 +96,6 @@ export default {
         // Si plus de 30 secondes se sont écoulées, c'est probablement une nouvelle tentative légitime
         // Nettoyer les flags pour permettre une nouvelle tentative
         if (elapsed !== null && elapsed >= 30000) {
-          console.log('[SSO] More than 30 seconds elapsed since last redirect, allowing new attempt')
           sessionStorage.removeItem(redirectingKey)
           sessionStorage.removeItem(redirectingTimestampKey)
           sessionStorage.removeItem(redirectingUrlKey)
@@ -120,7 +108,6 @@ export default {
         // Si on n'a pas de timestamp mais qu'on a lastRedirectTo, c'est peut-être une ancienne redirection
         // Nettoyer les flags pour permettre une nouvelle tentative
         if (elapsed === null && lastRedirectTo !== 'compte.herime.com') {
-          console.log('[SSO] No timestamp found but lastRedirectTo exists, cleaning flags to allow new attempt')
           sessionStorage.removeItem(redirectingKey)
           sessionStorage.removeItem(redirectingTimestampKey)
           sessionStorage.removeItem(redirectingUrlKey)
@@ -148,7 +135,6 @@ export default {
               
               // Si on a redirigé vers ce domaine récemment (moins de 30 secondes), c'est une boucle
               if (lastRedirectTo === refererHost && elapsed < 30000) {
-                console.error('[SSO] LOOP DETECTED: Returned from', refererHost, 'too quickly (', elapsed, 'ms) - referer check')
                 sessionStorage.setItem('sso_loop_detected', 'true')
                 sessionStorage.removeItem(redirectingKey)
                 sessionStorage.removeItem(redirectingTimestampKey)
@@ -165,7 +151,6 @@ export default {
               // Si on vient d'un domaine externe mais qu'on n'a pas de lastRedirectTo correspondant
               // ET qu'on a un timestamp récent, c'est peut-être une boucle aussi
               if (elapsed < 5000 && redirectingTimestamp) {
-                console.error('[SSO] LOOP DETECTED: Returned from external domain', refererHost, 'too quickly (', elapsed, 'ms) - potential loop')
                 sessionStorage.setItem('sso_loop_detected', 'true')
                 sessionStorage.removeItem(redirectingKey)
                 sessionStorage.removeItem(redirectingTimestampKey)
@@ -206,7 +191,6 @@ export default {
           sessionStorage.removeItem(redirectAttemptsKey)
           isRedirecting.value = false
           authStore.isSSORedirecting = false
-          console.error('SSO redirect loop detected: too many attempts')
           return true
         } else {
           // Plus de 10 secondes, réinitialiser le compteur
@@ -232,7 +216,6 @@ export default {
             sessionStorage.removeItem(redirectAttemptsKey)
             isRedirecting.value = false
             authStore.isSSORedirecting = false
-            console.error('SSO redirect loop detected: same URL in less than 3 seconds')
             return true
           }
         }
@@ -247,11 +230,9 @@ export default {
 
     // Gérer la redirection SSO AVANT que le composant ne soit monté
     onBeforeMount(async () => {
-      console.log('[SSO] onBeforeMount called, URL:', window.location.href)
       
       // Vérifier si on est dans une boucle (AVANT toute autre vérification)
       if (checkForRedirectLoop()) {
-        console.log('[SSO] Loop detected, stopping redirect and showing login form')
         // Si on est dans une boucle, nettoyer TOUT et afficher le formulaire de login
         // NE PAS supprimer les paramètres de l'URL car cela pourrait causer une redirection vers le dashboard
         isRedirecting.value = false
@@ -271,7 +252,6 @@ export default {
           }, 30000)
         }
         // S'assurer que le formulaire de login s'affiche
-        console.log('[SSO] Login form should now be visible. isRedirecting:', isRedirecting.value, 'authStore.isSSORedirecting:', authStore.isSSORedirecting)
         // Ne pas essayer de rediriger, juste afficher le formulaire
         return
       }
@@ -291,30 +271,24 @@ export default {
             
             if (isAuthenticated) {
               // L'utilisateur est authentifié, nettoyer le flag et permettre la redirection
-              console.log('[SSO] User is authenticated, clearing loop detection flag and allowing redirect')
               sessionStorage.removeItem('sso_loop_detected')
               // Ne pas return, continuer avec la logique de redirection ci-dessous
             } else {
               // L'utilisateur n'est pas authentifié, skip la redirection
-              console.log('[SSO] Loop was recently detected and user is not authenticated, skipping redirect attempt')
               isRedirecting.value = false
               authStore.isSSORedirecting = false
-              console.log('[SSO] Flags reset. isRedirecting:', isRedirecting.value, 'authStore.isSSORedirecting:', authStore.isSSORedirecting, 'shouldShowSSOOverlay:', shouldShowSSOOverlay.value)
               return
             }
           } catch (error) {
             // En cas d'erreur, considérer comme non authentifié et skip la redirection
-            console.log('[SSO] Auth check failed, skipping redirect attempt due to loop detection')
             isRedirecting.value = false
             authStore.isSSORedirecting = false
             return
           }
         } else {
           // Pas de token, skip la redirection
-          console.log('[SSO] Loop was recently detected and no token found, skipping redirect attempt')
           isRedirecting.value = false
           authStore.isSSORedirecting = false
-          console.log('[SSO] Flags reset. isRedirecting:', isRedirecting.value, 'authStore.isSSORedirecting:', authStore.isSSORedirecting, 'shouldShowSSOOverlay:', shouldShowSSOOverlay.value)
           return
         }
       }
@@ -332,7 +306,6 @@ export default {
         // Vérifier si on vient déjà de /sso/redirect (boucle détectée)
         const referer = document.referer
         if (referer && referer.includes('/sso/redirect')) {
-          console.log('[SSO] Loop detected: coming from /sso/redirect, removing force_token and stopping redirect')
           // Supprimer force_token de l'URL pour éviter la boucle
           const newUrl = new URL(window.location.href)
           newUrl.searchParams.delete('force_token')
@@ -355,7 +328,6 @@ export default {
         
         // Vérifier si une boucle a été détectée récemment
         if (typeof window !== 'undefined' && sessionStorage.getItem('sso_loop_detected') === 'true') {
-          console.log('[SSO] Loop was recently detected, removing force_token and stopping redirect')
           // Supprimer force_token de l'URL pour éviter la boucle
           const newUrl = new URL(window.location.href)
           newUrl.searchParams.delete('force_token')
@@ -401,7 +373,6 @@ export default {
         const token = localStorage.getItem('access_token')
         
         if (!token) {
-          console.log('[SSO] No token found, showing login form')
           // Nettoyer les flags si pas de token - l'utilisateur n'est pas connecté, afficher le formulaire
           if (typeof window !== 'undefined') {
             sessionStorage.removeItem('sso_redirecting')
@@ -416,7 +387,6 @@ export default {
           return
         }
         
-        console.log('[SSO] Token found, checking authentication...')
         
         // OPTIMISATION: Vérifier l'authentification avec timeout court (3 secondes) pour accélérer
         let isAuthenticated = false
@@ -428,7 +398,6 @@ export default {
           ])
         } catch (error) {
           // En cas d'erreur ou timeout, nettoyer les flags et considérer comme non authentifié
-          console.log('[SSO] Auth check failed or timeout:', error)
           if (typeof window !== 'undefined') {
             sessionStorage.removeItem('sso_redirecting')
             sessionStorage.removeItem('sso_redirecting_timestamp')
@@ -442,7 +411,6 @@ export default {
         }
         
         if (!isAuthenticated) {
-          console.log('[SSO] User not authenticated, showing login form')
           // Nettoyer les flags si l'utilisateur n'est pas authentifié - afficher le formulaire de login
           if (typeof window !== 'undefined') {
             sessionStorage.removeItem('sso_redirecting')
@@ -467,7 +435,6 @@ export default {
           ])
           
           if (!meResponse.data?.success || !meResponse.data?.data?.user) {
-            console.log('[SSO] /me check failed, user not authenticated')
             if (typeof window !== 'undefined') {
               sessionStorage.removeItem('sso_redirecting')
               sessionStorage.removeItem('sso_redirecting_timestamp')
@@ -481,7 +448,6 @@ export default {
           }
         } catch (error) {
           // Si /me échoue, ne pas rediriger
-          console.log('[SSO] /me check failed:', error)
           if (typeof window !== 'undefined') {
             sessionStorage.removeItem('sso_redirecting')
             sessionStorage.removeItem('sso_redirecting_timestamp')
@@ -494,7 +460,6 @@ export default {
           return
         }
         
-        console.log('[SSO] User authenticated, proceeding with redirect')
         
         const redirect = route.query.redirect
         
@@ -515,7 +480,6 @@ export default {
         // STRATÉGIE SIMPLIFIÉE: Ajouter le token dans l'URL puis recharger
         // Le LoginController@show détectera le token et créera une session
         // puis générera $sso_redirect pour la redirection JavaScript
-        console.log('[SSO] Adding token to URL and reloading page to let server handle SSO redirect')
         
         // Récupérer le token depuis localStorage
         const accessToken = localStorage.getItem('access_token')
@@ -531,7 +495,6 @@ export default {
         } else {
           // Pas de token, afficher le formulaire de login
           // L'utilisateur devra se connecter pour continuer le flux SSO
-          console.log('[SSO] No token found, showing login form')
           isRedirecting.value = false
           authStore.isSSORedirecting = false
           // Ne PAS recharger la page, juste afficher le formulaire

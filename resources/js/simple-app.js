@@ -1,11 +1,9 @@
 
 // Test basic functionality
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('DOM loaded in simple app');
     
     const appElement = document.getElementById('app');
     if (appElement) {
-        console.log('App element found, mounting simple content');
         appElement.innerHTML = `
             <div style="padding: 20px; text-align: center;">
                 <h1>HERIME SSO - Test Page</h1>
@@ -15,6 +13,5 @@ document.addEventListener('DOMContentLoaded', function() {
             </div>
         `;
     } else {
-        console.error('App element not found');
     }
 });

@@ -415,7 +415,6 @@ export default {
           sessions.value = response.data.data.sessions
         }
       } catch (error) {
-        console.error('Erreur lors du chargement des sessions:', error)
         // Ne pas bloquer l'affichage si les sessions ne se chargent pas
         sessions.value = []
       }
@@ -443,7 +442,6 @@ export default {
           await loadSessions()
         }
       } catch (error) {
-        console.error('Erreur lors de la désactivation de la session:', error)
         // Vous pouvez ajouter un toast de notification ici
       } finally {
         loadingSessionId.value = null
@@ -473,7 +471,6 @@ export default {
           await loadSessions()
         }
       } catch (error) {
-        console.error('Erreur lors de la suppression de la session:', error)
         // Vous pouvez ajouter un toast de notification ici
       } finally {
         loadingSessionId.value = null

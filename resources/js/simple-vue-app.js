@@ -1,11 +1,9 @@
 
 // Simple Vue app without complex imports
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('DOM loaded, creating simple Vue app');
     
     // Check if Vue is available globally
     if (typeof Vue === 'undefined') {
-        console.error('Vue is not available globally');
         return;
     }
     
@@ -21,7 +19,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             },
             mounted() {
-                console.log('Simple Vue app mounted');
                 this.loading = false;
                 
                 // Simulate user data
@@ -52,10 +49,8 @@ document.addEventListener('DOMContentLoaded', function() {
         });
         
         app.mount('#app');
-        console.log('Simple Vue app mounted successfully');
         
     } catch (error) {
-        console.error('Error creating simple Vue app:', error);
         
         const appElement = document.getElementById('app');
         if (appElement) {

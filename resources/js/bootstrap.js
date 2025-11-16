@@ -1,7 +1,6 @@
 import axios from 'axios';
 window.axios = axios;
 
-console.log('[BOOTSTRAP] Axios initialized')
 
 // Keep console logs for debugging SSO issues
 // Disable verbose console output in production (but keep error logs)

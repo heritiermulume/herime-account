@@ -6,23 +6,16 @@ import router from './router';
 import { setRouter } from './bootstrap';
 
 
-console.log('[APP] Starting Vue.js application...')
 
 try {
-    console.log('[APP] Creating Vue app...')
     const app = createApp(App);
 
-    console.log('[APP] Setting up Pinia...')
     app.use(createPinia());
     
-    console.log('[APP] Setting up router...')
     app.use(router);
 
-    console.log('[APP] Mounting app to #app...')
     app.mount('#app');
-    console.log('[APP] Vue.js application mounted successfully')
 } catch (error) {
-    console.error('[APP] Error loading Vue.js application:', error)
     // Fallback: show error message
     const appElement = document.getElementById('app');
     if (appElement) {

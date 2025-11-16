@@ -164,7 +164,6 @@ export default {
           sessions.value = response.data.data.sessions
         }
       } catch (error) {
-        console.error('Erreur lors du chargement des sessions:', error)
         sessions.value = []
       } finally {
         loading.value = false
@@ -193,7 +192,6 @@ export default {
           await loadSessions()
         }
       } catch (error) {
-        console.error('Erreur lors de la déconnexion de la session:', error)
       } finally {
         loading.value = false
         pendingSessionId.value = null
@@ -213,7 +211,6 @@ export default {
           await loadSessions()
         }
       } catch (error) {
-        console.error('Erreur lors de la déconnexion des sessions:', error)
       } finally {
         loading.value = false
       }
