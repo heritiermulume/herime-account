@@ -88,11 +88,18 @@ class LoginController extends Controller
             
             // Protection contre les boucles : ne pas rediriger vers le même domaine
             if ($redirectHost === $currentHost || $redirectHost === 'compte.herime.com') {
+                \Log::warning('SSO Redirect: URL points to same domain, redirecting to dashboard', [
+                    'redirect_host' => $redirectHost,
+                    'current_host' => $currentHost,
+                ]);
                 return redirect('/dashboard');
             }
             
             // Vérifier que l'URL de redirection ne contient pas déjà /login
             if (strpos($redirectUrl, '/login') !== false) {
+                \Log::warning('SSO Redirect: URL contains /login, redirecting to dashboard', [
+                    'url' => $redirectUrl,
+                ]);
                 return redirect('/dashboard');
             }
 
@@ -105,6 +112,9 @@ class LoginController extends Controller
             // Construire l'URL de callback avec le token
             $parsedUrl = parse_url($redirectUrl);
             if (!$parsedUrl || !isset($parsedUrl['scheme']) || !isset($parsedUrl['host'])) {
+                \Log::error('SSO Redirect: Invalid redirect URL format', [
+                    'url' => $redirectUrl,
+                ]);
                 return redirect('/dashboard');
             }
             
@@ -136,12 +146,25 @@ class LoginController extends Controller
             if ($callbackHost) {
                 $callbackHost = preg_replace('/^www\./', '', strtolower($callbackHost));
                 if ($callbackHost === $currentHost || $callbackHost === 'compte.herime.com') {
+                    \Log::warning('SSO Redirect: Callback URL points to same domain, redirecting to dashboard', [
+                        'callback_host' => $callbackHost,
+                        'current_host' => $currentHost,
+                    ]);
                     return redirect('/dashboard');
                 }
             }
             
-            // Redirection HTTP directe
-            return redirect($callbackUrl);
+            \Log::info('SSO Redirect: Redirecting to external site', [
+                'callback_url' => $callbackUrl,
+                'user_id' => $user->id,
+            ]);
+            
+            // Redirection HTTP directe - IMPORTANT: Utiliser une réponse HTTP brute pour éviter que Vue Router intercepte
+            return response('', 302)
+                ->header('Location', $callbackUrl)
+                ->header('Cache-Control', 'no-cache, no-store, must-revalidate')
+                ->header('Pragma', 'no-cache')
+                ->header('Expires', '0');
         }
 
         // Si l'utilisateur est déjà connecté SANS force_token, rediriger vers le dashboard
