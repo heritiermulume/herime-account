@@ -152,3 +152,241 @@ L'ancien système a été complètement remplacé. Les endpoints suivants ont é
 
 Ces fonctionnalités sont maintenant gérées automatiquement par le système.
 
+---
+
+## Guide d’intégration pour sites externes (SSO Herime)
+
+Cette section décrit comment un site externe (ex: `academie.herime.com`) doit intégrer le SSO avec `compte.herime.com`.
+
+Objectif: lorsqu’un utilisateur non connecté visite le site externe, il est redirigé vers `compte.herime.com` pour s’authentifier, puis revient automatiquement sur le site externe avec un jeton SSO afin d’ouvrir une session locale.
+
+### 1) URL SSO à utiliser
+
+Quand l’utilisateur n’est pas connecté sur votre site externe, redirigez-le vers:
+
+```
+https://compte.herime.com/login?redirect=ENCODED_CALLBACK&force_token=1
+```
+
+où:
+- `ENCODED_CALLBACK` est l’URL encodée de votre route `/sso/callback` qui, elle-même, reçoit un paramètre `redirect` pointant vers la page finale désirée (souvent votre page d’accueil ou la page initialement demandée).
+
+Exemple concret (externes = `academie.herime.com`):
+
+```
+https://compte.herime.com/login
+  ?redirect=https%3A%2F%2Facademie.herime.com%2Fsso%2Fcallback%3Fredirect%3Dhttps%253A%252F%252Facademie.herime.com%252F
+  &force_token=1
+```
+
+Décomposition:
+- redirect (niveau 1): `https://academie.herime.com/sso/callback?redirect=https%3A%2F%2Facademie.herime.com%2F` (entièrement encodé)
+- force_token=1: impose la génération d’un token SSO et le retour immédiat vers votre callback.
+
+### 2) Responsabilités de votre route `/sso/callback`
+
+Votre endpoint `/sso/callback` doit:
+1. Lire `token` (ajouté par `compte.herime.com`) et `redirect` (votre destination finale).
+2. Si `token` est absent: renvoyer l’utilisateur vers `compte.herime.com/login?force_token=1&redirect=...` (auto-rattrapage).
+3. Valider le `token` en appelant l’API de `compte.herime.com` avec un `Authorization: Bearer <token>`:
+   - Recommandé: un endpoint de validation dédié (ex: `POST /api/sso/validateToken`) si disponible.
+   - À défaut: `GET /api/user` (ou `/api/me`) qui retourne l’utilisateur lié au token OAuth2 (Passport).
+4. Trouver/créer l’utilisateur local sur votre site (via email/ID), mettre à jour les champs utiles.
+5. Ouvrir une session locale (login serveur).
+6. Rediriger vers `redirect` (ou `/` si absent) — important: doit rester sur VOTRE domaine.
+
+Sécurité à respecter:
+- Toujours valider que `redirect` pointe vers votre propre domaine (anti open-redirect).
+- Utiliser HTTPS partout.
+- Ne jamais exposer le token SSO côté client; il ne sert qu’à établir la session serveur.
+
+### 3) Implémentation Laravel (externe)
+
+routes/web.php:
+
+```php
+use App\Http\Controllers\SSOCallbackController;
+
+Route::get('/sso/callback', [SSOCallbackController::class, 'handle'])->name('sso.callback');
+```
+
+app/Http/Controllers/SSOCallbackController.php:
+
+```php
+<?php
+
+namespace App\Http\Controllers;
+
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Str;
+use App\Models\User;
+
+class SSOCallbackController extends Controller
+{
+    public function handle(Request $request)
+    {
+        $token = $request->query('token');
+        $finalRedirect = $request->query('redirect', url('/'));
+
+        // 1) Si pas de token: renvoyer vers compte.herime.com pour (re)générer un token SSO
+        if (!$token) {
+            $callback = route('sso.callback', ['redirect' => $finalRedirect]);
+            $loginUrl = 'https://compte.herime.com/login?force_token=1&redirect=' . urlencode($callback);
+            return redirect()->away($loginUrl);
+        }
+
+        // 2) Valider le token (Option B générique: GET /api/user avec Bearer)
+        // Option A (si disponible côté IdP): POST /api/sso/validateToken
+        $resp = Http::acceptJson()
+            ->withToken($token)
+            ->get('https://compte.herime.com/api/user');
+
+        if (!$resp->ok()) {
+            // Token invalide/expiré → repartir vers SSO
+            $callback = route('sso.callback', ['redirect' => $finalRedirect]);
+            $loginUrl = 'https://compte.herime.com/login?force_token=1&redirect=' . urlencode($callback);
+            return redirect()->away($loginUrl);
+        }
+
+        $remoteUser = $resp->json();
+        $remoteId   = data_get($remoteUser, 'id');
+        $email      = data_get($remoteUser, 'email');
+        $name       = data_get($remoteUser, 'name') ?? trim(data_get($remoteUser, 'first_name') . ' ' . data_get($remoteUser, 'last_name'));
+
+        if (!$email) {
+            abort(403, 'SSO: email manquant');
+        }
+
+        // 3) Trouver/Créer l’utilisateur local
+        $user = User::where('email', $email)->first();
+        if (!$user) {
+            $user = User::create([
+                'name'        => $name ?: $email,
+                'email'       => $email,
+                'password'    => bcrypt(Str::random(32)),
+                'provider'    => 'herime-account',
+                'provider_id' => $remoteId,
+            ]);
+        } else {
+            $user->forceFill([
+                'name'        => $name ?: $user->name,
+                'provider'    => 'herime-account',
+                'provider_id' => $remoteId ?? $user->provider_id,
+            ])->save();
+        }
+
+        // 4) Connecter localement
+        Auth::login($user, true);
+
+        // 5) Redirection finale (sécuriser pour rester sur votre domaine)
+        return redirect()->to($this->safeRedirect($finalRedirect));
+    }
+
+    private function safeRedirect(string $url): string
+    {
+        // Autoriser uniquement les URLs vers votre domaine
+        // Ex: academie.herime.com, sous-domaines éventuels, ou chemins relatifs
+        $parsed = parse_url($url);
+        if (!$parsed || empty($parsed['host'])) {
+            return url('/'); // relatif → OK
+        }
+        $host = strtolower(preg_replace('/^www\./', '', $parsed['host']));
+        if ($host === 'academie.herime.com') {
+            return $url;
+        }
+        return url('/'); // fallback sûr
+    }
+}
+```
+
+Middleware/contrôleur externe pour déclencher le SSO quand non connecté:
+
+```php
+if (!auth()->check()) {
+    $desired  = url()->full(); // où l’on voulait aller
+    $callback = route('sso.callback', ['redirect' => $desired]);
+    $ssoUrl   = 'https://compte.herime.com/login?force_token=1&redirect=' . urlencode($callback);
+    return redirect()->away($ssoUrl);
+}
+```
+
+### 4) Implémentation Node/Express (externe)
+
+Routes (Express):
+
+```js
+const express = require('express');
+const axios = require('axios');
+const router = express.Router();
+
+// Helper: construit l’URL SSO de redirection vers compte.herime.com
+function buildSSOLoginUrl(callbackUrl) {
+  return `https://compte.herime.com/login?force_token=1&redirect=${encodeURIComponent(callbackUrl)}`;
+}
+
+// Helper: sécurité open-redirect (adapter le domaine autorisé)
+function isAllowedRedirect(url) {
+  try {
+    const u = new URL(url, 'https://academie.herime.com');
+    return u.hostname === 'academie.herime.com';
+  } catch {
+    return false;
+  }
+}
+
+router.get('/sso/callback', async (req, res) => {
+  const token = req.query.token;
+  const finalRedirect = req.query.redirect || '/';
+
+  if (!token) {
+    const callback = `https://academie.herime.com/sso/callback?redirect=${encodeURIComponent(finalRedirect)}`;
+    return res.redirect(buildSSOLoginUrl(callback));
+  }
+
+  try {
+    // Valider le token (Option B générique)
+    const resp = await axios.get('https://compte.herime.com/api/user', {
+      headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' }
+    });
+
+    const remoteUser = resp.data;
+    const email = remoteUser?.email;
+    const name  = remoteUser?.name || `${remoteUser?.first_name || ''} ${remoteUser?.last_name || ''}`.trim();
+    if (!email) return res.status(403).send('SSO: email manquant');
+
+    // TODO: trouver/créer l’utilisateur local et ouvrir la session
+    // const user = await upsertUser({ email, name, provider: 'herime-account', providerId: remoteUser.id })
+    // req.session.userId = user.id
+
+    const safeUrl = isAllowedRedirect(finalRedirect) ? finalRedirect : '/';
+    return res.redirect(safeUrl);
+  } catch (e) {
+    const callback = `https://academie.herime.com/sso/callback?redirect=${encodeURIComponent(finalRedirect)}`;
+    return res.redirect(buildSSOLoginUrl(callback));
+  }
+});
+
+module.exports = router;
+```
+
+### 5) Points de contrôle et dépannage
+
+- Vous voyez « Redirecting to https://academie.herime.com/sso/callback?... » dans la console de `compte.herime.com`, mais vous revenez quand même à `compte.herime.com/dashboard`:
+  - Cela indique que la redirection depuis le site externe vous renvoie (directement ou indirectement) vers `compte.herime.com`. Vérifiez votre `/sso/callback` et vos middlewares: la redirection finale doit rester sur votre domaine externe.
+- Votre `/sso/callback` reçoit souvent aucun `token`:
+  - Reprenez le flux: renvoyez l’utilisateur vers `compte.herime.com/login?force_token=1&redirect=<votre callback encodé>`.
+- Le paramètre `redirect` est ignoré:
+  - Assurez-vous de bien l’encoder à chaque niveau et de vérifier sa sûreté (domaine autorisé) avant la redirection finale.
+
+### 6) Résumé (checklist)
+
+- Construire l’URL SSO: `https://compte.herime.com/login?force_token=1&redirect=<ENCODED_CALLBACK>`
+- `ENCODED_CALLBACK` = `https://votre-domaine/sso/callback?redirect=<ENCODED_FINAL_URL>`
+- Implémenter `/sso/callback`:
+  - Si pas de `token` → repartir vers login SSO (avec `redirect=callback`).
+  - Sinon, valider le token via l’API de `compte.herime.com`.
+  - Trouver/créer l’utilisateur local et ouvrir la session.
+  - Rediriger vers `redirect` (vérifié et sur votre domaine).
+
