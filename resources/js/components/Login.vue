@@ -561,8 +561,12 @@ export default {
         
         const result = await authStore.login(loginData)
         
+        console.log('[LOGIN] Login result:', result)
+        console.log('[LOGIN] Has sso_redirect_url:', !!result?.data?.sso_redirect_url)
+        
         // Vérifier s'il y a une redirection SSO vers un domaine externe
         if (result?.data?.sso_redirect_url) {
+          console.log('[LOGIN] SSO redirect URL detected:', result.data.sso_redirect_url)
           
           // Marquer IMMÉDIATEMENT et SYNCHRONEMENT avant toute autre opération
           // Cela doit être fait AVANT que Vue ne puisse rendre quoi que ce soit
@@ -574,11 +578,13 @@ export default {
           // IMPORTANT: Ne PAS utiliser window.stop() car cela peut bloquer la redirection
           // Utiliser window.location.replace() pour une redirection immédiate et définitive
           // Utiliser replace au lieu de href pour éviter d'ajouter à l'historique
+          console.log('[LOGIN] Redirecting to SSO URL:', result.data.sso_redirect_url)
           window.location.replace(result.data.sso_redirect_url)
           
           // Cette ligne ne sera jamais exécutée
           return
         } else {
+          console.log('[LOGIN] No sso_redirect_url in response, checking for manual generation')
           // Si pas de sso_redirect_url mais qu'on a un redirect dans l'URL, essayer de générer le token SSO manuellement
           if (route.query.redirect && route.query.force_token) {
             try {
