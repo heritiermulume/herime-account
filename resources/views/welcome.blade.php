@@ -33,23 +33,10 @@
                     sessionStorage.setItem('sso_redirect_url', redirectUrl);
                 }
                 
-                // Utiliser window.stop() pour arrêter le chargement de la page
-                // Cela empêche Vue.js et tout autre script de s'exécuter
-                if (window.stop) {
-                    window.stop();
-                } else if (document.execCommand) {
-                    document.execCommand('Stop');
-                }
-                
                 // Redirection immédiate - utiliser replace() pour éviter l'historique
-                try {
-                    console.log('[BLADE] Executing immediate redirect to:', redirectUrl);
-                    window.location.replace(redirectUrl);
-                } catch (e) {
-                    console.error('[BLADE] Error redirecting:', e);
-                    // Fallback : utiliser href
-                    window.location.href = redirectUrl;
-                }
+                // Ne PAS utiliser window.stop() car cela empêche la redirection elle-même
+                console.log('[BLADE] Executing immediate redirect to:', redirectUrl);
+                window.location.replace(redirectUrl);
             })();
         </script>
         <!-- Meta refresh comme fallback absolu -->
