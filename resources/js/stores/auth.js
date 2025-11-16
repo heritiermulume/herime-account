@@ -69,26 +69,33 @@ export const useAuthStore = defineStore('auth', {
           if (response.data.data?.sso_redirect_url) {
             this.isSSORedirecting = true
             
-            // Rediriger immédiatement vers le site externe
-            // Utiliser replace() pour éviter d'ajouter à l'historique
-            if (typeof window !== 'undefined') {
-              console.log('[AUTH STORE] SSO redirect URL found, redirecting to:', response.data.data.sso_redirect_url)
-              window.location.replace(response.data.data.sso_redirect_url)
+            // Marquer la redirection dans sessionStorage AVANT de rediriger
+            if (typeof window !== 'undefined' && typeof sessionStorage !== 'undefined') {
+              sessionStorage.setItem('sso_redirecting', 'true');
+              sessionStorage.setItem('sso_redirect_url', response.data.data.sso_redirect_url);
+              console.log('[AUTH STORE] SSO redirect URL found, marked in sessionStorage, redirecting to:', response.data.data.sso_redirect_url);
+              
+              // Rediriger immédiatement vers le site externe
+              // Utiliser replace() pour éviter d'ajouter à l'historique
+              window.location.replace(response.data.data.sso_redirect_url);
               // Ne pas retourner, la redirection va se produire
-              return response.data
+              return response.data;
             }
           } else {
             console.log('[AUTH STORE] No SSO redirect URL in response:', response.data)
           }
           
-          // Nettoyer les flags SSO après une connexion réussie
+          // Nettoyer les flags SSO seulement si pas de redirection SSO en cours
           if (typeof window !== 'undefined' && sessionStorage) {
-            sessionStorage.removeItem('sso_loop_detected')
-            sessionStorage.removeItem('sso_redirecting')
-            sessionStorage.removeItem('sso_redirecting_timestamp')
-            sessionStorage.removeItem('sso_redirecting_url')
-            sessionStorage.removeItem('sso_redirect_attempts')
-            sessionStorage.removeItem('sso_last_redirect_to')
+            const isRedirecting = sessionStorage.getItem('sso_redirecting') === 'true';
+            if (!isRedirecting) {
+              sessionStorage.removeItem('sso_loop_detected')
+              sessionStorage.removeItem('sso_redirecting')
+              sessionStorage.removeItem('sso_redirecting_timestamp')
+              sessionStorage.removeItem('sso_redirecting_url')
+              sessionStorage.removeItem('sso_redirect_attempts')
+              sessionStorage.removeItem('sso_last_redirect_to')
+            }
           }
           
           return response.data
@@ -156,26 +163,33 @@ export const useAuthStore = defineStore('auth', {
           if (response.data.data?.sso_redirect_url) {
             this.isSSORedirecting = true
             
-            // Rediriger immédiatement vers le site externe
-            // Utiliser replace() pour éviter d'ajouter à l'historique
-            if (typeof window !== 'undefined') {
-              console.log('[AUTH STORE] SSO redirect URL found, redirecting to:', response.data.data.sso_redirect_url)
-              window.location.replace(response.data.data.sso_redirect_url)
+            // Marquer la redirection dans sessionStorage AVANT de rediriger
+            if (typeof window !== 'undefined' && typeof sessionStorage !== 'undefined') {
+              sessionStorage.setItem('sso_redirecting', 'true');
+              sessionStorage.setItem('sso_redirect_url', response.data.data.sso_redirect_url);
+              console.log('[AUTH STORE] SSO redirect URL found, marked in sessionStorage, redirecting to:', response.data.data.sso_redirect_url);
+              
+              // Rediriger immédiatement vers le site externe
+              // Utiliser replace() pour éviter d'ajouter à l'historique
+              window.location.replace(response.data.data.sso_redirect_url);
               // Ne pas retourner, la redirection va se produire
-              return response.data
+              return response.data;
             }
           } else {
             console.log('[AUTH STORE] No SSO redirect URL in response:', response.data)
           }
           
-          // Nettoyer les flags SSO après une connexion réussie
+          // Nettoyer les flags SSO seulement si pas de redirection SSO en cours
           if (typeof window !== 'undefined' && sessionStorage) {
-            sessionStorage.removeItem('sso_loop_detected')
-            sessionStorage.removeItem('sso_redirecting')
-            sessionStorage.removeItem('sso_redirecting_timestamp')
-            sessionStorage.removeItem('sso_redirecting_url')
-            sessionStorage.removeItem('sso_redirect_attempts')
-            sessionStorage.removeItem('sso_last_redirect_to')
+            const isRedirecting = sessionStorage.getItem('sso_redirecting') === 'true';
+            if (!isRedirecting) {
+              sessionStorage.removeItem('sso_loop_detected')
+              sessionStorage.removeItem('sso_redirecting')
+              sessionStorage.removeItem('sso_redirecting_timestamp')
+              sessionStorage.removeItem('sso_redirecting_url')
+              sessionStorage.removeItem('sso_redirect_attempts')
+              sessionStorage.removeItem('sso_last_redirect_to')
+            }
           }
           
           return response.data
