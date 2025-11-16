@@ -35,14 +35,28 @@ class SSOController extends Controller
         $accessToken = $this->findAccessToken($token);
 
         if (!$accessToken) {
+            \Log::warning('SSOController: Token not found', [
+                'token_preview' => substr($token, 0, 20) . '...',
+            ]);
             return response()->json([
                 'success' => false,
                 'message' => 'Token invalide ou expiré'
             ], 401);
         }
 
+        \Log::info('SSOController: Token found', [
+            'token_id' => $accessToken->id,
+            'user_id' => $accessToken->user_id,
+            'revoked' => $accessToken->revoked,
+            'expires_at' => $accessToken->expires_at?->toISOString(),
+        ]);
+
         // Vérifier si le token est expiré
         if ($accessToken->expires_at && $accessToken->expires_at->isPast()) {
+            \Log::warning('SSOController: Token expired', [
+                'token_id' => $accessToken->id,
+                'expires_at' => $accessToken->expires_at->toISOString(),
+            ]);
             return response()->json([
                 'success' => false,
                 'message' => 'Token expiré'
@@ -52,6 +66,12 @@ class SSOController extends Controller
         $user = $accessToken->user;
 
         if (!$user || !$user->isActive()) {
+            \Log::warning('SSOController: User inactive or not found', [
+                'token_id' => $accessToken->id,
+                'user_id' => $accessToken->user_id,
+                'user_exists' => $user !== null,
+                'user_active' => $user ? $user->isActive() : null,
+            ]);
             return response()->json([
                 'success' => false,
                 'message' => 'Utilisateur inactif'
@@ -60,6 +80,11 @@ class SSOController extends Controller
 
         // Vérifier si le token est révoqué (déconnexion)
         if ($accessToken->revoked) {
+            \Log::warning('SSOController: Token revoked', [
+                'token_id' => $accessToken->id,
+                'user_id' => $user->id,
+                'user_email' => $user->email,
+            ]);
             return response()->json([
                 'success' => false,
                 'message' => 'Token révoqué (utilisateur déconnecté)',
@@ -372,6 +397,7 @@ class SSOController extends Controller
 
     /**
      * Trouver un token Passport depuis un JWT
+     * NOTE: Ne filtre PAS par 'revoked' - c'est à l'appelant de vérifier
      */
     private function findAccessToken(string $token): ?PassportToken
     {
@@ -382,7 +408,6 @@ class SSOController extends Controller
         // Méthode 1: Hash SHA-256 du token complet
         $tokenHash = hash('sha256', $token);
         $accessToken = PassportToken::where('id', $tokenHash)
-            ->where('revoked', false)
             ->first();
 
         if ($accessToken) {
@@ -396,7 +421,6 @@ class SSOController extends Controller
             $jti = $payload['jti'];
 
             $accessToken = PassportToken::where('id', $jti)
-                ->where('revoked', false)
                 ->first();
 
             if ($accessToken) {
@@ -404,7 +428,6 @@ class SSOController extends Controller
             }
 
             $accessToken = PassportToken::where('id', hash('sha256', $jti))
-                ->where('revoked', false)
                 ->first();
 
             if ($accessToken) {

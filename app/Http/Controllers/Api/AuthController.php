@@ -232,20 +232,36 @@ class AuthController extends Controller
                     // Si le token actuel n'est pas accessible, continuer quand même
                 }
                 
+                // Compter les tokens AVANT révocation
+                $tokensBeforeRevoke = $user->tokens()->count();
+                $activeTokensBeforeRevoke = $user->tokens()->where('revoked', false)->count();
+                
                 // Révoquer TOUS les tokens Passport de l'utilisateur pour déconnecter tous les sites externes
                 // Cette opération invalide immédiatement tous les tokens (y compris celui déjà révoqué ci-dessus)
-                $user->tokens()->update(['revoked' => true]);
+                $revokedCount = $user->tokens()->update(['revoked' => true]);
+                
+                // Vérifier après révocation
+                $activeTokensAfterRevoke = $user->tokens()->where('revoked', false)->count();
                 
                 // Marquer TOUTES les sessions de l'utilisateur comme inactives (au lieu de les supprimer)
                 // Cela permet de garder l'historique des sessions pour l'audit
-                $user->sessions()->update([
+                $sessionsUpdated = $user->sessions()->update([
                     'is_current' => false,
                     'last_activity' => now()
                 ]);
                 
+                // Vérifier après mise à jour
+                $activeSessionsAfter = $user->sessions()->where('is_current', true)->count();
+                
                 \Log::info('AuthController: User logged out', [
                     'user_id' => $user->id,
-                    'sessions_marked_inactive' => $user->sessions()->count(),
+                    'tokens_total' => $tokensBeforeRevoke,
+                    'tokens_active_before' => $activeTokensBeforeRevoke,
+                    'tokens_revoked_count' => $revokedCount,
+                    'tokens_active_after' => $activeTokensAfterRevoke,
+                    'sessions_total' => $user->sessions()->count(),
+                    'sessions_updated_count' => $sessionsUpdated,
+                    'sessions_active_after' => $activeSessionsAfter,
                 ]);
             } catch (\Exception $e) {
                 // En cas d'erreur, essayer de continuer le logout quand même
