@@ -299,23 +299,45 @@ class AuthController extends Controller
      */
     private function createUserSession(User $user, Request $request): void
     {
-        // Mark all previous sessions as inactive
-        $user->sessions()->update(['is_current' => false]);
+        try {
+            // Mark all previous sessions as inactive
+            $previousSessionsCount = $user->sessions()->count();
+            $user->sessions()->update(['is_current' => false]);
+            
+            \Log::info('AuthController: Creating user session', [
+                'user_id' => $user->id,
+                'previous_sessions_count' => $previousSessionsCount,
+                'ip' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+            ]);
 
-        // Create new session
-        $deviceInfo = $this->getDeviceInfo($request->userAgent());
-        
-        UserSession::create([
-            'user_id' => $user->id,
-            'session_id' => Str::random(40),
-            'ip_address' => $request->ip(),
-            'user_agent' => $request->userAgent(),
-            'device_name' => $deviceInfo['device_name'],
-            'platform' => $deviceInfo['platform'],
-            'browser' => $deviceInfo['browser'],
-            'is_current' => true,
-            'last_activity' => now(),
-        ]);
+            // Create new session
+            $deviceInfo = $this->getDeviceInfo($request->userAgent());
+            
+            $session = UserSession::create([
+                'user_id' => $user->id,
+                'session_id' => Str::random(40),
+                'ip_address' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+                'device_name' => $deviceInfo['device_name'],
+                'platform' => $deviceInfo['platform'],
+                'browser' => $deviceInfo['browser'],
+                'is_current' => true,
+                'last_activity' => now(),
+            ]);
+            
+            \Log::info('AuthController: User session created', [
+                'user_id' => $user->id,
+                'session_id' => $session->id,
+                'total_sessions' => $user->sessions()->count(),
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('AuthController: Error creating user session', [
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+        }
     }
 
     /**
