@@ -128,7 +128,7 @@ export default {
     const loadSessions = async () => {
       loading.value = true
       try {
-        const response = await axios.get('/api/user/sessions')
+        const response = await axios.get('user/sessions')
         if (response.data.success) {
           sessions.value = response.data.data.sessions
         }
@@ -147,7 +147,7 @@ export default {
 
       loading.value = true
       try {
-        const response = await axios.delete(`/api/user/sessions/${sessionId}`)
+        const response = await axios.delete(`user/sessions/${sessionId}`)
         if (response.data.success) {
           // Recharger les sessions
           await loadSessions()
@@ -168,7 +168,7 @@ export default {
 
       loading.value = true
       try {
-        const response = await axios.post('/api/user/sessions/revoke-all')
+        const response = await axios.post('user/sessions/revoke-all')
         if (response.data.success) {
           // Recharger les sessions
           await loadSessions()
