@@ -644,11 +644,44 @@ class SimpleAuthController extends Controller
      */
     private function determineRedirectUrl(Request $request): ?string
     {
+        $currentHost = $request->getHost();
+        $currentHost = preg_replace('/^www\./', '', strtolower($currentHost));
+        
         // 1. Priorité : paramètre 'redirect' explicite
         if ($request->has('redirect') || $request->query('redirect')) {
             $redirect = $request->input('redirect') ?: $request->query('redirect');
+            
+            // Laravel décode automatiquement les paramètres d'URL, mais on peut avoir un double encodage
+            // Essayer de décoder plusieurs fois si nécessaire
+            $maxDecodes = 5;
+            $decodedRedirect = $redirect;
+            for ($i = 0; $i < $maxDecodes; $i++) {
+                $testDecode = urldecode($decodedRedirect);
+                if ($testDecode === $decodedRedirect) {
+                    break; // Plus de décodage possible
+                }
+                if (filter_var($testDecode, FILTER_VALIDATE_URL)) {
+                    $decodedRedirect = $testDecode;
+                }
+            }
+            
+            // Utiliser l'URL décodée si elle est valide
+            if ($decodedRedirect !== $redirect && filter_var($decodedRedirect, FILTER_VALIDATE_URL)) {
+                $redirect = $decodedRedirect;
+            }
+            
             if ($redirect && filter_var($redirect, FILTER_VALIDATE_URL)) {
-                return $redirect;
+                // Vérifier que l'URL ne pointe pas vers le même domaine
+                $redirectHost = parse_url($redirect, PHP_URL_HOST);
+                if ($redirectHost) {
+                    $redirectHost = preg_replace('/^www\./', '', strtolower($redirectHost));
+                    if ($redirectHost !== $currentHost && $redirectHost !== 'compte.herime.com') {
+                        // Vérifier que l'URL ne contient pas /login
+                        if (strpos($redirect, '/login') === false) {
+                            return $redirect;
+                        }
+                    }
+                }
             }
         }
 
