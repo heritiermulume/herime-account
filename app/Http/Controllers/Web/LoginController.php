@@ -423,9 +423,17 @@ class LoginController extends Controller
                 // Cette opération invalide immédiatement tous les tokens
                 $user->tokens()->update(['revoked' => true]);
                 
-                // Supprimer TOUTES les sessions de l'utilisateur (déconnecter tous les appareils)
-                // On supprime complètement les sessions plutôt que de les marquer comme inactives
-                $user->sessions()->delete();
+                // Marquer TOUTES les sessions de l'utilisateur comme inactives (au lieu de les supprimer)
+                // Cela permet de garder l'historique des sessions pour l'audit
+                $user->sessions()->update([
+                    'is_current' => false,
+                    'last_activity_at' => now()
+                ]);
+                
+                \Log::info('LoginController: User logged out', [
+                    'user_id' => $user->id,
+                    'sessions_marked_inactive' => $user->sessions()->count(),
+                ]);
             } catch (\Exception $e) {
                 // Ignorer les erreurs lors du logout, mais continuer la déconnexion
             }

@@ -202,7 +202,7 @@ class AuthController extends Controller
 
     /**
      * Logout user
-     * Déconnecte toutes les sessions et invalide tous les tokens immédiatement
+     * Marque toutes les sessions comme inactives et invalide tous les tokens
      */
     public function logout(Request $request): JsonResponse
     {
@@ -231,18 +231,28 @@ class AuthController extends Controller
                 // Cette opération invalide immédiatement tous les tokens (y compris celui déjà révoqué ci-dessus)
                 $user->tokens()->update(['revoked' => true]);
                 
-                // Supprimer TOUTES les sessions de l'utilisateur (déconnecter tous les appareils)
-                // On supprime complètement les sessions plutôt que de les marquer comme inactives
-                $user->sessions()->delete();
+                // Marquer TOUTES les sessions de l'utilisateur comme inactives (au lieu de les supprimer)
+                // Cela permet de garder l'historique des sessions pour l'audit
+                $user->sessions()->update([
+                    'is_current' => false,
+                    'last_activity_at' => now()
+                ]);
+                
+                \Log::info('AuthController: User logged out', [
+                    'user_id' => $user->id,
+                    'sessions_marked_inactive' => $user->sessions()->count(),
+                ]);
             } catch (\Exception $e) {
                 // En cas d'erreur, essayer de continuer le logout quand même
-                // Logger l'erreur si nécessaire
+                \Log::error('AuthController: Error during logout', [
+                    'error' => $e->getMessage(),
+                ]);
             }
         }
 
         return response()->json([
             'success' => true,
-            'message' => 'Déconnexion réussie. Toutes les sessions ont été fermées et tous les tokens ont été invalidés.'
+            'message' => 'Déconnexion réussie. Toutes les sessions ont été marquées comme inactives et tous les tokens ont été invalidés.'
         ]);
     }
 
