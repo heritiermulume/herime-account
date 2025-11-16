@@ -34,16 +34,16 @@
                 }
                 
                 // Redirection immédiate - utiliser replace() pour éviter l'historique
-                try {
-                    window.location.replace(redirectUrl);
-                } catch (e) {
-                    console.error('[BLADE] Error redirecting:', e);
-                    // Fallback : utiliser href
-                    window.location.href = redirectUrl;
-                }
-                
-                // Empêcher tout autre script de s'exécuter
-                throw new Error('SSO redirect in progress');
+                // Utiliser setTimeout(0) pour s'assurer que la redirection se fait après le rendu
+                setTimeout(function() {
+                    try {
+                        window.location.replace(redirectUrl);
+                    } catch (e) {
+                        console.error('[BLADE] Error redirecting:', e);
+                        // Fallback : utiliser href
+                        window.location.href = redirectUrl;
+                    }
+                }, 0);
             })();
         </script>
         <!-- Meta refresh comme fallback absolu -->
