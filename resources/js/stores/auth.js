@@ -55,21 +55,7 @@ export const useAuthStore = defineStore('auth', {
         
         
         if (isSuccess) {
-          
-          // Vérifier si on doit rediriger vers un site externe (SSO)
-          // Si oui, marquer la redirection AVANT de mettre à jour l'état
-          if (response.data.data?.sso_redirect_url) {
-            this.isSSORedirecting = true
-            
-            // Stocker le token et les données utilisateur temporairement
-            // mais NE PAS mettre authenticated = true pour éviter le rendu
-            const token = response.data.data.access_token
-            localStorage.setItem('access_token', token)
-            // Ne pas mettre à jour user et authenticated maintenant
-            // La redirection se fera avant que Vue ne puisse rendre
-            return response.data
-          }
-          
+          // Stocker les données utilisateur
           this.user = response.data.data.user
           this.authenticated = true
           
@@ -79,11 +65,20 @@ export const useAuthStore = defineStore('auth', {
           const token = response.data.data.access_token
           localStorage.setItem('access_token', token)
           
-          // Nettoyer le flag sso_loop_detected après une connexion réussie
-          // Cela permet de réessayer la redirection SSO après connexion
+          // Si une redirection SSO est nécessaire, la gérer
+          if (response.data.data?.sso_redirect_url) {
+            this.isSSORedirecting = true
+            
+            // Rediriger immédiatement vers le site externe
+            if (typeof window !== 'undefined') {
+              window.location.href = response.data.data.sso_redirect_url
+              return response.data
+            }
+          }
+          
+          // Nettoyer les flags SSO après une connexion réussie
           if (typeof window !== 'undefined' && sessionStorage) {
             sessionStorage.removeItem('sso_loop_detected')
-            // Nettoyer aussi les autres flags de redirection pour permettre une nouvelle tentative
             sessionStorage.removeItem('sso_redirecting')
             sessionStorage.removeItem('sso_redirecting_timestamp')
             sessionStorage.removeItem('sso_redirecting_url')
@@ -138,21 +133,7 @@ export const useAuthStore = defineStore('auth', {
         })
         
         if (response.data.success) {
-          // Vérifier si on doit rediriger vers un site externe (SSO)
-          // Si oui, marquer la redirection AVANT de mettre à jour l'état
-          if (response.data.data?.sso_redirect_url) {
-            this.isSSORedirecting = true
-            
-            // Stocker le token temporairement
-            // mais NE PAS mettre authenticated = true pour éviter le rendu
-            const token = response.data.data.access_token
-            localStorage.setItem('access_token', token)
-            this.twoFactorToken = null
-            // Ne pas mettre à jour user et authenticated maintenant
-            // La redirection se fera avant que Vue ne puisse rendre
-            return response.data
-          }
-          
+          // Stocker les données utilisateur
           this.user = response.data.data.user
           this.authenticated = true
           
@@ -163,11 +144,20 @@ export const useAuthStore = defineStore('auth', {
           localStorage.setItem('access_token', token)
           this.twoFactorToken = null
           
-          // Nettoyer le flag sso_loop_detected après une connexion réussie (2FA)
-          // Cela permet de réessayer la redirection SSO après connexion
+          // Si une redirection SSO est nécessaire, la gérer
+          if (response.data.data?.sso_redirect_url) {
+            this.isSSORedirecting = true
+            
+            // Rediriger immédiatement vers le site externe
+            if (typeof window !== 'undefined') {
+              window.location.href = response.data.data.sso_redirect_url
+              return response.data
+            }
+          }
+          
+          // Nettoyer les flags SSO après une connexion réussie
           if (typeof window !== 'undefined' && sessionStorage) {
             sessionStorage.removeItem('sso_loop_detected')
-            // Nettoyer aussi les autres flags de redirection pour permettre une nouvelle tentative
             sessionStorage.removeItem('sso_redirecting')
             sessionStorage.removeItem('sso_redirecting_timestamp')
             sessionStorage.removeItem('sso_redirecting_url')

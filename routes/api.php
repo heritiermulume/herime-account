@@ -28,7 +28,7 @@ Route::post('password/reset', [App\Http\Controllers\Api\PasswordResetController:
 
 // SSO public routes
 Route::post('sso/validate-token', [SSOController::class, 'validateToken']);
-Route::post('sso/check-token', [SSOController::class, 'checkToken']); // Lightweight token check for polling
+Route::post('sso/check-token', [SSOController::class, 'checkToken']);
 
 // Validate token with SSO secret (for external services)
 Route::post('validate-token', [SSOController::class, 'validateTokenWithSecret']);
@@ -49,7 +49,7 @@ Route::group(['middleware' => 'auth:api'], function () {
     Route::get('me', [SimpleAuthController::class, 'me']);
     
     // SSO token generation (requires API auth)
-    Route::post('sso/generate-token', [SSOController::class, 'generateSSOToken']);
+    Route::post('sso/generate-token', [SSOController::class, 'generateToken']);
 
     // User routes
     Route::get('user/profile', [UserController::class, 'profile']);
@@ -67,11 +67,6 @@ Route::group(['middleware' => 'auth:api'], function () {
     Route::post('user/two-factor/confirm', [App\Http\Controllers\Api\TwoFactorController::class, 'confirm']);
     Route::post('user/two-factor/disable', [App\Http\Controllers\Api\TwoFactorController::class, 'disable']);
 
-    // SSO routes
-    Route::post('sso/create-session', [SSOController::class, 'createSession']);
-    Route::get('sso/sessions', [SSOController::class, 'getSessions']);
-    Route::delete('sso/sessions/{sessionId}', [SSOController::class, 'revokeSession']);
-    Route::post('sso/sessions/revoke-all', [SSOController::class, 'revokeAllSessions']);
 
     // Admin routes - Accessible only to super users
     Route::prefix('admin')->middleware(['super.user'])->group(function () {
