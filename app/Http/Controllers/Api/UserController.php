@@ -450,4 +450,38 @@ class UserController extends Controller
             'message' => "Toutes les autres sessions ont été révoquées ($count sessions)"
         ]);
     }
+
+    /**
+     * Delete a session permanently
+     */
+    public function deleteSession(Request $request, $sessionId): JsonResponse
+    {
+        $user = $request->user();
+        
+        // Trouver la session
+        $session = $user->sessions()->find($sessionId);
+        
+        if (!$session) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Session non trouvée'
+            ], 404);
+        }
+        
+        // Ne pas permettre de supprimer la session actuelle
+        if ($session->is_current) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Vous ne pouvez pas supprimer votre session actuelle. Utilisez la déconnexion.'
+            ], 400);
+        }
+        
+        // Supprimer la session définitivement
+        $session->delete();
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'Session supprimée avec succès'
+        ]);
+    }
 }

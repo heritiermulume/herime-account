@@ -64,6 +64,7 @@ Route::group(['middleware' => 'auth:api'], function () {
     // User sessions
     Route::get('user/sessions', [UserController::class, 'sessions']);
     Route::delete('user/sessions/{id}', [UserController::class, 'revokeSession']);
+    Route::delete('user/sessions/{id}/permanent', [UserController::class, 'deleteSession']);
     Route::post('user/sessions/revoke-all', [UserController::class, 'revokeAllSessions']);
 
     // Two-Factor Authentication routes

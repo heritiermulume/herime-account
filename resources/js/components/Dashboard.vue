@@ -194,40 +194,88 @@
           Sessions récentes
         </h3>
         <div class="flow-root">
-                 <ul class="-mb-8">
-                   <li v-for="(session, index) in paginatedSessions" :key="session.id">
+          <div v-if="sessions.length === 0" class="text-center py-8">
+            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+            </svg>
+            <h3 class="mt-2 text-sm font-medium text-gray-900 dark:text-white">Aucune session</h3>
+            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+              Aucune session active trouvée.
+            </p>
+          </div>
+          <ul v-else class="-mb-8">
+            <li v-for="(session, index) in paginatedSessions" :key="session.id">
               <div class="relative pb-8">
-                       <div v-if="index !== paginatedSessions.length - 1" class="absolute top-4 left-4 -ml-px h-full w-0.5 bg-gray-200 dark:bg-gray-600"></div>
+                <div v-if="index !== paginatedSessions.length - 1" class="absolute top-4 left-4 -ml-px h-full w-0.5 bg-gray-200 dark:bg-gray-600"></div>
                 <div class="relative flex space-x-3">
                   <div>
-                    <span class="h-8 w-8 rounded-full flex items-center justify-center ring-8 ring-white dark:ring-gray-800" style="background-color: #003366;">
+                    <span 
+                      class="h-8 w-8 rounded-full flex items-center justify-center ring-8 ring-white dark:ring-gray-800" 
+                      :style="session.is_current ? 'background-color: #ffcc33;' : 'background-color: #003366;'"
+                    >
                       <svg class="h-5 w-5 text-white" fill="currentColor" viewBox="0 0 20 20">
                         <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"></path>
                       </svg>
                     </span>
                   </div>
-                  <div class="min-w-0 flex-1 pt-1.5 flex justify-between space-x-4">
-                    <div>
-                      <p class="text-sm text-gray-500 dark:text-gray-400">
-                        {{ session.device_name }} • {{ session.platform }} • {{ session.browser }}
-                      </p>
-                      <p class="text-sm text-gray-900 dark:text-white">
-                        {{ session.ip_address }}
-                      </p>
-                    </div>
-                    <div class="text-right text-sm whitespace-nowrap text-gray-500 dark:text-gray-400">
-                      <time :datetime="session.last_activity">
-                        {{ formatDate(session.last_activity) }}
-                      </time>
+                  <div class="min-w-0 flex-1 pt-1.5">
+                    <div class="flex justify-between items-start space-x-4">
+                      <div class="flex-1">
+                        <div class="flex items-center space-x-2 mb-1">
+                          <p class="text-sm font-medium text-gray-900 dark:text-white">
+                            {{ session.device_name }}
+                          </p>
+                          <span
+                            v-if="session.is_current"
+                            class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium text-white"
+                            style="background-color: #ffcc33;"
+                          >
+                            Session actuelle
+                          </span>
+                        </div>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">
+                          {{ session.platform }} • {{ session.browser }}
+                        </p>
+                        <p class="text-sm text-gray-900 dark:text-white">
+                          {{ session.ip_address }}
+                        </p>
+                        <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                          Dernière activité: {{ formatDate(session.last_activity) }}
+                        </p>
+                      </div>
+                      <div class="flex items-center space-x-2">
+                        <button
+                          v-if="!session.is_current"
+                          @click="deactivateSession(session.id)"
+                          :disabled="loadingSessionId === session.id"
+                          class="text-orange-600 hover:text-orange-800 dark:text-orange-400 dark:hover:text-orange-300 text-sm font-medium disabled:opacity-50"
+                          title="Désactiver cette session"
+                        >
+                          <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path>
+                          </svg>
+                        </button>
+                        <button
+                          v-if="!session.is_current"
+                          @click="deleteSession(session.id)"
+                          :disabled="loadingSessionId === session.id"
+                          class="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 text-sm font-medium disabled:opacity-50"
+                          title="Supprimer cette session"
+                        >
+                          <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                          </svg>
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
             </li>
-                 </ul>
-                 <div class="mt-4">
-                   <Pagination :page="page" :perPage="perPage" :total="totalSessions" @update:page="val => page = val" />
-                 </div>
+          </ul>
+          <div v-if="sessions.length > 0" class="mt-4">
+            <Pagination :page="page" :perPage="perPage" :total="totalSessions" @update:page="val => page = val" />
+          </div>
         </div>
       </div>
     </div>
@@ -262,14 +310,15 @@ export default {
     const showProfileModal = ref(false)
     const showSessionsModal = ref(false)
     const showSecurityModal = ref(false)
-  const sessions = ref([])
-  const page = ref(1)
-  const perPage = ref(15)
-  const totalSessions = computed(() => sessions.value.length)
-  const paginatedSessions = computed(() => {
-    const start = (page.value - 1) * perPage.value
-    return sessions.value.slice(start, start + perPage.value)
-  })
+    const sessions = ref([])
+    const page = ref(1)
+    const perPage = ref(15)
+    const loadingSessionId = ref(null)
+    const totalSessions = computed(() => sessions.value.length)
+    const paginatedSessions = computed(() => {
+      const start = (page.value - 1) * perPage.value
+      return sessions.value.slice(start, start + perPage.value)
+    })
 
     const user = computed(() => authStore.user)
 
@@ -324,6 +373,46 @@ export default {
       }
     }
 
+    const deactivateSession = async (sessionId) => {
+      if (!confirm('Êtes-vous sûr de vouloir désactiver cette session ?')) {
+        return
+      }
+
+      loadingSessionId.value = sessionId
+      try {
+        const response = await axios.delete(`user/sessions/${sessionId}`)
+        if (response.data.success) {
+          // Recharger les sessions
+          await loadSessions()
+        }
+      } catch (error) {
+        console.error('Erreur lors de la désactivation de la session:', error)
+        alert('Erreur lors de la désactivation de la session')
+      } finally {
+        loadingSessionId.value = null
+      }
+    }
+
+    const deleteSession = async (sessionId) => {
+      if (!confirm('Êtes-vous sûr de vouloir supprimer définitivement cette session ? Cette action est irréversible.')) {
+        return
+      }
+
+      loadingSessionId.value = sessionId
+      try {
+        const response = await axios.delete(`user/sessions/${sessionId}/permanent`)
+        if (response.data.success) {
+          // Recharger les sessions
+          await loadSessions()
+        }
+      } catch (error) {
+        console.error('Erreur lors de la suppression de la session:', error)
+        alert('Erreur lors de la suppression de la session')
+      } finally {
+        loadingSessionId.value = null
+      }
+    }
+
     onMounted(async () => {
       
       // Load user if not already loaded
@@ -343,19 +432,22 @@ export default {
       loadSessions()
     })
 
-  return {
-    user,
-    sessions,
-    page,
-    perPage,
-    totalSessions,
-    paginatedSessions,
+    return {
+      user,
+      sessions,
+      page,
+      perPage,
+      totalSessions,
+      paginatedSessions,
       showProfileModal,
       showSessionsModal,
       showSecurityModal,
       formatDate,
       getAvatarUrl,
-      handleImageError
+      handleImageError,
+      loadingSessionId,
+      deactivateSession,
+      deleteSession
     }
   }
 }
