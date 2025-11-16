@@ -63,6 +63,16 @@
                         sessionStorage.removeItem('sso_redirecting');
                         sessionStorage.removeItem('sso_redirect_url');
                     } else if (redirectUrl) {
+                        // IMPORTANT: Vérifier si l'utilisateur a un token avant de rediriger
+                        const hasToken = localStorage.getItem('access_token');
+                        if (!hasToken) {
+                            // Pas de token, nettoyer le sessionStorage et afficher le formulaire de login
+                            console.log('[BLADE] No token found, clearing SSO redirect flags and showing login form');
+                            sessionStorage.removeItem('sso_redirecting');
+                            sessionStorage.removeItem('sso_redirect_url');
+                            return;
+                        }
+                        
                         console.log('[BLADE] SSO redirect already in progress, redirecting to:', redirectUrl);
                         window.location.replace(redirectUrl);
                         return;
