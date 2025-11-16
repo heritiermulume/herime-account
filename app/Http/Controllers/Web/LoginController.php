@@ -427,7 +427,7 @@ class LoginController extends Controller
                 // Cela permet de garder l'historique des sessions pour l'audit
                 $user->sessions()->update([
                     'is_current' => false,
-                    'last_activity_at' => now()
+                    'last_activity' => now()
                 ]);
                 
                 \Log::info('LoginController: User logged out', [
