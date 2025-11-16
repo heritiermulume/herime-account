@@ -534,12 +534,25 @@ class SimpleAuthController extends Controller
                 // Cette opération invalide immédiatement tous les tokens (y compris celui déjà révoqué ci-dessus)
                 $user->tokens()->update(['revoked' => true]);
                 
-                // Supprimer TOUTES les sessions de l'utilisateur (déconnecter tous les appareils)
-                // On supprime complètement les sessions plutôt que de les marquer comme inactives
-                $user->sessions()->delete();
+                // Marquer TOUTES les sessions de l'utilisateur comme inactives (au lieu de les supprimer)
+                // Cela permet de garder l'historique des sessions pour l'audit
+                $sessionsCount = $user->sessions()->count();
+                $user->sessions()->update([
+                    'is_current' => false,
+                    'last_activity' => now()
+                ]);
+                
+                \Log::info('SimpleAuthController: User logged out', [
+                    'user_id' => $user->id,
+                    'sessions_marked_inactive' => $sessionsCount,
+                    'tokens_revoked' => $user->tokens()->count(),
+                ]);
             } catch (\Exception $e) {
                 // En cas d'erreur, essayer de continuer le logout quand même
-                // Logger l'erreur si nécessaire
+                \Log::error('SimpleAuthController: Error during logout', [
+                    'user_id' => $user ? $user->id : null,
+                    'error' => $e->getMessage(),
+                ]);
             }
         }
 
