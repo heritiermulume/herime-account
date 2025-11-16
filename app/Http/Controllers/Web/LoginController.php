@@ -39,7 +39,19 @@ class LoginController extends Controller
             'attempts' => $redirectAttempts,
             'session_key' => $sessionKey,
             'redirect_param' => $redirectParam,
+            'is_authenticated' => Auth::check(),
         ]);
+        
+        // Si l'utilisateur n'est PAS authentifié et qu'il y a des tentatives,
+        // c'est probablement une nouvelle tentative après déconnexion
+        // Réinitialiser le compteur pour permettre une nouvelle tentative
+        if (!Auth::check() && $redirectAttempts > 0) {
+            \Log::info('LoginController: User not authenticated, resetting redirect attempts', [
+                'previous_attempts' => $redirectAttempts,
+            ]);
+            $request->session()->forget($sessionKey);
+            $redirectAttempts = 0;
+        }
         
         if ($redirectAttempts >= 3) {
             // Trop de tentatives, arrêter la boucle
