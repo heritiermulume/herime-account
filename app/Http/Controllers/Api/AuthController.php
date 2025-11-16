@@ -114,8 +114,17 @@ class AuthController extends Controller
 
         // Vérifier si on doit générer une URL de redirection SSO
         $ssoRedirectUrl = null;
-        $forceToken = $request->input('force_token') || $request->query('force_token');
-        $redirectUrl = $request->input('redirect') || $request->query('redirect');
+        $forceToken = $request->input('force_token') ?: $request->query('force_token');
+        $redirectUrl = $request->input('redirect') ?: $request->query('redirect');
+        
+        // Normaliser force_token en booléen
+        $forceToken = in_array($forceToken, [1, '1', true, 'true', 'yes', 'on'], true);
+        
+        \Log::info('AuthController@login: Checking SSO redirect', [
+            'has_force_token' => $forceToken,
+            'has_redirect' => !empty($redirectUrl),
+            'redirect_url' => $redirectUrl,
+        ]);
         
         if ($forceToken && $redirectUrl) {
             // Décoder l'URL de redirection si nécessaire
