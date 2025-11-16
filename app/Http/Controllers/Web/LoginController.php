@@ -15,6 +15,13 @@ class LoginController extends Controller
      */
     public function show(Request $request)
     {
+        \Log::info('LoginController: show method called', [
+            'url' => $request->fullUrl(),
+            'path' => $request->path(),
+            'query' => $request->query(),
+            'is_authenticated' => Auth::check(),
+        ]);
+        
         // PROTECTION CONTRE LES BOUCLES DE REDIRECTION
         // Vérifier si on a déjà traité cette requête récemment
         $sessionKey = 'sso_redirect_attempt_' . md5($request->fullUrl());
@@ -23,6 +30,7 @@ class LoginController extends Controller
         if ($redirectAttempts >= 2) {
             // Trop de tentatives, arrêter la boucle
             $request->session()->forget($sessionKey);
+            \Log::warning('LoginController: Too many redirect attempts, stopping loop');
             return redirect('/dashboard');
         }
         

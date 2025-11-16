@@ -271,6 +271,13 @@ router.beforeEach(async (to, from, next) => {
   
   // Vérifier les routes qui nécessitent d'être un invité (non authentifié)
   if (to.meta.requiresGuest && isAuthenticated) {
+    // Si force_token est présent, ne pas rediriger - laisser le contrôleur Laravel gérer
+    if (hasForceToken) {
+      console.log('[ROUTER] User authenticated with force_token, allowing access to login page for SSO redirect')
+      next()
+      return
+    }
+    
     // Vérifier si une boucle SSO a été détectée - si oui, permettre l'accès à la page de login
     if (typeof window !== 'undefined' && sessionStorage.getItem('sso_loop_detected') === 'true') {
       console.log('[ROUTER] SSO loop detected, allowing access to login page')
