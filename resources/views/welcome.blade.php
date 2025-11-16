@@ -47,6 +47,8 @@
         <script>
             console.log('[BLADE] Template loaded, URL:', window.location.href);
             console.log('[BLADE] Has sso_redirect:', {{ isset($sso_redirect) && !empty($sso_redirect) ? 'true' : 'false' }});
+            console.log('[BLADE] localStorage.access_token:', localStorage.getItem('access_token') ? 'EXISTS' : 'NOT_FOUND');
+            console.log('[BLADE] sessionStorage.sso_redirecting:', sessionStorage.getItem('sso_redirecting'));
             
             // Vérifier si on doit rediriger SSO (même si on est sur /dashboard)
             (function() {
@@ -74,6 +76,8 @@
                 // Si on a force_token et redirect dans l'URL, rediriger SSO
                 if (forceToken && redirect) {
                     console.log('[BLADE] force_token and redirect detected, checking for SSO redirect');
+                    console.log('[BLADE] forceToken:', forceToken);
+                    console.log('[BLADE] redirect:', redirect);
                     
                     // Vérifier si on a déjà une redirection SSO du serveur
                     @if(isset($sso_redirect) && !empty($sso_redirect))
