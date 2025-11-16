@@ -313,20 +313,11 @@ export default {
 
     const loadSessions = async () => {
       try {
-        const token = localStorage.getItem('access_token')
-        
-        const response = await axios.get('/sso/sessions')
-        
-        if (response.data.success) {
-          sessions.value = response.data.data.sessions || []
-        } else {
-          sessions.value = []
-        }
+        // Cette route n'existe plus dans le nouveau système SSO
+        // Les sessions sont gérées automatiquement
+        sessions.value = []
       } catch (error) {
-        
-        // Si erreur 401, le token est invalide
-        if (error.response?.status === 401) {
-        }
+        sessions.value = []
         
         // Ne pas bloquer l'affichage si les sessions ne se chargent pas
         sessions.value = []

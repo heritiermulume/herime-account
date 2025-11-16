@@ -640,11 +640,10 @@ export default {
       revokeDeviceLoading.value = true
       revokeDeviceError.value = ''
       try {
-        await axios.delete(`/sso/sessions/${revokeDeviceTarget.value.id}`)
-        devices.value = devices.value.filter(device => device.id !== revokeDeviceTarget.value.id)
+        // Cette fonctionnalité n'est plus disponible dans le nouveau système SSO
+        notify.warning('Information', 'Cette fonctionnalité n\'est plus disponible. Utilisez la déconnexion générale.')
         showRevokeDevice.value = false
         revokeDeviceTarget.value = null
-        notify.success('Succès', 'Appareil révoqué avec succès!')
       } catch (error) {
         if (error.response?.data?.message) {
           revokeDeviceError.value = error.response.data.message
@@ -669,10 +668,8 @@ export default {
 
     const loadDevices = async () => {
       try {
-        const response = await axios.get('/sso/sessions')
-        if (response.data.success) {
-          devices.value = response.data.data.sessions
-        }
+        // Cette route n'existe plus dans le nouveau système SSO
+        devices.value = []
       } catch (error) {
         notify.error('Erreur', 'Erreur lors du chargement des appareils')
       }
@@ -680,31 +677,8 @@ export default {
 
     const loadLoginHistory = async () => {
       try {
-        // Use the same sessions data for login history since we don't have a separate endpoint
-        const response = await axios.get('/sso/sessions')
-        
-        if (response.data && response.data.success && response.data.data && Array.isArray(response.data.data.sessions)) {
-          loginHistory.value = response.data.data.sessions.map(session => {
-            // S'assurer que toutes les propriétés nécessaires existent avec des valeurs par défaut
-            return {
-              id: session.id || null,
-              device_name: session.device_name || 'Unknown Device',
-              platform: session.platform || 'Unknown',
-              browser: session.browser || 'Unknown',
-              ip_address: session.ip_address || 'Unknown',
-              success: true, // All sessions are successful by definition
-              created_at: session.created_at || session.last_activity || null,
-              last_activity: session.last_activity || session.created_at || null
-            }
-          }).filter(session => session.id !== null) // Filtrer les sessions invalides
-        } else {
-          loginHistory.value = []
-          // Ne pas afficher d'erreur si c'est juste qu'il n'y a pas de sessions
-          if (response.data && response.data.success && (!response.data.data || !response.data.data.sessions || response.data.data.sessions.length === 0)) {
-          } else {
-            notify.warning('Avertissement', 'Impossible de charger l\'historique de connexion')
-          }
-        }
+        // Cette route n'existe plus dans le nouveau système SSO
+        loginHistory.value = []
       } catch (error) {
         
         // Ne pas afficher l'erreur si c'est juste qu'il n'y a pas de sessions ou si l'utilisateur n'est pas autorisé

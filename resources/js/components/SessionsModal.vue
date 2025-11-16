@@ -127,11 +127,11 @@ export default {
 
     const loadSessions = async () => {
       try {
-        const response = await axios.get('/sso/sessions')
-        if (response.data.success) {
-          sessions.value = response.data.data.sessions
-        }
+        // Cette route n'existe plus dans le nouveau système SSO
+        // Les sessions sont gérées automatiquement
+        sessions.value = []
       } catch (error) {
+        sessions.value = []
       }
     }
 
@@ -142,10 +142,8 @@ export default {
 
       loading.value = true
       try {
-        const response = await axios.delete(`/sso/sessions/${sessionId}`)
-        if (response.data.success) {
-          await loadSessions() // Reload sessions
-        }
+        // Cette fonctionnalité n'est plus disponible dans le nouveau système SSO
+        alert('Cette fonctionnalité n\'est plus disponible. Utilisez la déconnexion générale.')
       } catch (error) {
         alert('Erreur lors de la déconnexion de la session')
       } finally {
@@ -160,10 +158,8 @@ export default {
 
       loading.value = true
       try {
-        const response = await axios.delete('/sso/sessions')
-        if (response.data.success) {
-          await loadSessions() // Reload sessions
-        }
+        // Cette fonctionnalité n'est plus disponible dans le nouveau système SSO
+        alert('Cette fonctionnalité n\'est plus disponible. Utilisez la déconnexion générale.')
       } catch (error) {
         alert('Erreur lors de la déconnexion des sessions')
       } finally {

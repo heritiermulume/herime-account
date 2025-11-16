@@ -26,8 +26,6 @@ class LoginController extends Controller
             return redirect('/dashboard');
         }
         
-        $redirectUrl = $this->determineRedirectUrl($request);
-        
         // Détection robuste de force_token
         $forceToken = false;
         if ($request->has('force_token')) {
@@ -52,8 +50,15 @@ class LoginController extends Controller
                 ]);
             }
 
+            // Récupérer l'URL de redirection APRÈS avoir vérifié l'authentification
+            $redirectUrl = $this->determineRedirectUrl($request);
+            
             // Vérifier que l'URL de redirection est valide et externe
             if (!$redirectUrl) {
+                \Log::warning('SSO Redirect: No redirect URL found', [
+                    'url' => $request->fullUrl(),
+                    'query' => $request->query(),
+                ]);
                 return redirect('/dashboard');
             }
             
@@ -153,8 +158,21 @@ class LoginController extends Controller
         if ($request->has('redirect') || $request->query('redirect')) {
             $redirect = $request->input('redirect') ?: $request->query('redirect');
             
-            // Décoder l'URL si nécessaire
-            $decodedRedirect = urldecode($redirect);
+            // Laravel décode automatiquement les paramètres d'URL, mais on peut avoir un double encodage
+            // Essayer de décoder plusieurs fois si nécessaire
+            $maxDecodes = 3;
+            $decodedRedirect = $redirect;
+            for ($i = 0; $i < $maxDecodes; $i++) {
+                $testDecode = urldecode($decodedRedirect);
+                if ($testDecode === $decodedRedirect) {
+                    break; // Plus de décodage possible
+                }
+                if (filter_var($testDecode, FILTER_VALIDATE_URL)) {
+                    $decodedRedirect = $testDecode;
+                }
+            }
+            
+            // Utiliser l'URL décodée si elle est valide
             if ($decodedRedirect !== $redirect && filter_var($decodedRedirect, FILTER_VALIDATE_URL)) {
                 $redirect = $decodedRedirect;
             }
@@ -167,6 +185,10 @@ class LoginController extends Controller
                     if ($redirectHost !== $currentHost && $redirectHost !== 'compte.herime.com') {
                         // Vérifier que l'URL ne contient pas /login
                         if (strpos($redirect, '/login') === false) {
+                            \Log::info('SSO Redirect: Using redirect URL', [
+                                'url' => $redirect,
+                                'host' => $redirectHost,
+                            ]);
                             return $redirect;
                         }
                     }
