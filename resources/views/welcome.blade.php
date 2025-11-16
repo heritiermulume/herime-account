@@ -121,14 +121,25 @@
                             })
                         })
                         .then(response => {
-                            // Si erreur 401 (token révoqué/invalide), supprimer le token
-                            if (response.status === 401) {
-                                console.log('[BLADE] Token invalid (401), removing from localStorage');
-                                localStorage.removeItem('access_token');
-                                if (typeof sessionStorage !== 'undefined') {
-                                    sessionStorage.removeItem('sso_redirecting');
-                                }
-                                throw new Error('Token invalid (401)');
+                            // Si erreur 401, vérifier le message pour savoir si le token est révoqué
+                            if (!response.ok) {
+                                return response.json().then(errorData => {
+                                    console.log('[BLADE] API error:', response.status, errorData);
+                                    
+                                    // Si le message indique que le token est révoqué, le supprimer
+                                    if (response.status === 401 && 
+                                        (errorData.message?.includes('révoqué') || 
+                                         errorData.message?.includes('revoked') ||
+                                         errorData.message?.includes('Unauthenticated'))) {
+                                        console.log('[BLADE] Token revoked, removing from localStorage');
+                                        localStorage.removeItem('access_token');
+                                    }
+                                    
+                                    if (typeof sessionStorage !== 'undefined') {
+                                        sessionStorage.removeItem('sso_redirecting');
+                                    }
+                                    throw new Error(`API error: ${response.status} - ${errorData.message || 'Unknown error'}`);
+                                });
                             }
                             return response.json();
                         })
