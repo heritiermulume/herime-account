@@ -53,11 +53,20 @@ class LoginController extends Controller
             // Récupérer l'URL de redirection APRÈS avoir vérifié l'authentification
             $redirectUrl = $this->determineRedirectUrl($request);
             
+            \Log::info('SSO Redirect: User authenticated with force_token', [
+                'user_id' => $user->id,
+                'redirect_url' => $redirectUrl,
+                'request_url' => $request->fullUrl(),
+                'query_params' => $request->query(),
+                'raw_redirect' => $request->input('redirect'),
+            ]);
+            
             // Vérifier que l'URL de redirection est valide et externe
             if (!$redirectUrl) {
-                \Log::warning('SSO Redirect: No redirect URL found', [
+                \Log::warning('SSO Redirect: No redirect URL found, redirecting to dashboard', [
                     'url' => $request->fullUrl(),
                     'query' => $request->query(),
+                    'all_inputs' => $request->all(),
                 ]);
                 return redirect('/dashboard');
             }
@@ -158,9 +167,14 @@ class LoginController extends Controller
         if ($request->has('redirect') || $request->query('redirect')) {
             $redirect = $request->input('redirect') ?: $request->query('redirect');
             
+            \Log::info('SSO Redirect: Found redirect parameter', [
+                'raw' => $redirect,
+                'decoded_once' => urldecode($redirect),
+            ]);
+            
             // Laravel décode automatiquement les paramètres d'URL, mais on peut avoir un double encodage
             // Essayer de décoder plusieurs fois si nécessaire
-            $maxDecodes = 3;
+            $maxDecodes = 5;
             $decodedRedirect = $redirect;
             for ($i = 0; $i < $maxDecodes; $i++) {
                 $testDecode = urldecode($decodedRedirect);
@@ -169,6 +183,9 @@ class LoginController extends Controller
                 }
                 if (filter_var($testDecode, FILTER_VALIDATE_URL)) {
                     $decodedRedirect = $testDecode;
+                    \Log::info("SSO Redirect: Decoded URL (iteration $i)", [
+                        'decoded' => $decodedRedirect,
+                    ]);
                 }
             }
             
@@ -188,11 +205,31 @@ class LoginController extends Controller
                             \Log::info('SSO Redirect: Using redirect URL', [
                                 'url' => $redirect,
                                 'host' => $redirectHost,
+                                'current_host' => $currentHost,
                             ]);
                             return $redirect;
+                        } else {
+                            \Log::warning('SSO Redirect: URL contains /login, rejecting', [
+                                'url' => $redirect,
+                            ]);
                         }
+                    } else {
+                        \Log::warning('SSO Redirect: URL points to same domain, rejecting', [
+                            'url' => $redirect,
+                            'redirect_host' => $redirectHost,
+                            'current_host' => $currentHost,
+                        ]);
                     }
+                } else {
+                    \Log::warning('SSO Redirect: Could not parse redirect URL host', [
+                        'url' => $redirect,
+                    ]);
                 }
+            } else {
+                \Log::warning('SSO Redirect: Invalid redirect URL', [
+                    'url' => $redirect,
+                    'is_valid' => filter_var($redirect, FILTER_VALIDATE_URL),
+                ]);
             }
         }
 
