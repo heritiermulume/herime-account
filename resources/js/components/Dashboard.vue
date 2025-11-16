@@ -301,6 +301,27 @@
     <ProfileModal v-if="showProfileModal" @close="showProfileModal = false" />
     <SessionsModal v-if="showSessionsModal" @close="showSessionsModal = false" />
     <SecurityModal v-if="showSecurityModal" @close="showSecurityModal = false" />
+    
+    <!-- Confirm Dialogs -->
+    <ConfirmDialog
+      v-model:show="showDeactivateDialog"
+      type="warning"
+      title="Désactiver la session"
+      :message="deactivateDialogMessage"
+      confirm-text="Désactiver"
+      cancel-text="Annuler"
+      @confirm="confirmDeactivate"
+    />
+    
+    <ConfirmDialog
+      v-model:show="showDeleteDialog"
+      type="danger"
+      title="Supprimer la session"
+      :message="deleteDialogMessage"
+      confirm-text="Supprimer"
+      cancel-text="Annuler"
+      @confirm="confirmDelete"
+    />
   </div>
 </template>
 
@@ -312,6 +333,7 @@ import ProfileModal from './ProfileModal.vue'
 import SessionsModal from './SessionsModal.vue'
 import SecurityModal from './SecurityModal.vue'
 import Pagination from './Pagination.vue'
+import ConfirmDialog from './ConfirmDialog.vue'
 
 export default {
   name: 'Dashboard',
@@ -319,7 +341,8 @@ export default {
     ProfileModal,
     SessionsModal,
     SecurityModal,
-    Pagination
+    Pagination,
+    ConfirmDialog
   },
   setup() {
     const authStore = useAuthStore()
@@ -333,6 +356,13 @@ export default {
     const loadingSessionId = ref(null)
     const totalSessions = computed(() => sessions.value.length)
     const activeSessions = computed(() => sessions.value.filter(s => s.is_current).length)
+    
+    // Dialog states
+    const showDeactivateDialog = ref(false)
+    const showDeleteDialog = ref(false)
+    const pendingSessionId = ref(null)
+    const deactivateDialogMessage = ref('')
+    const deleteDialogMessage = ref('')
     const paginatedSessions = computed(() => {
       const start = (page.value - 1) * perPage.value
       return sessions.value.slice(start, start + perPage.value)
@@ -391,43 +421,63 @@ export default {
       }
     }
 
-    const deactivateSession = async (sessionId) => {
-      if (!confirm('Êtes-vous sûr de vouloir désactiver cette session ?')) {
-        return
+    const deactivateSession = (sessionId) => {
+      const session = sessions.value.find(s => s.id === sessionId)
+      if (session) {
+        deactivateDialogMessage.value = `Voulez-vous vraiment désactiver la session "${session.device_name}" ?`
+      } else {
+        deactivateDialogMessage.value = 'Voulez-vous vraiment désactiver cette session ?'
       }
+      pendingSessionId.value = sessionId
+      showDeactivateDialog.value = true
+    }
 
-      loadingSessionId.value = sessionId
+    const confirmDeactivate = async () => {
+      if (!pendingSessionId.value) return
+
+      loadingSessionId.value = pendingSessionId.value
       try {
-        const response = await axios.delete(`user/sessions/${sessionId}`)
+        const response = await axios.delete(`user/sessions/${pendingSessionId.value}`)
         if (response.data.success) {
           // Recharger les sessions
           await loadSessions()
         }
       } catch (error) {
         console.error('Erreur lors de la désactivation de la session:', error)
-        alert('Erreur lors de la désactivation de la session')
+        // Vous pouvez ajouter un toast de notification ici
       } finally {
         loadingSessionId.value = null
+        pendingSessionId.value = null
       }
     }
 
-    const deleteSession = async (sessionId) => {
-      if (!confirm('Êtes-vous sûr de vouloir supprimer définitivement cette session ? Cette action est irréversible.')) {
-        return
+    const deleteSession = (sessionId) => {
+      const session = sessions.value.find(s => s.id === sessionId)
+      if (session) {
+        deleteDialogMessage.value = `Voulez-vous vraiment supprimer définitivement la session "${session.device_name}" ? Cette action est irréversible.`
+      } else {
+        deleteDialogMessage.value = 'Voulez-vous vraiment supprimer définitivement cette session ? Cette action est irréversible.'
       }
+      pendingSessionId.value = sessionId
+      showDeleteDialog.value = true
+    }
 
-      loadingSessionId.value = sessionId
+    const confirmDelete = async () => {
+      if (!pendingSessionId.value) return
+
+      loadingSessionId.value = pendingSessionId.value
       try {
-        const response = await axios.delete(`user/sessions/${sessionId}/permanent`)
+        const response = await axios.delete(`user/sessions/${pendingSessionId.value}/permanent`)
         if (response.data.success) {
           // Recharger les sessions
           await loadSessions()
         }
       } catch (error) {
         console.error('Erreur lors de la suppression de la session:', error)
-        alert('Erreur lors de la suppression de la session')
+        // Vous pouvez ajouter un toast de notification ici
       } finally {
         loadingSessionId.value = null
+        pendingSessionId.value = null
       }
     }
 
@@ -466,7 +516,13 @@ export default {
       handleImageError,
       loadingSessionId,
       deactivateSession,
-      deleteSession
+      deleteSession,
+      showDeactivateDialog,
+      showDeleteDialog,
+      deactivateDialogMessage,
+      deleteDialogMessage,
+      confirmDeactivate,
+      confirmDelete
     }
   }
 }

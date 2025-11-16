@@ -100,19 +100,50 @@
         </div>
       </div>
     </div>
+    
+    <!-- Confirm Dialogs -->
+    <ConfirmDialog
+      v-model:show="showRevokeDialog"
+      type="warning"
+      title="Déconnecter la session"
+      :message="revokeDialogMessage"
+      confirm-text="Déconnecter"
+      cancel-text="Annuler"
+      @confirm="confirmRevoke"
+    />
+    
+    <ConfirmDialog
+      v-model:show="showRevokeAllDialog"
+      type="danger"
+      title="Déconnecter tous les appareils"
+      message="Êtes-vous sûr de vouloir déconnecter tous les autres appareils ? Vous resterez connecté sur cet appareil."
+      confirm-text="Tout déconnecter"
+      cancel-text="Annuler"
+      @confirm="confirmRevokeAll"
+    />
   </div>
 </template>
 
 <script>
 import { ref, onMounted } from 'vue'
 import axios from 'axios'
+import ConfirmDialog from './ConfirmDialog.vue'
 
 export default {
   name: 'SessionsModal',
+  components: {
+    ConfirmDialog
+  },
   emits: ['close'],
   setup(props, { emit }) {
     const sessions = ref([])
     const loading = ref(false)
+    
+    // Dialog states
+    const showRevokeDialog = ref(false)
+    const showRevokeAllDialog = ref(false)
+    const pendingSessionId = ref(null)
+    const revokeDialogMessage = ref('')
 
     const formatDate = (date) => {
       if (!date) return 'Jamais'
@@ -140,43 +171,49 @@ export default {
       }
     }
 
-    const revokeSession = async (sessionId) => {
-      if (!confirm('Êtes-vous sûr de vouloir déconnecter cette session ?')) {
-        return
+    const revokeSession = (sessionId) => {
+      const session = sessions.value.find(s => s.id === sessionId)
+      if (session) {
+        revokeDialogMessage.value = `Voulez-vous vraiment déconnecter la session "${session.device_name}" ?`
+      } else {
+        revokeDialogMessage.value = 'Voulez-vous vraiment déconnecter cette session ?'
       }
+      pendingSessionId.value = sessionId
+      showRevokeDialog.value = true
+    }
+
+    const confirmRevoke = async () => {
+      if (!pendingSessionId.value) return
 
       loading.value = true
       try {
-        const response = await axios.delete(`user/sessions/${sessionId}`)
+        const response = await axios.delete(`user/sessions/${pendingSessionId.value}`)
         if (response.data.success) {
           // Recharger les sessions
           await loadSessions()
-          alert('Session déconnectée avec succès')
         }
       } catch (error) {
         console.error('Erreur lors de la déconnexion de la session:', error)
-        alert('Erreur lors de la déconnexion de la session')
       } finally {
         loading.value = false
+        pendingSessionId.value = null
       }
     }
 
-    const revokeAllSessions = async () => {
-      if (!confirm('Êtes-vous sûr de vouloir déconnecter tous les autres appareils ?')) {
-        return
-      }
+    const revokeAllSessions = () => {
+      showRevokeAllDialog.value = true
+    }
 
+    const confirmRevokeAll = async () => {
       loading.value = true
       try {
         const response = await axios.post('user/sessions/revoke-all')
         if (response.data.success) {
           // Recharger les sessions
           await loadSessions()
-          alert(response.data.message)
         }
       } catch (error) {
         console.error('Erreur lors de la déconnexion des sessions:', error)
-        alert('Erreur lors de la déconnexion des sessions')
       } finally {
         loading.value = false
       }
@@ -196,7 +233,12 @@ export default {
       formatDate,
       revokeSession,
       revokeAllSessions,
-      close
+      close,
+      showRevokeDialog,
+      showRevokeAllDialog,
+      revokeDialogMessage,
+      confirmRevoke,
+      confirmRevokeAll
     }
   }
 }
