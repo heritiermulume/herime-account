@@ -527,9 +527,15 @@ export default {
           
           // Remplacer l'URL actuelle et recharger
           window.location.replace(currentUrl.toString())
+          return
         } else {
-          // Pas de token, juste recharger (l'utilisateur verra le formulaire de login)
-          window.location.reload()
+          // Pas de token, afficher le formulaire de login
+          // L'utilisateur devra se connecter pour continuer le flux SSO
+          console.log('[SSO] No token found, showing login form')
+          isRedirecting.value = false
+          authStore.isSSORedirecting = false
+          // Ne PAS recharger la page, juste afficher le formulaire
+          return
         }
         
         return
