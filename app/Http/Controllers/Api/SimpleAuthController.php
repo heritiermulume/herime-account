@@ -213,7 +213,21 @@ class SimpleAuthController extends Controller
         $token = $user->createToken('API Token')->accessToken;
 
         // Vérifier si on doit rediriger vers un domaine externe après connexion
-        $redirectUrl = $this->determineRedirectUrl($request);
+        // Vérifier d'abord si force_token est présent dans la requête
+        $forceToken = $request->has('force_token') || $request->input('force_token') || $request->query('force_token');
+        $redirectUrl = null;
+        
+        // Si force_token est présent, déterminer l'URL de redirection
+        if ($forceToken) {
+            $redirectUrl = $this->determineRedirectUrl($request);
+            
+            \Log::info('SimpleAuthController: Login with force_token', [
+                'force_token' => $forceToken,
+                'redirect_url' => $redirectUrl,
+                'request_all' => $request->all(),
+                'request_query' => $request->query(),
+            ]);
+        }
         
         // Forcer l'inclusion de avatar_url et last_login_at
         $user->makeVisible(['avatar', 'avatar_url', 'last_login_at', 'is_active']);
@@ -235,8 +249,39 @@ class SimpleAuthController extends Controller
         // Si une redirection externe est nécessaire, générer le token SSO
         if ($redirectUrl) {
             $ssoToken = $user->createToken('SSO Token', ['profile'])->accessToken;
-            $responseData['sso_redirect_url'] = $redirectUrl . '?token=' . $ssoToken;
+            
+            // Construire l'URL de callback avec le token
+            $parsedUrl = parse_url($redirectUrl);
+            $queryParams = [];
+            
+            if (isset($parsedUrl['query'])) {
+                parse_str($parsedUrl['query'], $queryParams);
+            }
+            
+            $queryParams['token'] = $ssoToken;
+            $newQuery = http_build_query($queryParams);
+            
+            $callbackUrl = $parsedUrl['scheme'] . '://' . $parsedUrl['host'];
+            if (isset($parsedUrl['port'])) {
+                $callbackUrl .= ':' . $parsedUrl['port'];
+            }
+            if (isset($parsedUrl['path'])) {
+                $callbackUrl .= $parsedUrl['path'];
+            }
+            if ($newQuery) {
+                $callbackUrl .= '?' . $newQuery;
+            }
+            if (isset($parsedUrl['fragment'])) {
+                $callbackUrl .= '#' . $parsedUrl['fragment'];
+            }
+            
+            $responseData['sso_redirect_url'] = $callbackUrl;
             $responseData['sso_token'] = $ssoToken;
+            
+            \Log::info('SimpleAuthController: SSO redirect URL generated', [
+                'callback_url' => $callbackUrl,
+                'user_id' => $user->id,
+            ]);
         }
         
         return response()->json([
