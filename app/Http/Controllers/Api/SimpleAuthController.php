@@ -213,8 +213,23 @@ class SimpleAuthController extends Controller
         $token = $user->createToken('API Token')->accessToken;
 
         // Vérifier si on doit rediriger vers un domaine externe après connexion
-        // Vérifier d'abord si force_token est présent dans la requête
-        $forceToken = $request->has('force_token') || $request->input('force_token') || $request->query('force_token');
+        // Pour une requête POST, les paramètres sont dans le body, pas dans la query string
+        // Vérifier dans input() (body), query() (query string), et all()
+        $forceToken = $request->has('force_token') 
+                   || $request->input('force_token') 
+                   || $request->get('force_token')
+                   || $request->query('force_token')
+                   || ($request->all()['force_token'] ?? null);
+        
+        // Normaliser force_token (peut être '1', 1, true, 'true', etc.)
+        $forceTokenValue = $request->input('force_token') 
+                        ?? $request->get('force_token')
+                        ?? $request->query('force_token')
+                        ?? ($request->all()['force_token'] ?? null);
+        
+        $forceToken = in_array($forceTokenValue, [1, '1', true, 'true', 'yes', 'on'], true) 
+                   || ($forceTokenValue !== null && $forceTokenValue !== false && $forceTokenValue !== '');
+        
         $redirectUrl = null;
         
         // Si force_token est présent, déterminer l'URL de redirection
@@ -223,8 +238,18 @@ class SimpleAuthController extends Controller
             
             \Log::info('SimpleAuthController: Login with force_token', [
                 'force_token' => $forceToken,
+                'force_token_value' => $forceTokenValue,
                 'redirect_url' => $redirectUrl,
                 'request_all' => $request->all(),
+                'request_input' => $request->input(),
+                'request_query' => $request->query(),
+                'has_redirect' => $request->has('redirect'),
+                'redirect_input' => $request->input('redirect'),
+            ]);
+        } else {
+            \Log::info('SimpleAuthController: Login without force_token', [
+                'request_all' => $request->all(),
+                'request_input' => $request->input(),
                 'request_query' => $request->query(),
             ]);
         }
@@ -391,8 +416,15 @@ class SimpleAuthController extends Controller
         $token = $user->createToken('API Token')->accessToken;
 
         // Vérifier si on doit rediriger vers un domaine externe après vérification 2FA
-        // Vérifier d'abord si force_token est présent dans la requête
-        $forceToken = $request->has('force_token') || $request->input('force_token') || $request->query('force_token');
+        // Pour une requête POST, les paramètres sont dans le body, pas dans la query string
+        $forceTokenValue = $request->input('force_token') 
+                        ?? $request->get('force_token')
+                        ?? $request->query('force_token')
+                        ?? ($request->all()['force_token'] ?? null);
+        
+        $forceToken = in_array($forceTokenValue, [1, '1', true, 'true', 'yes', 'on'], true) 
+                   || ($forceTokenValue !== null && $forceTokenValue !== false && $forceTokenValue !== '');
+        
         $redirectUrl = null;
         
         // Si force_token est présent, déterminer l'URL de redirection
@@ -401,8 +433,10 @@ class SimpleAuthController extends Controller
             
             \Log::info('SimpleAuthController: 2FA verification with force_token', [
                 'force_token' => $forceToken,
+                'force_token_value' => $forceTokenValue,
                 'redirect_url' => $redirectUrl,
                 'request_all' => $request->all(),
+                'request_input' => $request->input(),
                 'request_query' => $request->query(),
             ]);
         }
@@ -693,8 +727,13 @@ class SimpleAuthController extends Controller
         $currentHost = preg_replace('/^www\./', '', strtolower($currentHost));
         
         // 1. Priorité : paramètre 'redirect' explicite
-        if ($request->has('redirect') || $request->query('redirect')) {
-            $redirect = $request->input('redirect') ?: $request->query('redirect');
+        // Pour une requête POST, vérifier dans input() (body) d'abord, puis query()
+        $redirect = $request->input('redirect') 
+                 ?? $request->get('redirect')
+                 ?? $request->query('redirect')
+                 ?? ($request->all()['redirect'] ?? null);
+        
+        if ($redirect) {
             
             // Laravel décode automatiquement les paramètres d'URL, mais on peut avoir un double encodage
             // Essayer de décoder plusieurs fois si nécessaire
