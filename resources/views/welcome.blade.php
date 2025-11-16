@@ -93,6 +93,8 @@
                     
                     // Sinon, vérifier si l'utilisateur a un token dans localStorage
                     const token = localStorage.getItem('access_token');
+                    console.log('[BLADE] Checking localStorage for token:', token ? 'FOUND' : 'NOT_FOUND');
+                    
                     if (token) {
                         // L'utilisateur a un token, faire une requête au serveur pour générer le token SSO
                         console.log('[BLADE] User has token, requesting SSO redirect');
@@ -158,10 +160,16 @@
                             if (typeof sessionStorage !== 'undefined') {
                                 sessionStorage.removeItem('sso_redirecting');
                             }
+                            // En cas d'erreur, ne PAS rediriger, laisser Vue.js charger le formulaire de login
+                            console.log('[BLADE] Will show login form after error');
                         });
                     } else {
                         console.log('[BLADE] No token found in localStorage, user needs to login');
+                        // Pas de token, laisser Vue.js charger le formulaire de login
+                        // Ne PAS faire de redirection
                     }
+                } else {
+                    console.log('[BLADE] No force_token or redirect, normal page load');
                 }
             })();
         </script>
