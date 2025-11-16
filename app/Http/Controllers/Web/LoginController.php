@@ -159,12 +159,11 @@ class LoginController extends Controller
                 'user_id' => $user->id,
             ]);
             
-            // Redirection HTTP directe - IMPORTANT: Utiliser une réponse HTTP brute pour éviter que Vue Router intercepte
-            return response('', 302)
-                ->header('Location', $callbackUrl)
-                ->header('Cache-Control', 'no-cache, no-store, must-revalidate')
-                ->header('Pragma', 'no-cache')
-                ->header('Expires', '0');
+            // Passer l'URL de redirection au template Blade pour qu'il fasse la redirection JavaScript
+            // Cela évite que Vue Router intercepte la redirection
+            return view('welcome', [
+                'sso_redirect' => $callbackUrl
+            ]);
         }
 
         // Si l'utilisateur est déjà connecté SANS force_token, rediriger vers le dashboard
