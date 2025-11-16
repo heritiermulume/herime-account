@@ -418,6 +418,28 @@ class UserController extends Controller
             ], 400);
         }
         
+        // Révoquer le token associé si disponible
+        if ($session->token_id) {
+            try {
+                $token = $user->tokens()->where('id', $session->token_id)->first();
+                if ($token) {
+                    $token->revoke();
+                    \Log::info('UserController: Token revoked for session', [
+                        'user_id' => $user->id,
+                        'session_id' => $session->id,
+                        'token_id' => $session->token_id,
+                    ]);
+                }
+            } catch (\Exception $e) {
+                \Log::error('UserController: Error revoking token for session', [
+                    'user_id' => $user->id,
+                    'session_id' => $session->id,
+                    'token_id' => $session->token_id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+        
         // Marquer la session comme inactive
         $session->update([
             'is_current' => false,
@@ -474,6 +496,28 @@ class UserController extends Controller
                 'success' => false,
                 'message' => 'Vous ne pouvez pas supprimer votre session actuelle. Utilisez la déconnexion.'
             ], 400);
+        }
+        
+        // Révoquer le token associé si disponible
+        if ($session->token_id) {
+            try {
+                $token = $user->tokens()->where('id', $session->token_id)->first();
+                if ($token) {
+                    $token->revoke();
+                    \Log::info('UserController: Token revoked for deleted session', [
+                        'user_id' => $user->id,
+                        'session_id' => $session->id,
+                        'token_id' => $session->token_id,
+                    ]);
+                }
+            } catch (\Exception $e) {
+                \Log::error('UserController: Error revoking token for deleted session', [
+                    'user_id' => $user->id,
+                    'session_id' => $session->id,
+                    'token_id' => $session->token_id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
         }
         
         // Supprimer la session définitivement

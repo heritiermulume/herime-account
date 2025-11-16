@@ -351,17 +351,20 @@ class SSOController extends Controller
         }
 
         // Créer le token SSO pour cet utilisateur spécifique
-        $token = $user->createToken('SSO Token', ['profile'])->accessToken;
+        $tokenResult = $user->createToken('SSO Token', ['profile']);
+        $token = $tokenResult->accessToken;
+        $tokenId = $tokenResult->token->id;
         
         \Log::info('SSOController: Token generated for user', [
             'user_id' => $user->id,
             'user_email' => $user->email,
+            'token_id' => $tokenId,
             'token_preview' => substr($token, 0, 20) . '...',
             'redirect_url' => $redirectUrl,
         ]);
         
-        // Créer une session pour la connexion SSO
-        $this->createSSOSession($user, $request, $redirectUrl);
+        // Créer une session pour la connexion SSO avec le token_id
+        $this->createSSOSession($user, $request, $redirectUrl, $tokenId);
 
         // Construire l'URL de callback avec le token
         $parsedUrl = parse_url($redirectUrl);
@@ -460,7 +463,7 @@ class SSOController extends Controller
     /**
      * Créer une session pour une connexion SSO
      */
-    private function createSSOSession(User $user, Request $request, string $redirectUrl): void
+    private function createSSOSession(User $user, Request $request, string $redirectUrl, ?string $tokenId = null): void
     {
         try {
             // Extraire le domaine du site externe
@@ -480,6 +483,7 @@ class SSOController extends Controller
             $session = UserSession::create([
                 'user_id' => $user->id,
                 'session_id' => Str::random(40),
+                'token_id' => $tokenId,
                 'ip_address' => $request->ip(),
                 'user_agent' => $request->userAgent(),
                 'device_name' => $deviceInfo['device_name'] . ' (SSO: ' . $externalDomain . ')',
@@ -492,6 +496,7 @@ class SSOController extends Controller
             \Log::info('SSOController: SSO session created', [
                 'user_id' => $user->id,
                 'session_id' => $session->id,
+                'token_id' => $tokenId,
                 'external_domain' => $externalDomain,
                 'device_name' => $session->device_name,
             ]);

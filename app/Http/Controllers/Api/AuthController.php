@@ -47,10 +47,12 @@ class AuthController extends Controller
         ]);
 
         // Create access token
-        $token = $user->createToken('Herime SSO', ['profile'])->accessToken;
+        $tokenResult = $user->createToken('Herime SSO', ['profile']);
+        $token = $tokenResult->accessToken;
+        $tokenId = $tokenResult->token->id;
 
-        // Create user session
-        $this->createUserSession($user, $request);
+        // Create user session with token_id
+        $this->createUserSession($user, $request, null, $tokenId);
 
         return response()->json([
             'success' => true,
@@ -107,7 +109,9 @@ class AuthController extends Controller
         ]);
 
         // Create access token
-        $token = $user->createToken('Herime SSO', ['profile'])->accessToken;
+        $tokenResult = $user->createToken('Herime SSO', ['profile']);
+        $token = $tokenResult->accessToken;
+        $tokenId = $tokenResult->token->id;
 
         // Vérifier si on doit générer une URL de redirection SSO
         $ssoRedirectUrl = null;
@@ -186,7 +190,7 @@ class AuthController extends Controller
         }
 
         // Create user session (avec domaine SSO si applicable)
-        $this->createUserSession($user, $request, $externalDomain);
+        $this->createUserSession($user, $request, $externalDomain, $tokenId);
 
         $responseData = [
             'user' => $user->load('currentSession'),
@@ -318,7 +322,7 @@ class AuthController extends Controller
     /**
      * Create user session
      */
-    private function createUserSession(User $user, Request $request, ?string $externalDomain = null): void
+    private function createUserSession(User $user, Request $request, ?string $externalDomain = null, ?string $tokenId = null): void
     {
         try {
             $previousSessionsCount = $user->sessions()->count();
@@ -341,6 +345,7 @@ class AuthController extends Controller
                 'user_agent' => $request->userAgent(),
                 'external_domain' => $externalDomain,
                 'is_sso' => !is_null($externalDomain),
+                'token_id' => $tokenId,
             ]);
 
             // Create new session
@@ -355,6 +360,7 @@ class AuthController extends Controller
             $session = UserSession::create([
                 'user_id' => $user->id,
                 'session_id' => Str::random(40),
+                'token_id' => $tokenId,
                 'ip_address' => $request->ip(),
                 'user_agent' => $request->userAgent(),
                 'device_name' => $deviceName,
