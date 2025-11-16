@@ -190,9 +190,21 @@
     <!-- Recent Sessions -->
     <div class="bg-white dark:bg-gray-800 shadow rounded-lg">
       <div class="px-4 py-5 sm:p-6">
-        <h3 class="text-lg leading-6 font-medium text-gray-900 dark:text-white mb-4">
-          Sessions récentes
-        </h3>
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-lg leading-6 font-medium text-gray-900 dark:text-white">
+            Toutes les sessions
+          </h3>
+          <div class="flex items-center space-x-4 text-sm">
+            <div class="flex items-center">
+              <span class="h-3 w-3 rounded-full mr-2" style="background-color: #ffcc33;"></span>
+              <span class="text-gray-600 dark:text-gray-400">Active</span>
+            </div>
+            <div class="flex items-center">
+              <span class="h-3 w-3 rounded-full bg-gray-400 mr-2"></span>
+              <span class="text-gray-600 dark:text-gray-400">Inactive</span>
+            </div>
+          </div>
+        </div>
         <div class="flow-root">
           <div v-if="sessions.length === 0" class="text-center py-8">
             <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -211,7 +223,7 @@
                   <div>
                     <span 
                       class="h-8 w-8 rounded-full flex items-center justify-center ring-8 ring-white dark:ring-gray-800" 
-                      :style="session.is_current ? 'background-color: #ffcc33;' : 'background-color: #003366;'"
+                      :style="session.is_current ? 'background-color: #ffcc33;' : 'background-color: #9ca3af;'"
                     >
                       <svg class="h-5 w-5 text-white" fill="currentColor" viewBox="0 0 20 20">
                         <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"></path>
@@ -230,7 +242,13 @@
                             class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium text-white"
                             style="background-color: #ffcc33;"
                           >
-                            Session actuelle
+                            Active
+                          </span>
+                          <span
+                            v-else
+                            class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-gray-600"
+                          >
+                            Inactive
                           </span>
                         </div>
                         <p class="text-sm text-gray-500 dark:text-gray-400">
@@ -256,11 +274,10 @@
                           </svg>
                         </button>
                         <button
-                          v-if="!session.is_current"
                           @click="deleteSession(session.id)"
-                          :disabled="loadingSessionId === session.id"
+                          :disabled="loadingSessionId === session.id || session.is_current"
                           class="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 text-sm font-medium disabled:opacity-50"
-                          title="Supprimer cette session"
+                          :title="session.is_current ? 'Impossible de supprimer la session actuelle' : 'Supprimer cette session'"
                         >
                           <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
