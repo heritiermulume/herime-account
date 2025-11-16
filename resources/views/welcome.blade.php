@@ -79,15 +79,24 @@
                         })
                         .then(response => response.json())
                         .then(data => {
-                            if (data.success && data.data && data.data.token) {
-                                // Construire l'URL de callback avec le token
-                                const redirectUrl = new URL(redirect);
-                                redirectUrl.searchParams.set('token', data.data.token);
+                            if (data.success && data.data) {
+                                // Utiliser callback_url si disponible, sinon construire l'URL avec le token
+                                let redirectUrl;
+                                if (data.data.callback_url) {
+                                    redirectUrl = data.data.callback_url;
+                                } else if (data.data.token) {
+                                    const redirectUrlObj = new URL(redirect);
+                                    redirectUrlObj.searchParams.set('token', data.data.token);
+                                    redirectUrl = redirectUrlObj.toString();
+                                } else {
+                                    console.error('[BLADE] No token or callback_url in response:', data);
+                                    return;
+                                }
                                 
-                                console.log('[BLADE] SSO token generated, redirecting to:', redirectUrl.toString());
+                                console.log('[BLADE] SSO token generated, redirecting to:', redirectUrl);
                                 
                                 // Rediriger immédiatement
-                                window.location.replace(redirectUrl.toString());
+                                window.location.replace(redirectUrl);
                             } else {
                                 console.error('[BLADE] Failed to generate SSO token:', data);
                             }
