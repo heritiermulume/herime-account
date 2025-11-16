@@ -42,12 +42,52 @@ class LoginController extends Controller
                        || $request->boolean('force_token', false);
         }
 
-        // Vérifier l'authentification
+        // Vérifier l'authentification (session web OU token API)
         $isAuthenticated = Auth::check();
         $user = null;
         
         if ($isAuthenticated) {
             $user = Auth::user();
+        } else {
+            // Si pas de session web, vérifier si l'utilisateur a un token API valide
+            // Le token peut être dans un cookie ou dans la requête
+            $token = $request->cookie('access_token') 
+                  ?? $request->header('Authorization') 
+                  ?? $request->query('token');
+            
+            if ($token) {
+                // Nettoyer le token si c'est un Bearer token
+                if (str_starts_with($token, 'Bearer ')) {
+                    $token = substr($token, 7);
+                }
+                
+                // Vérifier si le token est valide
+                try {
+                    $tokenHash = hash('sha256', $token);
+                    $accessToken = \Laravel\Passport\Token::where('id', $tokenHash)
+                        ->where('revoked', false)
+                        ->first();
+                    
+                    if ($accessToken && $accessToken->user) {
+                        $user = $accessToken->user;
+                        
+                        // Vérifier si le token n'est pas expiré
+                        if (!$accessToken->expires_at || $accessToken->expires_at->isFuture()) {
+                            // Créer une session web pour l'utilisateur
+                            Auth::login($user, true); // true = se souvenir de moi
+                            $isAuthenticated = true;
+                            
+                            \Log::info('LoginController: Created web session from API token', [
+                                'user_id' => $user->id,
+                            ]);
+                        }
+                    }
+                } catch (\Exception $e) {
+                    \Log::warning('LoginController: Error checking API token', [
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
         }
 
         // Si l'utilisateur est déjà connecté ET force_token est présent

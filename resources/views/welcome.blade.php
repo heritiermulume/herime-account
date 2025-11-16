@@ -46,6 +46,59 @@
         <script>
             console.log('[BLADE] Template loaded, URL:', window.location.href);
             console.log('[BLADE] Has sso_redirect:', {{ isset($sso_redirect) && !empty($sso_redirect) ? 'true' : 'false' }});
+            
+            // Si on a force_token dans l'URL et qu'on n'a pas de sso_redirect, vérifier le token
+            @if(!isset($sso_redirect) || empty($sso_redirect))
+            (function() {
+                const urlParams = new URLSearchParams(window.location.search);
+                const forceToken = urlParams.get('force_token');
+                const redirect = urlParams.get('redirect');
+                
+                if (forceToken && redirect) {
+                    // Vérifier si l'utilisateur a un token dans localStorage
+                    const token = localStorage.getItem('access_token');
+                    if (token) {
+                        // L'utilisateur a un token, faire une requête au serveur pour générer le token SSO
+                        console.log('[BLADE] User has token, requesting SSO redirect');
+                        
+                        // Construire l'URL de l'API
+                        const apiUrl = '/api/sso/generateToken';
+                        
+                        // Faire une requête pour générer le token SSO
+                        fetch(apiUrl, {
+                            method: 'POST',
+                            headers: {
+                                'Authorization': 'Bearer ' + token,
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                                'Accept': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                redirect: redirect
+                            })
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success && data.data && data.data.token) {
+                                // Construire l'URL de callback avec le token
+                                const redirectUrl = new URL(redirect);
+                                redirectUrl.searchParams.set('token', data.data.token);
+                                
+                                console.log('[BLADE] SSO token generated, redirecting to:', redirectUrl.toString());
+                                
+                                // Rediriger immédiatement
+                                window.location.replace(redirectUrl.toString());
+                            } else {
+                                console.error('[BLADE] Failed to generate SSO token:', data);
+                            }
+                        })
+                        .catch(error => {
+                            console.error('[BLADE] Error generating SSO token:', error);
+                        });
+                    }
+                }
+            })();
+            @endif
         </script>
         
         <!-- Styles / Scripts - Ne charger que si pas de redirection SSO -->
