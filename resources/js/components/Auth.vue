@@ -365,23 +365,9 @@ export default {
           return
         }
         
-        // Vérifier si on vient de /dashboard (signe que le backend a redirigé)
-        if (referer && referer.includes('/dashboard')) {
-          console.log('[SSO] Coming from /dashboard, removing force_token to avoid loop')
-          // Supprimer force_token de l'URL pour éviter la boucle
-          const newUrl = new URL(window.location.href)
-          newUrl.searchParams.delete('force_token')
-          window.history.replaceState({}, '', newUrl.toString())
-          isRedirecting.value = false
-          authStore.isSSORedirecting = false
-          if (typeof window !== 'undefined') {
-            sessionStorage.setItem('sso_loop_detected', 'true')
-            setTimeout(() => {
-              sessionStorage.removeItem('sso_loop_detected')
-            }, 30000)
-          }
-          return
-        }
+        // Ne plus retirer force_token quand on vient de /dashboard:
+        // le routeur peut envoyer vers /login depuis /dashboard avec les paramètres SSO,
+        // et on doit laisser le flux SSO se poursuivre.
         
         // Vérifier que le redirect ne pointe pas vers compte.herime.com (éviter boucle)
         const redirectUrl = route.query.redirect
