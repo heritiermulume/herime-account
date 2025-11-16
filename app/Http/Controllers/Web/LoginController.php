@@ -42,15 +42,19 @@ class LoginController extends Controller
             'is_authenticated' => Auth::check(),
         ]);
         
-        // Si l'utilisateur n'est PAS authentifié et qu'il y a des tentatives,
-        // c'est probablement une nouvelle tentative après déconnexion
-        // Réinitialiser le compteur pour permettre une nouvelle tentative
-        if (!Auth::check() && $redirectAttempts > 0) {
-            \Log::info('LoginController: User not authenticated, resetting redirect attempts', [
-                'previous_attempts' => $redirectAttempts,
-            ]);
-            $request->session()->forget($sessionKey);
-            $redirectAttempts = 0;
+        // Le compteur de tentatives ne devrait s'appliquer QUE quand l'utilisateur est authentifié
+        // Si l'utilisateur n'est PAS authentifié, réinitialiser le compteur
+        // Car le problème de boucle ne peut se produire que pour les utilisateurs authentifiés
+        if (!Auth::check()) {
+            if ($redirectAttempts > 0) {
+                \Log::info('LoginController: User not authenticated, resetting redirect attempts', [
+                    'previous_attempts' => $redirectAttempts,
+                ]);
+                $request->session()->forget($sessionKey);
+                $redirectAttempts = 0;
+            }
+            // Pour les utilisateurs non authentifiés, pas de limite de tentatives
+            // Ils verront le formulaire de login et pourront se connecter
         }
         
         if ($redirectAttempts >= 3) {
