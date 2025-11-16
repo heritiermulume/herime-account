@@ -4,10 +4,12 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Models\UserSession;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 use Laravel\Passport\Token as PassportToken;
 
 class SSOController extends Controller
@@ -234,6 +236,9 @@ class SSOController extends Controller
 
         // Créer le token SSO
         $token = $user->createToken('SSO Token', ['profile'])->accessToken;
+        
+        // Créer une session pour la connexion SSO
+        $this->createSSOSession($user, $request, $redirectUrl);
 
         // Construire l'URL de callback avec le token
         $parsedUrl = parse_url($redirectUrl);
@@ -329,5 +334,96 @@ class SSOController extends Controller
         } catch (\Throwable $e) {
             return null;
         }
+    }
+    
+    /**
+     * Créer une session pour une connexion SSO
+     */
+    private function createSSOSession(User $user, Request $request, string $redirectUrl): void
+    {
+        try {
+            // Extraire le domaine du site externe
+            $externalDomain = parse_url($redirectUrl, PHP_URL_HOST);
+            
+            // Marquer toutes les sessions précédentes comme inactives
+            $user->sessions()->update(['is_current' => false]);
+            
+            // Détecter les informations de l'appareil
+            $deviceInfo = $this->getDeviceInfo($request->userAgent());
+            
+            // Créer une nouvelle session
+            $session = UserSession::create([
+                'user_id' => $user->id,
+                'session_id' => Str::random(40),
+                'ip_address' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+                'device_name' => $deviceInfo['device_name'] . ' (SSO: ' . $externalDomain . ')',
+                'platform' => $deviceInfo['platform'],
+                'browser' => $deviceInfo['browser'],
+                'is_current' => true,
+                'last_activity' => now(),
+            ]);
+            
+            \Log::info('SSOController: SSO session created', [
+                'user_id' => $user->id,
+                'session_id' => $session->id,
+                'external_domain' => $externalDomain,
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('SSOController: Error creating SSO session', [
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+    
+    /**
+     * Obtenir les informations de l'appareil depuis le user agent
+     */
+    private function getDeviceInfo(string $userAgent): array
+    {
+        $platform = 'Unknown';
+        $browser = 'Unknown';
+        $deviceName = 'Unknown Device';
+
+        // Détecter la plateforme
+        if (strpos($userAgent, 'Windows') !== false) {
+            $platform = 'Windows';
+            $deviceName = 'Windows PC';
+        } elseif (strpos($userAgent, 'Macintosh') !== false) {
+            $platform = 'macOS';
+            $deviceName = 'Mac';
+        } elseif (strpos($userAgent, 'Linux') !== false) {
+            $platform = 'Linux';
+            $deviceName = 'Linux PC';
+        } elseif (strpos($userAgent, 'Android') !== false) {
+            $platform = 'Android';
+            $deviceName = 'Android Device';
+        } elseif (strpos($userAgent, 'iPhone') !== false) {
+            $platform = 'iOS';
+            $deviceName = 'iPhone';
+        } elseif (strpos($userAgent, 'iPad') !== false) {
+            $platform = 'iOS';
+            $deviceName = 'iPad';
+        }
+
+        // Détecter le navigateur
+        if (strpos($userAgent, 'Edg') !== false) {
+            $browser = 'Edge';
+        } elseif (strpos($userAgent, 'Chrome') !== false) {
+            $browser = 'Chrome';
+        } elseif (strpos($userAgent, 'Firefox') !== false) {
+            $browser = 'Firefox';
+        } elseif (strpos($userAgent, 'Safari') !== false) {
+            $browser = 'Safari';
+        } elseif (strpos($userAgent, 'Opera') !== false || strpos($userAgent, 'OPR') !== false) {
+            $browser = 'Opera';
+        }
+
+        return [
+            'device_name' => $deviceName,
+            'platform' => $platform,
+            'browser' => $browser,
+        ];
     }
 }
