@@ -242,7 +242,7 @@ class LoginController extends Controller
                 'decoded_once' => urldecode($redirect),
             ]);
             
-            // Laravel décode automatiquement les paramètres d'URL, mais on peut avoir un double encodage
+            // Laravel peut laisser des URL multi-encodées.
             // Essayer de décoder plusieurs fois si nécessaire
             $maxDecodes = 5;
             $decodedRedirect = $redirect;
@@ -251,54 +251,59 @@ class LoginController extends Controller
                 if ($testDecode === $decodedRedirect) {
                     break; // Plus de décodage possible
                 }
-                if (filter_var($testDecode, FILTER_VALIDATE_URL)) {
-                    $decodedRedirect = $testDecode;
-                    \Log::info("SSO Redirect: Decoded URL (iteration $i)", [
-                        'decoded' => $decodedRedirect,
-                    ]);
-                }
+                $decodedRedirect = $testDecode;
+                \Log::info("SSO Redirect: Decoded URL (iteration $i)", [
+                    'decoded' => $decodedRedirect,
+                ]);
             }
             
-            // Utiliser l'URL décodée si elle est valide
-            if ($decodedRedirect !== $redirect && filter_var($decodedRedirect, FILTER_VALIDATE_URL)) {
-                $redirect = $decodedRedirect;
+            // Choisir la meilleure candidate: privilégier la version décodée si elle ressemble à une URL http(s)
+            $candidate = $decodedRedirect ?: $redirect;
+            if (!is_string($candidate)) {
+                $candidate = (string)$candidate;
             }
             
-            if ($redirect && filter_var($redirect, FILTER_VALIDATE_URL)) {
-                // Vérifier que l'URL ne pointe pas vers le même domaine
-                $redirectHost = parse_url($redirect, PHP_URL_HOST);
-                if ($redirectHost) {
-                    $redirectHost = preg_replace('/^www\./', '', strtolower($redirectHost));
+            // S'assurer que le schéma est présent; si absent mais host présent, supposer https
+            $parsedCandidate = @parse_url($candidate);
+            if ($parsedCandidate && !isset($parsedCandidate['scheme']) && isset($parsedCandidate['host'])) {
+                $candidate = 'https://' . ltrim($candidate, '/');
+                $parsedCandidate = @parse_url($candidate);
+            }
+            
+            // Accepter l'URL si parse_url donne un host http(s) différent du domaine courant
+            if ($parsedCandidate && isset($parsedCandidate['host'])) {
+                $redirectHost = preg_replace('/^www\./', '', strtolower($parsedCandidate['host']));
+                $scheme = strtolower($parsedCandidate['scheme'] ?? 'https');
+                
+                if (in_array($scheme, ['http', 'https'], true)) {
                     if ($redirectHost !== $currentHost && $redirectHost !== 'compte.herime.com') {
-                        // Vérifier que l'URL ne contient pas /login
-                        if (strpos($redirect, '/login') === false) {
-                            \Log::info('SSO Redirect: Using redirect URL', [
-                                'url' => $redirect,
+                        if (strpos($candidate, '/login') === false) {
+                            \Log::info('SSO Redirect: Using redirect URL (parse_url validated)', [
+                                'url' => $candidate,
                                 'host' => $redirectHost,
                                 'current_host' => $currentHost,
                             ]);
-                            return $redirect;
-                        } else {
-                            \Log::warning('SSO Redirect: URL contains /login, rejecting', [
-                                'url' => $redirect,
-                            ]);
+                            return $candidate;
                         }
+                        \Log::warning('SSO Redirect: URL contains /login, rejecting', [
+                            'url' => $candidate,
+                        ]);
                     } else {
                         \Log::warning('SSO Redirect: URL points to same domain, rejecting', [
-                            'url' => $redirect,
+                            'url' => $candidate,
                             'redirect_host' => $redirectHost,
                             'current_host' => $currentHost,
                         ]);
                     }
                 } else {
-                    \Log::warning('SSO Redirect: Could not parse redirect URL host', [
-                        'url' => $redirect,
+                    \Log::warning('SSO Redirect: Unsupported URL scheme', [
+                        'url' => $candidate,
+                        'scheme' => $scheme,
                     ]);
                 }
             } else {
-                \Log::warning('SSO Redirect: Invalid redirect URL', [
-                    'url' => $redirect,
-                    'is_valid' => filter_var($redirect, FILTER_VALIDATE_URL),
+                \Log::warning('SSO Redirect: Could not parse redirect URL host', [
+                    'url' => $candidate,
                 ]);
             }
         }
