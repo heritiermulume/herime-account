@@ -128,6 +128,12 @@ router.beforeEach(async (to, from, next) => {
                        to.query.force_token === 'yes' ||
                        to.query.force_token === 'on'
   
+  // PRIORITÉ: si des paramètres SSO sont présents à la racine, router directement vers /login avec les mêmes query
+  if ((hasForceToken || (typeof to.query.redirect === 'string' && to.query.redirect.length > 0)) && to.path === '/') {
+    next({ path: '/login', query: to.query })
+    return
+  }
+  
   // Vérifier si une boucle SSO a été détectée - si oui, permettre l'accès à la page de login
   if (typeof window !== 'undefined' && sessionStorage.getItem('sso_loop_detected') === 'true') {
     console.log('[ROUTER] SSO loop detected, allowing access to login page')
@@ -239,6 +245,11 @@ router.beforeEach(async (to, from, next) => {
   
   // Si l'utilisateur est sur la page d'accueil, rediriger selon son statut
   if (to.path === '/') {
+    // Si des paramètres SSO sont présents, router vers /login pour traitement, même si authentifié
+    if (hasForceToken || (typeof to.query.redirect === 'string' && to.query.redirect.length > 0)) {
+      next({ path: '/login', query: to.query })
+      return
+    }
     if (isAuthenticated) {
       next('/dashboard')
     } else {
