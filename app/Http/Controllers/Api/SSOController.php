@@ -358,13 +358,17 @@ class SSOController extends Controller
             // Extraire le domaine du site externe
             $externalDomain = parse_url($redirectUrl, PHP_URL_HOST);
             
-            // Marquer toutes les sessions précédentes comme inactives
-            $user->sessions()->update(['is_current' => false]);
+            // Ne pas marquer les sessions comme inactives pour les connexions SSO
+            // L'utilisateur peut avoir plusieurs sessions actives (compte.herime.com + sites externes)
+            // On marque uniquement les anciennes sessions SSO vers le même domaine comme inactives
+            $user->sessions()
+                ->where('device_name', 'like', "%(SSO: {$externalDomain})%")
+                ->update(['is_current' => false]);
             
             // Détecter les informations de l'appareil
             $deviceInfo = $this->getDeviceInfo($request->userAgent());
             
-            // Créer une nouvelle session
+            // Créer une nouvelle session SSO
             $session = UserSession::create([
                 'user_id' => $user->id,
                 'session_id' => Str::random(40),
@@ -381,11 +385,13 @@ class SSOController extends Controller
                 'user_id' => $user->id,
                 'session_id' => $session->id,
                 'external_domain' => $externalDomain,
+                'device_name' => $session->device_name,
             ]);
         } catch (\Exception $e) {
             \Log::error('SSOController: Error creating SSO session', [
                 'user_id' => $user->id,
                 'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
             ]);
         }
     }

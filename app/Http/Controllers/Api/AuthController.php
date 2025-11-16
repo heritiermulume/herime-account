@@ -305,9 +305,18 @@ class AuthController extends Controller
     private function createUserSession(User $user, Request $request, ?string $externalDomain = null): void
     {
         try {
-            // Mark all previous sessions as inactive
             $previousSessionsCount = $user->sessions()->count();
-            $user->sessions()->update(['is_current' => false]);
+            
+            if ($externalDomain) {
+                // Pour les connexions SSO, on garde les autres sessions actives
+                // On marque uniquement les anciennes sessions SSO vers le même domaine comme inactives
+                $user->sessions()
+                    ->where('device_name', 'like', "%(SSO: {$externalDomain})%")
+                    ->update(['is_current' => false]);
+            } else {
+                // Pour les connexions normales, on marque toutes les sessions comme inactives
+                $user->sessions()->update(['is_current' => false]);
+            }
             
             \Log::info('AuthController: Creating user session', [
                 'user_id' => $user->id,
@@ -315,6 +324,7 @@ class AuthController extends Controller
                 'ip' => $request->ip(),
                 'user_agent' => $request->userAgent(),
                 'external_domain' => $externalDomain,
+                'is_sso' => !is_null($externalDomain),
             ]);
 
             // Create new session
@@ -343,6 +353,7 @@ class AuthController extends Controller
                 'session_id' => $session->id,
                 'device_name' => $deviceName,
                 'total_sessions' => $user->sessions()->count(),
+                'active_sessions' => $user->sessions()->where('is_current', true)->count(),
             ]);
         } catch (\Exception $e) {
             \Log::error('AuthController: Error creating user session', [
