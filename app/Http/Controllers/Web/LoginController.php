@@ -19,7 +19,13 @@ class LoginController extends Controller
             'url' => $request->fullUrl(),
             'path' => $request->path(),
             'query' => $request->query(),
+            'all_inputs' => $request->all(),
             'is_authenticated' => Auth::check(),
+            'has_token_cookie' => $request->hasCookie('access_token'),
+            'has_auth_header' => $request->hasHeader('Authorization'),
+            'has_bearer_token' => $request->bearerToken() !== null,
+            'has_token_query' => $request->has('token'),
+            'has_token_input' => $request->has('_token'),
         ]);
         
         // PROTECTION CONTRE LES BOUCLES DE REDIRECTION
@@ -60,6 +66,12 @@ class LoginController extends Controller
                   ?? $request->query('token')
                   ?? $request->input('_token');
             
+            \Log::info('LoginController: Checking for API token', [
+                'has_token' => !empty($token),
+                'token_length' => $token ? strlen($token) : 0,
+                'token_preview' => $token ? substr($token, 0, 20) . '...' : null,
+            ]);
+            
             if ($token) {
                 // Nettoyer le token si c'est un Bearer token
                 if (str_starts_with($token, 'Bearer ')) {
@@ -72,6 +84,13 @@ class LoginController extends Controller
                     $accessToken = \Laravel\Passport\Token::where('id', $tokenHash)
                         ->where('revoked', false)
                         ->first();
+                    
+                    \Log::info('LoginController: Token lookup result', [
+                        'token_hash' => substr($tokenHash, 0, 20) . '...',
+                        'found' => $accessToken !== null,
+                        'has_user' => $accessToken && $accessToken->user !== null,
+                        'is_expired' => $accessToken && $accessToken->expires_at ? $accessToken->expires_at->isPast() : null,
+                    ]);
                     
                     if ($accessToken && $accessToken->user) {
                         $user = $accessToken->user;
@@ -89,13 +108,22 @@ class LoginController extends Controller
                                                  ($request->bearerToken() ? 'bearer' : 
                                                  ($request->query('token') ? 'query' : 'input'))),
                             ]);
+                        } else {
+                            \Log::warning('LoginController: Token is expired', [
+                                'expires_at' => $accessToken->expires_at,
+                            ]);
                         }
+                    } else {
+                        \Log::warning('LoginController: Token not found or has no user');
                     }
                 } catch (\Exception $e) {
-                    \Log::warning('LoginController: Error checking API token', [
+                    \Log::error('LoginController: Error checking API token', [
                         'error' => $e->getMessage(),
+                        'trace' => $e->getTraceAsString(),
                     ]);
                 }
+            } else {
+                \Log::info('LoginController: No token found in any location');
             }
         }
 
