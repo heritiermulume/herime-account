@@ -496,11 +496,6 @@ export default {
         
         console.log('[SSO] User authenticated, proceeding with redirect')
         
-        // NOUVEAU SYSTÈME: Redirection côté serveur
-        // Au lieu de générer le token côté client et rediriger avec JavaScript,
-        // on utilise une route Laravel qui fait tout : génération du token + redirection HTTP 302
-        // Cela contourne complètement Vue Router et les problèmes JavaScript
-        
         const redirect = route.query.redirect
         
         if (!redirect) {
@@ -517,31 +512,14 @@ export default {
           return
         }
         
-        // SIMPLE REDIRECTION vers la route serveur qui fait tout
-        // Cette route génère le token et redirige via HTTP 302
-        // Cela évite tous les problèmes de JavaScript/Vue Router
+        // STRATÉGIE SIMPLIFIÉE: Recharger la page pour laisser le serveur gérer
+        // Le LoginController@show détectera l'utilisateur connecté + force_token
+        // et retournera le template Blade avec $sso_redirect qui fera la redirection JavaScript
+        console.log('[SSO] Reloading page to let server handle SSO redirect')
         
-        // Récupérer le token depuis localStorage pour l'envoyer au serveur
-        const accessToken = localStorage.getItem('access_token')
-        
-        // Construire l'URL avec le token et l'URL de redirection
-        const serverRedirectUrl = '/sso/redirect?redirect=' + encodeURIComponent(redirect) + 
-          (accessToken ? '&_token=' + encodeURIComponent(accessToken) : '')
-        
-        console.log('[SSO] Redirecting to server-side redirect endpoint:', serverRedirectUrl)
-        
-        // Simple redirection - Laravel fait le reste (génération token + redirection HTTP 302)
-        window.location.href = serverRedirectUrl
-        
-        // Nettoyer les flags
-        if (typeof window !== 'undefined') {
-          sessionStorage.removeItem('sso_redirecting')
-          sessionStorage.removeItem('sso_redirecting_timestamp')
-          sessionStorage.removeItem('sso_redirecting_url')
-          sessionStorage.removeItem('sso_redirect_attempts')
-          sessionStorage.removeItem('sso_last_redirect_to')
-        }
-        
+        // Recharger la page complètement pour que le LoginController@show génère $sso_redirect
+        // Le template Blade fera alors la redirection JavaScript immédiate
+        window.location.reload()
         return
       } else {
       }

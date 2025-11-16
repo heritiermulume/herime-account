@@ -48,12 +48,17 @@ class LoginController extends Controller
         
         if ($isAuthenticated) {
             $user = Auth::user();
-        } else {
-            // Si pas de session web, vérifier si l'utilisateur a un token API valide
-            // Le token peut être dans un cookie ou dans la requête
+        }
+        
+        // Si pas de session web, essayer de créer une session depuis le token API
+        // Le token peut être envoyé par le frontend dans différents endroits
+        if (!$isAuthenticated) {
+            // Chercher le token dans plusieurs endroits possibles
             $token = $request->cookie('access_token') 
                   ?? $request->header('Authorization') 
-                  ?? $request->query('token');
+                  ?? $request->bearerToken()
+                  ?? $request->query('token')
+                  ?? $request->input('_token');
             
             if ($token) {
                 // Nettoyer le token si c'est un Bearer token
@@ -79,6 +84,10 @@ class LoginController extends Controller
                             
                             \Log::info('LoginController: Created web session from API token', [
                                 'user_id' => $user->id,
+                                'token_source' => $request->cookie('access_token') ? 'cookie' : 
+                                                 ($request->header('Authorization') ? 'header' : 
+                                                 ($request->bearerToken() ? 'bearer' : 
+                                                 ($request->query('token') ? 'query' : 'input'))),
                             ]);
                         }
                     }
