@@ -121,16 +121,19 @@ export const useAuthStore = defineStore('auth', {
       }
     },
 
-    async verifyTwoFactor(email, code) {
+    async verifyTwoFactor(email, code, additionalData = {}) {
       this.loading = true
       this.error = null
 
       try {
-        const response = await axios.post('/login/verify-2fa', {
+        const requestData = {
           email,
           code,
-          two_factor_token: this.twoFactorToken
-        })
+          two_factor_token: this.twoFactorToken,
+          ...additionalData
+        }
+        
+        const response = await axios.post('/login/verify-2fa', requestData)
         
         if (response.data.success) {
           // Stocker les données utilisateur
