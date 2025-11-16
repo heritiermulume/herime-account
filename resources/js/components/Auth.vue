@@ -512,14 +512,26 @@ export default {
           return
         }
         
-        // STRATÉGIE SIMPLIFIÉE: Recharger la page pour laisser le serveur gérer
-        // Le LoginController@show détectera l'utilisateur connecté + force_token
-        // et retournera le template Blade avec $sso_redirect qui fera la redirection JavaScript
-        console.log('[SSO] Reloading page to let server handle SSO redirect')
+        // STRATÉGIE SIMPLIFIÉE: Ajouter le token dans l'URL puis recharger
+        // Le LoginController@show détectera le token et créera une session
+        // puis générera $sso_redirect pour la redirection JavaScript
+        console.log('[SSO] Adding token to URL and reloading page to let server handle SSO redirect')
         
-        // Recharger la page complètement pour que le LoginController@show génère $sso_redirect
-        // Le template Blade fera alors la redirection JavaScript immédiate
-        window.location.reload()
+        // Récupérer le token depuis localStorage
+        const accessToken = localStorage.getItem('access_token')
+        
+        if (accessToken) {
+          // Ajouter le token dans l'URL comme paramètre _token
+          const currentUrl = new URL(window.location.href)
+          currentUrl.searchParams.set('_token', accessToken)
+          
+          // Remplacer l'URL actuelle et recharger
+          window.location.replace(currentUrl.toString())
+        } else {
+          // Pas de token, juste recharger (l'utilisateur verra le formulaire de login)
+          window.location.reload()
+        }
+        
         return
       } else {
       }
