@@ -24,7 +24,11 @@ Route::get('/register', function () {
     return view('welcome');
 });
 
-Route::get('/dashboard', function () {
+Route::get('/dashboard', function (Request $request) {
+    // Si on a force_token et redirect dans l'URL, rediriger vers /login pour traitement SSO
+    if ($request->has('force_token') && $request->has('redirect')) {
+        return redirect('/login?' . $request->getQueryString());
+    }
     return view('welcome');
 });
 

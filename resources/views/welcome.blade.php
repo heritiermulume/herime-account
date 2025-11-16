@@ -47,15 +47,26 @@
             console.log('[BLADE] Template loaded, URL:', window.location.href);
             console.log('[BLADE] Has sso_redirect:', {{ isset($sso_redirect) && !empty($sso_redirect) ? 'true' : 'false' }});
             
-            // Si on a force_token dans l'URL et qu'on n'a pas de sso_redirect, vérifier le token
-            @if(!isset($sso_redirect) || empty($sso_redirect))
+            // Vérifier si on doit rediriger SSO (même si on est sur /dashboard)
             (function() {
                 const urlParams = new URLSearchParams(window.location.search);
                 const forceToken = urlParams.get('force_token');
                 const redirect = urlParams.get('redirect');
                 
+                // Si on a force_token et redirect dans l'URL, rediriger SSO
                 if (forceToken && redirect) {
-                    // Vérifier si l'utilisateur a un token dans localStorage
+                    console.log('[BLADE] force_token and redirect detected, checking for SSO redirect');
+                    
+                    // Vérifier si on a déjà une redirection SSO du serveur
+                    @if(isset($sso_redirect) && !empty($sso_redirect))
+                    // Le serveur a déjà préparé la redirection, utiliser celle-ci
+                    var redirectUrl = {!! json_encode($sso_redirect, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) !!};
+                    console.log('[BLADE] Server provided SSO redirect, redirecting to:', redirectUrl);
+                    window.location.replace(redirectUrl);
+                    return;
+                    @endif
+                    
+                    // Sinon, vérifier si l'utilisateur a un token dans localStorage
                     const token = localStorage.getItem('access_token');
                     if (token) {
                         // L'utilisateur a un token, faire une requête au serveur pour générer le token SSO
@@ -104,10 +115,11 @@
                         .catch(error => {
                             console.error('[BLADE] Error generating SSO token:', error);
                         });
+                    } else {
+                        console.log('[BLADE] No token found in localStorage, user needs to login');
                     }
                 }
             })();
-            @endif
         </script>
         
         <!-- Styles / Scripts - Ne charger que si pas de redirection SSO -->
