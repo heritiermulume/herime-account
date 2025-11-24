@@ -98,8 +98,23 @@ class SimpleAuthController extends Controller
         // Si redirection SSO nécessaire, créer un token SSO avec scope 'profile'
         // Sinon, créer un token API standard
         try {
+            // Augmenter le timeout pour cette opération
+            set_time_limit(30);
+            
             $tokenName = $redirectUrl ? 'SSO Token' : 'API Token';
             $scopes = $redirectUrl ? ['profile'] : [];
+            
+            // Nettoyer les vieux tokens de l'utilisateur avant d'en créer un nouveau
+            // pour éviter la surcharge de la table
+            try {
+                $user->tokens()
+                    ->where('revoked', true)
+                    ->where('created_at', '<', now()->subDays(7))
+                    ->delete();
+            } catch (\Exception $e) {
+                // Ignorer les erreurs de nettoyage
+            }
+            
             $token = $user->createToken($tokenName, $scopes)->accessToken;
         } catch (\Exception $e) {
             \Log::error('SimpleAuthController: Token creation failed during registration', [
@@ -112,7 +127,8 @@ class SimpleAuthController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Une erreur est survenue lors de la création de votre session. Veuillez réessayer dans quelques instants.',
-                'error_code' => 'TOKEN_CREATION_FAILED'
+                'error_code' => 'TOKEN_CREATION_FAILED',
+                'debug_info' => config('app.debug') ? $e->getMessage() : null
             ], 500);
         }
 
@@ -294,7 +310,32 @@ class SimpleAuthController extends Controller
         $user->refresh();
         
         // Create access token for API authentication
-        $token = $user->createToken('API Token')->accessToken;
+        try {
+            set_time_limit(30);
+            
+            // Nettoyer les vieux tokens révoqués de l'utilisateur
+            try {
+                $user->tokens()
+                    ->where('revoked', true)
+                    ->where('created_at', '<', now()->subDays(7))
+                    ->delete();
+            } catch (\Exception $e) {
+                // Ignorer les erreurs de nettoyage
+            }
+            
+            $token = $user->createToken('API Token')->accessToken;
+        } catch (\Exception $e) {
+            \Log::error('SimpleAuthController: Token creation failed during login', [
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Une erreur est survenue lors de la connexion. Veuillez réessayer.',
+                'error_code' => 'TOKEN_CREATION_FAILED'
+            ], 500);
+        }
 
         // Vérifier si on doit rediriger vers un domaine externe après connexion
         // Pour une requête POST, les paramètres sont dans le body, pas dans la query string
@@ -497,7 +538,32 @@ class SimpleAuthController extends Controller
         $user->refresh();
         
         // Create access token for API authentication
-        $token = $user->createToken('API Token')->accessToken;
+        try {
+            set_time_limit(30);
+            
+            // Nettoyer les vieux tokens révoqués de l'utilisateur
+            try {
+                $user->tokens()
+                    ->where('revoked', true)
+                    ->where('created_at', '<', now()->subDays(7))
+                    ->delete();
+            } catch (\Exception $e) {
+                // Ignorer les erreurs de nettoyage
+            }
+            
+            $token = $user->createToken('API Token')->accessToken;
+        } catch (\Exception $e) {
+            \Log::error('SimpleAuthController: Token creation failed after 2FA', [
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Une erreur est survenue lors de la vérification. Veuillez réessayer.',
+                'error_code' => 'TOKEN_CREATION_FAILED'
+            ], 500);
+        }
 
         // Vérifier si on doit rediriger vers un domaine externe après vérification 2FA
         // Pour une requête POST, les paramètres sont dans le body, pas dans la query string
@@ -622,7 +688,14 @@ class SimpleAuthController extends Controller
             
             // Révoquer TOUS les tokens Passport de l'utilisateur
             try {
-                $user->tokens()->update(['revoked' => true]);
+                set_time_limit(30);
+                
+                // Révoquer directement sans compter (plus rapide)
+                \DB::table('oauth_access_tokens')
+                    ->where('user_id', $user->id)
+                    ->where('revoked', false)
+                    ->update(['revoked' => true]);
+                
                 $tokensRevoked = true;
             } catch (\Exception $e) {
                 $errors[] = 'tokens_revocation_failed';
@@ -645,7 +718,7 @@ class SimpleAuthController extends Controller
                 \Log::info('SimpleAuthController: User logged out', [
                     'user_id' => $user->id,
                     'sessions_marked_inactive' => $sessionsCount,
-                    'tokens_revoked' => $tokensRevoked,
+                    'tokens_revoked' => $tokensRevoked ? 'yes' : 'no',
                     'errors' => $errors
                 ]);
             } catch (\Exception $e) {
