@@ -1,5 +1,11 @@
 <template>
-  <div class="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-gray-50 dark:bg-gray-900">
+  <div v-if="isRedirectingSSO" class="fixed inset-0 z-[99999] flex items-center justify-center bg-gray-900" style="position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; z-index: 99999 !important;">
+    <div class="text-center rounded-lg p-6 md:p-8" style="background-color: #003366;">
+      <div class="animate-spin rounded-full h-10 w-10 md:h-12 md:w-12 border-4 border-t-transparent mx-auto mb-3 md:mb-4" style="border-color: #ffcc33;"></div>
+      <p class="text-base md:text-lg font-medium text-white px-4">Redirection en cours...</p>
+    </div>
+  </div>
+  <div v-else class="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-gray-50 dark:bg-gray-900">
     <div class="max-w-md w-full">
       <!-- Logo -->
       <div class="text-center mb-8">
@@ -385,6 +391,7 @@ export default {
     const showPasswordConfirmation = ref(false)
     const registrationDisabled = ref(false)
     const checkingRegistration = ref(true)
+    const isRedirectingSSO = ref(false)
     
     // Fonction helper pour décoder une URL (peut être multi-encodée)
     const decodeUrl = (urlString) => {
@@ -499,11 +506,26 @@ export default {
       error.value = ''
 
       try {
-        const response = await authStore.register(form)
+        // Récupérer les paramètres redirect et force_token de l'URL pour les passer à l'API
+        // Comme pour la connexion, pour permettre la redirection SSO après inscription
+        const registerData = { ...form }
+        if (route.query.redirect) {
+          registerData.redirect = route.query.redirect
+        }
+        if (route.query.force_token) {
+          registerData.force_token = route.query.force_token
+        }
+        if (route.query.client_domain) {
+          registerData.client_domain = route.query.client_domain
+        }
+        
+        const response = await authStore.register(registerData)
         
         // Si une redirection SSO est en cours, ne pas rediriger vers /dashboard
         // La redirection vers le site externe sera gérée par le store
         if (authStore.isSSORedirecting) {
+          // Afficher l'écran de chargement pendant la redirection
+          isRedirectingSSO.value = true
           // Ne rien faire, la redirection est déjà en cours
           return
         }
@@ -540,7 +562,9 @@ export default {
       registrationDisabled,
       checkingRegistration,
       externalSiteUrl,
-      handleReturnToSite
+      handleReturnToSite,
+      isRedirectingSSO,
+      router
     }
   }
 }
