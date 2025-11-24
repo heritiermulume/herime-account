@@ -594,56 +594,87 @@ class SimpleAuthController extends Controller
     public function logout(Request $request): JsonResponse
     {
         $user = $request->user();
+        $tokensRevoked = false;
+        $sessionsCleared = false;
+        $errors = [];
         
         if ($user) {
+            // Révoquer le token actuel utilisé pour cette requête
             try {
-                // Révoquer le token actuel utilisé pour cette requête
-                try {
-                    $authHeader = $request->header('Authorization');
-                    if ($authHeader && str_starts_with($authHeader, 'Bearer ')) {
-                        $token = substr($authHeader, 7);
-                        $tokenHash = hash('sha256', $token);
-                        $currentToken = \Laravel\Passport\Token::where('id', $tokenHash)
-                            ->where('revoked', false)
-                            ->first();
-                        if ($currentToken) {
-                            $currentToken->revoke();
-                        }
+                $authHeader = $request->header('Authorization');
+                if ($authHeader && str_starts_with($authHeader, 'Bearer ')) {
+                    $token = substr($authHeader, 7);
+                    $tokenHash = hash('sha256', $token);
+                    $currentToken = \Laravel\Passport\Token::where('id', $tokenHash)
+                        ->where('revoked', false)
+                        ->first();
+                    if ($currentToken) {
+                        $currentToken->revoke();
                     }
-                } catch (\Exception $e) {
-                    // Si le token actuel n'est pas accessible, continuer quand même
                 }
-                
-                // Révoquer TOUS les tokens Passport de l'utilisateur pour déconnecter tous les sites externes
-                // Cette opération invalide immédiatement tous les tokens (y compris celui déjà révoqué ci-dessus)
+            } catch (\Exception $e) {
+                $errors[] = 'current_token_revocation_failed';
+                \Log::warning('SimpleAuthController: Current token revocation failed', [
+                    'user_id' => $user->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+            
+            // Révoquer TOUS les tokens Passport de l'utilisateur
+            try {
                 $user->tokens()->update(['revoked' => true]);
-                
-                // Marquer TOUTES les sessions de l'utilisateur comme inactives (au lieu de les supprimer)
-                // Cela permet de garder l'historique des sessions pour l'audit
+                $tokensRevoked = true;
+            } catch (\Exception $e) {
+                $errors[] = 'tokens_revocation_failed';
+                \Log::error('SimpleAuthController: Tokens revocation failed', [
+                    'user_id' => $user->id,
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString()
+                ]);
+            }
+            
+            // Marquer TOUTES les sessions comme inactives
+            try {
                 $sessionsCount = $user->sessions()->count();
                 $user->sessions()->update([
                     'is_current' => false,
                     'last_activity' => now()
                 ]);
+                $sessionsCleared = true;
                 
                 \Log::info('SimpleAuthController: User logged out', [
                     'user_id' => $user->id,
                     'sessions_marked_inactive' => $sessionsCount,
-                    'tokens_revoked' => $user->tokens()->count(),
+                    'tokens_revoked' => $tokensRevoked,
+                    'errors' => $errors
                 ]);
             } catch (\Exception $e) {
-                // En cas d'erreur, essayer de continuer le logout quand même
-                \Log::error('SimpleAuthController: Error during logout', [
-                    'user_id' => $user ? $user->id : null,
+                $errors[] = 'sessions_clear_failed';
+                \Log::error('SimpleAuthController: Sessions clear failed', [
+                    'user_id' => $user->id,
                     'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString()
                 ]);
             }
         }
 
+        // Si au moins les sessions ont été nettoyées, considérer comme succès
+        // Même si la révocation des tokens échoue, l'utilisateur est déconnecté localement
+        if ($sessionsCleared || !$user) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Déconnexion réussie.',
+                'warnings' => !empty($errors) ? $errors : null
+            ]);
+        }
+        
+        // Si tout a échoué, retourner une erreur mais permettre au frontend de continuer
         return response()->json([
-            'success' => true,
-            'message' => 'Déconnexion réussie. Toutes les sessions ont été fermées et tous les tokens ont été invalidés.'
-        ]);
+            'success' => false,
+            'message' => 'Déconnexion partielle. Vous avez été déconnecté localement.',
+            'errors' => $errors,
+            'local_logout_recommended' => true
+        ], 200); // 200 au lieu de 500 pour permettre au frontend de gérer la déconnexion locale
     }
 
     /**
