@@ -219,11 +219,11 @@
             />
             <label for="terms" class="ml-2 block text-sm text-gray-700 dark:text-gray-300">
               J'accepte les
-              <a href="javascript:void(0)" class="hover:opacity-80" style="color: #ffcc33;">
+              <a href="#" class="hover:opacity-80" style="color: #ffcc33;">
                 conditions d'utilisation
               </a>
               et la
-              <a href="javascript:void(0)" class="hover:opacity-80" style="color: #ffcc33;">
+              <a href="#" class="hover:opacity-80" style="color: #ffcc33;">
                 politique de confidentialité
               </a>
             </label>
