@@ -499,8 +499,16 @@ export default {
       error.value = ''
 
       try {
-        await authStore.register(form)
-        // Redirect to dashboard after successful registration
+        const response = await authStore.register(form)
+        
+        // Si une redirection SSO est en cours, ne pas rediriger vers /dashboard
+        // La redirection vers le site externe sera gérée par le store
+        if (authStore.isSSORedirecting) {
+          // Ne rien faire, la redirection est déjà en cours
+          return
+        }
+        
+        // Sinon, rediriger vers le dashboard
         router.push('/dashboard')
       } catch (err) {
         if (err.response?.data?.errors) {

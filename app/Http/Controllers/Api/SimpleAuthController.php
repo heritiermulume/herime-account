@@ -99,15 +99,58 @@ class SimpleAuthController extends Controller
         $userData = $user->load('currentSession')->toArray();
         $userData['avatar_url'] = $user->avatar_url;
         
+        $responseData = [
+            'user' => $userData,
+            'authenticated' => true,
+            'access_token' => $token,
+            'token_type' => 'Bearer'
+        ];
+
+        // Vérifier si on doit rediriger vers un domaine externe après inscription
+        $redirectUrl = $this->determineRedirectUrl($request);
+        
+        // Si une redirection externe est nécessaire, générer le token SSO
+        if ($redirectUrl) {
+            $ssoToken = $user->createToken('SSO Token', ['profile'])->accessToken;
+            
+            // Construire l'URL de callback avec le token
+            $parsedUrl = parse_url($redirectUrl);
+            $queryParams = [];
+            
+            if (isset($parsedUrl['query'])) {
+                parse_str($parsedUrl['query'], $queryParams);
+            }
+            
+            $queryParams['token'] = $ssoToken;
+            $newQuery = http_build_query($queryParams);
+            
+            $callbackUrl = $parsedUrl['scheme'] . '://' . $parsedUrl['host'];
+            if (isset($parsedUrl['port'])) {
+                $callbackUrl .= ':' . $parsedUrl['port'];
+            }
+            if (isset($parsedUrl['path'])) {
+                $callbackUrl .= $parsedUrl['path'];
+            }
+            if ($newQuery) {
+                $callbackUrl .= '?' . $newQuery;
+            }
+            if (isset($parsedUrl['fragment'])) {
+                $callbackUrl .= '#' . $parsedUrl['fragment'];
+            }
+            
+            $responseData['sso_redirect_url'] = $callbackUrl;
+            $responseData['sso_token'] = $ssoToken;
+            
+            \Log::info('SimpleAuthController: SSO redirect URL generated after registration', [
+                'callback_url' => $callbackUrl,
+                'user_id' => $user->id,
+            ]);
+        }
+        
         return response()->json([
             'success' => true,
             'message' => 'Compte créé avec succès',
-            'data' => [
-                'user' => $userData,
-                'authenticated' => true,
-                'access_token' => $token,
-                'token_type' => 'Bearer'
-            ]
+            'data' => $responseData
         ], 201);
     }
 

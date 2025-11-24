@@ -224,16 +224,35 @@ export const useAuthStore = defineStore('auth', {
           localStorage.setItem('authenticated', 'true')
           localStorage.setItem('access_token', response.data.data.access_token)
           
-          // Nettoyer le flag sso_loop_detected après une inscription réussie
-          // Cela permet de réessayer la redirection SSO après inscription
+          // Si une redirection SSO est nécessaire, la gérer
+          if (response.data.data?.sso_redirect_url) {
+            this.isSSORedirecting = true
+            
+            // Marquer la redirection dans sessionStorage AVANT de rediriger
+            if (typeof window !== 'undefined' && typeof sessionStorage !== 'undefined') {
+              sessionStorage.setItem('sso_redirecting', 'true');
+              sessionStorage.setItem('sso_redirect_url', response.data.data.sso_redirect_url);
+              
+              // Rediriger immédiatement vers le site externe
+              // Utiliser replace() pour éviter d'ajouter à l'historique
+              window.location.replace(response.data.data.sso_redirect_url);
+              // Ne pas retourner, la redirection va se produire
+              return response.data;
+            }
+          } else {
+          }
+          
+          // Nettoyer les flags SSO seulement si pas de redirection SSO en cours
           if (typeof window !== 'undefined' && sessionStorage) {
-            sessionStorage.removeItem('sso_loop_detected')
-            // Nettoyer aussi les autres flags de redirection pour permettre une nouvelle tentative
-            sessionStorage.removeItem('sso_redirecting')
-            sessionStorage.removeItem('sso_redirecting_timestamp')
-            sessionStorage.removeItem('sso_redirecting_url')
-            sessionStorage.removeItem('sso_redirect_attempts')
-            sessionStorage.removeItem('sso_last_redirect_to')
+            const isRedirecting = sessionStorage.getItem('sso_redirecting') === 'true';
+            if (!isRedirecting) {
+              sessionStorage.removeItem('sso_loop_detected')
+              sessionStorage.removeItem('sso_redirecting')
+              sessionStorage.removeItem('sso_redirecting_timestamp')
+              sessionStorage.removeItem('sso_redirecting_url')
+              sessionStorage.removeItem('sso_redirect_attempts')
+              sessionStorage.removeItem('sso_last_redirect_to')
+            }
           }
           
           return response.data
