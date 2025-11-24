@@ -91,8 +91,15 @@ class SimpleAuthController extends Controller
             // Ignorer les erreurs d'envoi d'email
         } 
 
-        // Create access token for API authentication
-        $token = $user->createToken('API Token')->accessToken;
+        // Vérifier si on doit rediriger vers un domaine externe après inscription
+        $redirectUrl = $this->determineRedirectUrl($request);
+        
+        // Créer un seul token avec les bons scopes (évite la double génération qui cause des 503)
+        // Si redirection SSO nécessaire, créer un token SSO avec scope 'profile'
+        // Sinon, créer un token API standard
+        $tokenName = $redirectUrl ? 'SSO Token' : 'API Token';
+        $scopes = $redirectUrl ? ['profile'] : [];
+        $token = $user->createToken($tokenName, $scopes)->accessToken;
 
         // Forcer l'inclusion de avatar_url
         $user->makeVisible(['avatar', 'avatar_url']);
@@ -105,14 +112,9 @@ class SimpleAuthController extends Controller
             'access_token' => $token,
             'token_type' => 'Bearer'
         ];
-
-        // Vérifier si on doit rediriger vers un domaine externe après inscription
-        $redirectUrl = $this->determineRedirectUrl($request);
         
-        // Si une redirection externe est nécessaire, générer le token SSO
+        // Si une redirection externe est nécessaire, construire l'URL de callback
         if ($redirectUrl) {
-            $ssoToken = $user->createToken('SSO Token', ['profile'])->accessToken;
-            
             // Construire l'URL de callback avec le token
             $parsedUrl = parse_url($redirectUrl);
             $queryParams = [];
@@ -121,7 +123,7 @@ class SimpleAuthController extends Controller
                 parse_str($parsedUrl['query'], $queryParams);
             }
             
-            $queryParams['token'] = $ssoToken;
+            $queryParams['token'] = $token;
             $newQuery = http_build_query($queryParams);
             
             $callbackUrl = $parsedUrl['scheme'] . '://' . $parsedUrl['host'];
@@ -139,7 +141,7 @@ class SimpleAuthController extends Controller
             }
             
             $responseData['sso_redirect_url'] = $callbackUrl;
-            $responseData['sso_token'] = $ssoToken;
+            $responseData['sso_token'] = $token;
             
             \Log::info('SimpleAuthController: SSO redirect URL generated after registration', [
                 'callback_url' => $callbackUrl,
