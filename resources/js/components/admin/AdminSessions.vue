@@ -228,7 +228,7 @@ export default {
     }
 
     onMounted(() => {
-      if (!user.value || user.value.role !== 'super_user') {
+      if (!user.value || !['admin', 'super_user'].includes(user.value.role)) {
         router.push('/')
         return
       }

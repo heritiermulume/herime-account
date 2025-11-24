@@ -35,7 +35,7 @@
         </div>
       </div>
 
-      <div v-else-if="!isSuperUser" class="text-center">
+      <div v-else-if="!isAdmin" class="text-center">
         <div class="mx-auto h-12 w-12 flex items-center justify-center rounded-full bg-red-400">
           <svg class="h-8 w-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
@@ -45,7 +45,7 @@
           Accès refusé
         </h2>
         <p class="mt-2 text-center text-sm text-gray-600 dark:text-gray-400">
-          Seuls les super utilisateurs peuvent accéder à l'administration
+          Seuls les administrateurs peuvent accéder à cette section
         </p>
         <div class="mt-6">
           <router-link 
@@ -88,7 +88,7 @@ export default {
     const loading = ref(true)
     
     const isAuthenticated = computed(() => authStore.authenticated)
-    const isSuperUser = computed(() => authStore.user?.role === 'super_user')
+    const isAdmin = computed(() => ['admin', 'super_user'].includes(authStore.user?.role))
 
     onMounted(async () => {
       // Vérifier l'authentification
@@ -96,8 +96,8 @@ export default {
       
       loading.value = false
       
-      // Si l'utilisateur est authentifié et super utilisateur, rediriger vers le dashboard
-      if (isAuthenticated.value && isSuperUser.value) {
+      // Si l'utilisateur est authentifié et admin/super utilisateur, rediriger vers le dashboard
+      if (isAuthenticated.value && isAdmin.value) {
         setTimeout(() => {
           router.push('/admin/dashboard')
         }, 1000)
@@ -107,7 +107,7 @@ export default {
     return {
       loading,
       isAuthenticated,
-      isSuperUser
+      isAdmin
     }
   }
 }

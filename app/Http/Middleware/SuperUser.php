@@ -24,10 +24,10 @@ class SuperUser
             ], 401);
         }
         
-        if (!$user->isSuperUser()) {
+        if (!$user->isAdmin()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Accès refusé. Seuls les super utilisateurs peuvent accéder à cette section.'
+                'message' => 'Accès refusé. Seuls les administrateurs peuvent accéder à cette section.'
             ], 403);
         }
         

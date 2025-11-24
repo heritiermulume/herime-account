@@ -99,9 +99,9 @@
             À propos
           </router-link>
 
-          <!-- Administration - Only for super users -->
+          <!-- Administration - Only for super users and admins -->
               <router-link
-                v-if="user && user.role === 'super_user'"
+                v-if="user && ['admin', 'super_user'].includes(user.role)"
                 to="/admin/dashboard"
                 :class="[
                   'group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors duration-200',

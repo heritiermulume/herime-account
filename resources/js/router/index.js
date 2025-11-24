@@ -285,8 +285,8 @@ router.beforeEach(async (to, from, next) => {
       return
     }
     
-    // Vérifier les routes qui nécessitent un super utilisateur
-    if (to.meta.requiresSuperUser && user?.role !== 'super_user') {
+    // Vérifier les routes qui nécessitent un super utilisateur ou admin
+    if (to.meta.requiresSuperUser && !['admin', 'super_user'].includes(user?.role)) {
       next('/dashboard')
       return
     }

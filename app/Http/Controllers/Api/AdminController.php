@@ -102,15 +102,25 @@ class AdminController extends Controller
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
             'email' => 'required|email|max:255|unique:users,email,' . $user->id,
-            'phone' => 'nullable|string|max:20',
+            'phone' => 'nullable|string|max:20|unique:users,phone,' . $user->id,
             'company' => 'nullable|string|max:255',
             'position' => 'nullable|string|max:255',
+        ], [
+            'name.required' => 'Le nom complet est obligatoire.',
+            'name.max' => 'Le nom ne peut pas dépasser 255 caractères.',
+            'email.required' => 'L\'adresse email est obligatoire.',
+            'email.email' => 'Veuillez saisir une adresse email valide.',
+            'email.unique' => 'Cette adresse email est déjà utilisée par un autre compte.',
+            'phone.max' => 'Le numéro de téléphone ne peut pas dépasser 20 caractères.',
+            'phone.unique' => 'Ce numéro de téléphone est déjà utilisé par un autre compte.',
+            'company.max' => 'Le nom de l\'entreprise ne peut pas dépasser 255 caractères.',
+            'position.max' => 'Le poste ne peut pas dépasser 255 caractères.',
         ]);
 
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Validation failed',
+                'message' => 'Veuillez vérifier les informations saisies.',
                 'errors' => $validator->errors()
             ], 422);
         }
@@ -346,15 +356,26 @@ public function updateUserStatus(Request $request, $id): JsonResponse
         $validator = Validator::make($request->all(), [
             'name' => 'sometimes|required|string|max:255',
             'email' => 'sometimes|required|email|max:255|unique:users,email,' . $user->id,
-            'phone' => 'sometimes|nullable|string|max:20',
+            'phone' => 'sometimes|nullable|string|max:20|unique:users,phone,' . $user->id,
             'company' => 'sometimes|nullable|string|max:255',
             'position' => 'sometimes|nullable|string|max:255',
             'is_active' => 'sometimes|boolean',
+        ], [
+            'name.required' => 'Le nom complet est obligatoire.',
+            'name.max' => 'Le nom ne peut pas dépasser 255 caractères.',
+            'email.required' => 'L\'adresse email est obligatoire.',
+            'email.email' => 'Veuillez saisir une adresse email valide.',
+            'email.unique' => 'Cette adresse email est déjà utilisée par un autre compte.',
+            'phone.max' => 'Le numéro de téléphone ne peut pas dépasser 20 caractères.',
+            'phone.unique' => 'Ce numéro de téléphone est déjà utilisé par un autre compte.',
+            'company.max' => 'Le nom de l\'entreprise ne peut pas dépasser 255 caractères.',
+            'position.max' => 'Le poste ne peut pas dépasser 255 caractères.',
+            'is_active.boolean' => 'Le statut doit être un booléen.',
         ]);
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Validation failed',
+                'message' => 'Veuillez vérifier les informations saisies.',
                 'errors' => $validator->errors()
             ], 422);
         }

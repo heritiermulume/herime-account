@@ -87,9 +87,9 @@
                 <span class="text-xs font-medium">À propos</span>
               </router-link>
 
-              <!-- Administration - Only for super users -->
+              <!-- Administration - Only for super users and admins -->
              <router-link
-               v-if="user && user.role === 'super_user'"
+               v-if="user && ['admin', 'super_user'].includes(user.role)"
                to="/admin/dashboard"
                :class="[
                  'flex flex-col items-center py-2 px-3 rounded-lg transition-colors duration-200',

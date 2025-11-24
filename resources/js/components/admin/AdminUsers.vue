@@ -550,8 +550,8 @@ export default {
     }
 
     onMounted(() => {
-      // Vérifier si l'utilisateur est un super utilisateur
-      if (!user.value || user.value.role !== 'super_user') {
+      // Vérifier si l'utilisateur est un super utilisateur ou admin
+      if (!user.value || !['admin', 'super_user'].includes(user.value.role)) {
         router.push('/')
         return
       }

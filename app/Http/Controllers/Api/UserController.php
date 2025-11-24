@@ -54,19 +54,33 @@ class UserController extends Controller
         
         $validator = Validator::make($request->all(), [
             'name' => 'sometimes|required|string|max:255',
-            'phone' => 'sometimes|nullable|string|max:20',
+            'phone' => 'sometimes|nullable|string|max:20|unique:users,phone,' . $user->id,
             'company' => 'sometimes|nullable|string|max:255',
             'position' => 'sometimes|nullable|string|max:255',
             'bio' => 'sometimes|nullable|string|max:1000',
             'location' => 'sometimes|nullable|string|max:255',
             'website' => 'sometimes|nullable|url|max:255',
             'avatar' => 'sometimes|nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
+        ], [
+            'name.required' => 'Le nom complet est obligatoire.',
+            'name.max' => 'Le nom ne peut pas dépasser 255 caractères.',
+            'phone.max' => 'Le numéro de téléphone ne peut pas dépasser 20 caractères.',
+            'phone.unique' => 'Ce numéro de téléphone est déjà utilisé par un autre compte.',
+            'company.max' => 'Le nom de l\'entreprise ne peut pas dépasser 255 caractères.',
+            'position.max' => 'Le poste ne peut pas dépasser 255 caractères.',
+            'bio.max' => 'La biographie ne peut pas dépasser 1000 caractères.',
+            'location.max' => 'La localisation ne peut pas dépasser 255 caractères.',
+            'website.url' => 'Veuillez saisir une URL valide.',
+            'website.max' => 'L\'URL du site web ne peut pas dépasser 255 caractères.',
+            'avatar.image' => 'Le fichier doit être une image.',
+            'avatar.mimes' => 'L\'avatar doit être au format JPEG, PNG, JPG, GIF ou WEBP.',
+            'avatar.max' => 'L\'avatar ne peut pas dépasser 2 Mo.',
         ]);
 
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Validation failed',
+                'message' => 'Veuillez vérifier les informations saisies.',
                 'errors' => $validator->errors()
             ], 422);
         }

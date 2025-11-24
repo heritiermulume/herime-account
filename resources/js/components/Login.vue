@@ -30,16 +30,16 @@
         <form class="space-y-4" @submit.prevent="requiresTwoFactor ? handleVerify2FA() : handleLogin()">
           <div>
             <label for="email" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Adresse email
+              Email ou téléphone
             </label>
             <input
               id="email"
               v-model="form.email"
-              type="email"
+              type="text"
               required
               class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200 dark:bg-gray-700 dark:text-white"
               :class="{ 'border-red-500 focus:ring-red-500': errors.email }"
-              placeholder="votre@email.com"
+              placeholder="votre@email.com ou +243 000 000 000"
             />
             <p v-if="errors.email" class="mt-1 text-sm text-red-600 dark:text-red-400">
               {{ errors.email[0] }}

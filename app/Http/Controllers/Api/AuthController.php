@@ -24,9 +24,21 @@ class AuthController extends Controller
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
             'password' => 'required|string|min:8|confirmed',
-            'phone' => 'nullable|string|max:20',
+            'phone' => 'required|string|max:20|unique:users',
             'company' => 'nullable|string|max:255',
             'position' => 'nullable|string|max:255',
+        ], [
+            'name.required' => 'Le nom complet est obligatoire.',
+            'name.max' => 'Le nom ne peut pas dépasser 255 caractères.',
+            'email.required' => 'L\'adresse email est obligatoire.',
+            'email.email' => 'Veuillez saisir une adresse email valide.',
+            'email.unique' => 'Cette adresse email est déjà utilisée par un autre compte.',
+            'password.required' => 'Le mot de passe est obligatoire.',
+            'password.min' => 'Le mot de passe doit contenir au moins 8 caractères.',
+            'password.confirmed' => 'Les mots de passe ne correspondent pas.',
+            'phone.required' => 'Le numéro de téléphone est obligatoire.',
+            'phone.max' => 'Le numéro de téléphone ne peut pas dépasser 20 caractères.',
+            'phone.unique' => 'Ce numéro de téléphone est déjà utilisé par un autre compte.',
         ]);
 
         if ($validator->fails()) {
@@ -71,8 +83,11 @@ class AuthController extends Controller
     public function login(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [
-            'email' => 'required|email',
+            'email' => 'required|string',
             'password' => 'required|string',
+        ], [
+            'email.required' => 'L\'email ou le numéro de téléphone est obligatoire.',
+            'password.required' => 'Le mot de passe est obligatoire.',
         ]);
 
         if ($validator->fails()) {
@@ -83,16 +98,25 @@ class AuthController extends Controller
             ], 422);
         }
 
-        $credentials = $request->only('email', 'password');
+        $login = $request->input('email'); // Peut être email ou téléphone
+        $password = $request->input('password');
 
-        if (!Auth::attempt($credentials)) {
+        // Déterminer si c'est un email ou un téléphone
+        $fieldType = filter_var($login, FILTER_VALIDATE_EMAIL) ? 'email' : 'phone';
+        
+        // Chercher l'utilisateur
+        $user = User::where($fieldType, $login)->first();
+        
+        // Vérifier si l'utilisateur existe et si le mot de passe est correct
+        if (!$user || !Hash::check($password, $user->password)) {
             return response()->json([
                 'success' => false,
-                'message' => 'Identifiants incorrects. Veuillez vérifier votre email et mot de passe.'
+                'message' => 'Identifiants incorrects. Veuillez vérifier votre email/téléphone et mot de passe.'
             ], 401);
         }
-
-        $user = Auth::user();
+        
+        // Authentifier l'utilisateur manuellement
+        Auth::login($user);
 
         if (!$user->isActive()) {
             return response()->json([
