@@ -292,23 +292,10 @@ export const useAuthStore = defineStore('auth', {
       this.loading = true
 
       try {
-        const response = await axios.post('/logout')
-        
-        // Si le serveur retourne des warnings, les logger mais continuer
-        if (response.data?.warnings) {
-          console.warn('Logout warnings:', response.data.warnings)
-        }
+        await axios.post('/logout')
       } catch (error) {
-        // Ignorer les erreurs et forcer la déconnexion locale
-        // Cela garantit que l'utilisateur est déconnecté même si le serveur est down
-        console.warn('Logout error (ignored, forcing local logout):', error.response?.status, error.message)
-        
-        // Si le backend recommande une déconnexion locale, la faire
-        if (error.response?.data?.local_logout_recommended) {
-          console.info('Local logout recommended by server')
-        }
+        // Ignorer les erreurs (ex: 401 si le token est déjà invalide)
       } finally {
-        // TOUJOURS déconnecter localement, même en cas d'erreur serveur
         this.resetAuthState()
         this.loading = false
       }

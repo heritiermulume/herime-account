@@ -98,23 +98,8 @@ class SimpleAuthController extends Controller
         // Si redirection SSO nécessaire, créer un token SSO avec scope 'profile'
         // Sinon, créer un token API standard
         try {
-            // Augmenter le timeout pour cette opération
-            set_time_limit(30);
-            
             $tokenName = $redirectUrl ? 'SSO Token' : 'API Token';
             $scopes = $redirectUrl ? ['profile'] : [];
-            
-            // Nettoyer les vieux tokens de l'utilisateur avant d'en créer un nouveau
-            // pour éviter la surcharge de la table
-            try {
-                $user->tokens()
-                    ->where('revoked', true)
-                    ->where('created_at', '<', now()->subDays(7))
-                    ->delete();
-            } catch (\Exception $e) {
-                // Ignorer les erreurs de nettoyage
-            }
-            
             $token = $user->createToken($tokenName, $scopes)->accessToken;
         } catch (\Exception $e) {
             \Log::error('SimpleAuthController: Token creation failed during registration', [
@@ -127,8 +112,7 @@ class SimpleAuthController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Une erreur est survenue lors de la création de votre session. Veuillez réessayer dans quelques instants.',
-                'error_code' => 'TOKEN_CREATION_FAILED',
-                'debug_info' => config('app.debug') ? $e->getMessage() : null
+                'error_code' => 'TOKEN_CREATION_FAILED'
             ], 500);
         }
 
@@ -310,32 +294,7 @@ class SimpleAuthController extends Controller
         $user->refresh();
         
         // Create access token for API authentication
-        try {
-            set_time_limit(30);
-            
-            // Nettoyer les vieux tokens révoqués de l'utilisateur
-            try {
-                $user->tokens()
-                    ->where('revoked', true)
-                    ->where('created_at', '<', now()->subDays(7))
-                    ->delete();
-            } catch (\Exception $e) {
-                // Ignorer les erreurs de nettoyage
-            }
-            
-            $token = $user->createToken('API Token')->accessToken;
-        } catch (\Exception $e) {
-            \Log::error('SimpleAuthController: Token creation failed during login', [
-                'user_id' => $user->id,
-                'error' => $e->getMessage(),
-            ]);
-            
-            return response()->json([
-                'success' => false,
-                'message' => 'Une erreur est survenue lors de la connexion. Veuillez réessayer.',
-                'error_code' => 'TOKEN_CREATION_FAILED'
-            ], 500);
-        }
+        $token = $user->createToken('API Token')->accessToken;
 
         // Vérifier si on doit rediriger vers un domaine externe après connexion
         // Pour une requête POST, les paramètres sont dans le body, pas dans la query string
@@ -538,32 +497,7 @@ class SimpleAuthController extends Controller
         $user->refresh();
         
         // Create access token for API authentication
-        try {
-            set_time_limit(30);
-            
-            // Nettoyer les vieux tokens révoqués de l'utilisateur
-            try {
-                $user->tokens()
-                    ->where('revoked', true)
-                    ->where('created_at', '<', now()->subDays(7))
-                    ->delete();
-            } catch (\Exception $e) {
-                // Ignorer les erreurs de nettoyage
-            }
-            
-            $token = $user->createToken('API Token')->accessToken;
-        } catch (\Exception $e) {
-            \Log::error('SimpleAuthController: Token creation failed after 2FA', [
-                'user_id' => $user->id,
-                'error' => $e->getMessage(),
-            ]);
-            
-            return response()->json([
-                'success' => false,
-                'message' => 'Une erreur est survenue lors de la vérification. Veuillez réessayer.',
-                'error_code' => 'TOKEN_CREATION_FAILED'
-            ], 500);
-        }
+        $token = $user->createToken('API Token')->accessToken;
 
         // Vérifier si on doit rediriger vers un domaine externe après vérification 2FA
         // Pour une requête POST, les paramètres sont dans le body, pas dans la query string
@@ -660,94 +594,56 @@ class SimpleAuthController extends Controller
     public function logout(Request $request): JsonResponse
     {
         $user = $request->user();
-        $tokensRevoked = false;
-        $sessionsCleared = false;
-        $errors = [];
         
         if ($user) {
-            // Révoquer le token actuel utilisé pour cette requête
             try {
-                $authHeader = $request->header('Authorization');
-                if ($authHeader && str_starts_with($authHeader, 'Bearer ')) {
-                    $token = substr($authHeader, 7);
-                    $tokenHash = hash('sha256', $token);
-                    $currentToken = \Laravel\Passport\Token::where('id', $tokenHash)
-                        ->where('revoked', false)
-                        ->first();
-                    if ($currentToken) {
-                        $currentToken->revoke();
+                // Révoquer le token actuel utilisé pour cette requête
+                try {
+                    $authHeader = $request->header('Authorization');
+                    if ($authHeader && str_starts_with($authHeader, 'Bearer ')) {
+                        $token = substr($authHeader, 7);
+                        $tokenHash = hash('sha256', $token);
+                        $currentToken = \Laravel\Passport\Token::where('id', $tokenHash)
+                            ->where('revoked', false)
+                            ->first();
+                        if ($currentToken) {
+                            $currentToken->revoke();
+                        }
                     }
+                } catch (\Exception $e) {
+                    // Si le token actuel n'est pas accessible, continuer quand même
                 }
-            } catch (\Exception $e) {
-                $errors[] = 'current_token_revocation_failed';
-                \Log::warning('SimpleAuthController: Current token revocation failed', [
-                    'user_id' => $user->id,
-                    'error' => $e->getMessage(),
-                ]);
-            }
-            
-            // Révoquer TOUS les tokens Passport de l'utilisateur
-            try {
-                set_time_limit(30);
                 
-                // Révoquer directement sans compter (plus rapide)
-                \DB::table('oauth_access_tokens')
-                    ->where('user_id', $user->id)
-                    ->where('revoked', false)
-                    ->update(['revoked' => true]);
+                // Révoquer TOUS les tokens Passport de l'utilisateur pour déconnecter tous les sites externes
+                // Cette opération invalide immédiatement tous les tokens (y compris celui déjà révoqué ci-dessus)
+                $user->tokens()->update(['revoked' => true]);
                 
-                $tokensRevoked = true;
-            } catch (\Exception $e) {
-                $errors[] = 'tokens_revocation_failed';
-                \Log::error('SimpleAuthController: Tokens revocation failed', [
-                    'user_id' => $user->id,
-                    'error' => $e->getMessage(),
-                    'trace' => $e->getTraceAsString()
-                ]);
-            }
-            
-            // Marquer TOUTES les sessions comme inactives
-            try {
+                // Marquer TOUTES les sessions de l'utilisateur comme inactives (au lieu de les supprimer)
+                // Cela permet de garder l'historique des sessions pour l'audit
                 $sessionsCount = $user->sessions()->count();
                 $user->sessions()->update([
                     'is_current' => false,
                     'last_activity' => now()
                 ]);
-                $sessionsCleared = true;
                 
                 \Log::info('SimpleAuthController: User logged out', [
                     'user_id' => $user->id,
                     'sessions_marked_inactive' => $sessionsCount,
-                    'tokens_revoked' => $tokensRevoked ? 'yes' : 'no',
-                    'errors' => $errors
+                    'tokens_revoked' => $user->tokens()->count(),
                 ]);
             } catch (\Exception $e) {
-                $errors[] = 'sessions_clear_failed';
-                \Log::error('SimpleAuthController: Sessions clear failed', [
-                    'user_id' => $user->id,
+                // En cas d'erreur, essayer de continuer le logout quand même
+                \Log::error('SimpleAuthController: Error during logout', [
+                    'user_id' => $user ? $user->id : null,
                     'error' => $e->getMessage(),
-                    'trace' => $e->getTraceAsString()
                 ]);
             }
         }
 
-        // Si au moins les sessions ont été nettoyées, considérer comme succès
-        // Même si la révocation des tokens échoue, l'utilisateur est déconnecté localement
-        if ($sessionsCleared || !$user) {
-            return response()->json([
-                'success' => true,
-                'message' => 'Déconnexion réussie.',
-                'warnings' => !empty($errors) ? $errors : null
-            ]);
-        }
-        
-        // Si tout a échoué, retourner une erreur mais permettre au frontend de continuer
         return response()->json([
-            'success' => false,
-            'message' => 'Déconnexion partielle. Vous avez été déconnecté localement.',
-            'errors' => $errors,
-            'local_logout_recommended' => true
-        ], 200); // 200 au lieu de 500 pour permettre au frontend de gérer la déconnexion locale
+            'success' => true,
+            'message' => 'Déconnexion réussie. Toutes les sessions ont été fermées et tous les tokens ont été invalidés.'
+        ]);
     }
 
     /**
