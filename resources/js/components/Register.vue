@@ -541,6 +541,10 @@ export default {
           error.value = 'Veuillez vérifier les informations saisies.'
         } else if (err.response?.status === 409) {
           error.value = 'Cette adresse email est déjà utilisée.'
+        } else if (err.response?.status === 503) {
+          error.value = 'Le serveur est temporairement surchargé. Veuillez réessayer dans quelques instants.'
+        } else if (err.response?.status === 500) {
+          error.value = 'Une erreur serveur est survenue. Si le problème persiste, contactez le support.'
         } else if (err.response?.status === 404) {
           error.value = 'Service non disponible. Veuillez réessayer plus tard.'
         } else {

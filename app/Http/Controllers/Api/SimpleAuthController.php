@@ -97,9 +97,24 @@ class SimpleAuthController extends Controller
         // Créer un seul token avec les bons scopes (évite la double génération qui cause des 503)
         // Si redirection SSO nécessaire, créer un token SSO avec scope 'profile'
         // Sinon, créer un token API standard
-        $tokenName = $redirectUrl ? 'SSO Token' : 'API Token';
-        $scopes = $redirectUrl ? ['profile'] : [];
-        $token = $user->createToken($tokenName, $scopes)->accessToken;
+        try {
+            $tokenName = $redirectUrl ? 'SSO Token' : 'API Token';
+            $scopes = $redirectUrl ? ['profile'] : [];
+            $token = $user->createToken($tokenName, $scopes)->accessToken;
+        } catch (\Exception $e) {
+            \Log::error('SimpleAuthController: Token creation failed during registration', [
+                'user_id' => $user->id,
+                'user_email' => $user->email,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Une erreur est survenue lors de la création de votre session. Veuillez réessayer dans quelques instants.',
+                'error_code' => 'TOKEN_CREATION_FAILED'
+            ], 500);
+        }
 
         // Forcer l'inclusion de avatar_url
         $user->makeVisible(['avatar', 'avatar_url']);
