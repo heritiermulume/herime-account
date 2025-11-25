@@ -38,6 +38,15 @@ axios.interceptors.response.use(
     return response
   },
   async (error) => {
+    // Personnaliser les messages d'erreur en français
+    if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
+      error.message = 'La requête a pris trop de temps. Veuillez vérifier votre connexion et réessayer.'
+    } else if (error.code === 'ERR_NETWORK' || error.message.includes('Network Error')) {
+      error.message = 'Erreur de connexion au serveur. Veuillez vérifier votre connexion internet.'
+    } else if (error.code === 'ERR_BAD_REQUEST' && !error.response) {
+      error.message = 'Erreur lors de la requête. Veuillez réessayer.'
+    }
+    
     // If 401 (Unauthorized), force logout and redirect to login (except on auth pages)
     if (error.response?.status === 401 && !isRedirecting) {
       const currentPath = window.location.pathname
@@ -62,6 +71,7 @@ axios.interceptors.response.use(
         }
       }
     }
+    
     return Promise.reject(error)
   }
 )
