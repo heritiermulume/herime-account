@@ -86,7 +86,7 @@
             </div>
           </div>
 
-          <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div class="grid grid-cols-2 gap-4">
             <div>
               <label for="gender" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
                 Sexe
@@ -115,6 +115,7 @@
                 id="birthdate"
                 v-model="form.birthdate"
                 type="date"
+                placeholder="JJ/MM/AAAA"
                 class="input-field mt-1"
                 :class="{ 'border-red-500': errors.birthdate }"
               />

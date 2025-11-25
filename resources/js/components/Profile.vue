@@ -130,6 +130,7 @@
                 id="birthdate"
                 v-model="form.birthdate"
                 type="date"
+                placeholder="JJ/MM/AAAA"
                 class="mt-1 block w-full h-10 px-3 border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm sm:text-sm"
                 style="focus:ring-color: #003366; focus:border-color: #003366;"
               />
