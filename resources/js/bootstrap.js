@@ -19,18 +19,44 @@ axios.defaults.headers.common['X-Requested-With'] = 'XMLHttpRequest'
 // Set timeout to 10 seconds to prevent long waits
 axios.defaults.timeout = 10000
 
-// Désactiver les logs d'erreur Axios en production
+// Désactiver tous les logs de requêtes HTTP en production
 if (import.meta && import.meta.env && import.meta.env.PROD) {
-  // Intercepter et supprimer les logs d'erreur automatiques
+  // Sauvegarder les fonctions originales
   const originalError = console.error
+  const originalWarn = console.warn
+  
+  // Filtrer tous les logs HTTP
   console.error = function(...args) {
-    // Ne pas afficher les erreurs Axios dans la console en production
-    if (args[0] && typeof args[0] === 'string' && 
-        (args[0].includes('POST') || args[0].includes('GET') || args[0].includes('PUT') || args[0].includes('DELETE')) &&
-        (args[0].includes('401') || args[0].includes('404') || args[0].includes('500') || args[0].includes('403'))) {
+    // Convertir tous les arguments en string pour vérifier
+    const message = args.map(arg => String(arg)).join(' ')
+    
+    // Bloquer tous les logs de requêtes HTTP (GET, POST, PUT, DELETE, etc.)
+    if (message.includes('/api/') || 
+        message.includes('POST ') || 
+        message.includes('GET ') || 
+        message.includes('PUT ') || 
+        message.includes('DELETE ') ||
+        message.includes('PATCH ') ||
+        message.includes('401') || 
+        message.includes('403') || 
+        message.includes('404') || 
+        message.includes('500') ||
+        message.includes('Unauthorized') ||
+        message.includes('Forbidden') ||
+        message.includes('Not Found')) {
+      return // Ne rien afficher
+    }
+    
+    // Afficher les autres erreurs
+    originalError.apply(console, args)
+  }
+  
+  console.warn = function(...args) {
+    const message = args.map(arg => String(arg)).join(' ')
+    if (message.includes('/api/') || message.includes('401') || message.includes('403')) {
       return
     }
-    originalError.apply(console, args)
+    originalWarn.apply(console, args)
   }
 }
 
