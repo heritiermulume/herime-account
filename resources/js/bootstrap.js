@@ -19,14 +19,35 @@ axios.defaults.headers.common['X-Requested-With'] = 'XMLHttpRequest'
 // Set timeout to 10 seconds to prevent long waits
 axios.defaults.timeout = 10000
 
-// Set up axios interceptor for token
-axios.interceptors.request.use((config) => {
-  const token = localStorage.getItem('access_token')
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`
+// Désactiver les logs d'erreur Axios en production
+if (import.meta && import.meta.env && import.meta.env.PROD) {
+  // Intercepter et supprimer les logs d'erreur automatiques
+  const originalError = console.error
+  console.error = function(...args) {
+    // Ne pas afficher les erreurs Axios dans la console en production
+    if (args[0] && typeof args[0] === 'string' && 
+        (args[0].includes('POST') || args[0].includes('GET') || args[0].includes('PUT') || args[0].includes('DELETE')) &&
+        (args[0].includes('401') || args[0].includes('404') || args[0].includes('500') || args[0].includes('403'))) {
+      return
+    }
+    originalError.apply(console, args)
   }
-  return config
-})
+}
+
+// Set up axios interceptor for token
+axios.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('access_token')
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`
+    }
+    return config
+  },
+  (error) => {
+    // Supprimer les logs d'erreur de requête
+    return Promise.reject(error)
+  }
+)
 
 // Set up response interceptor for auto-logout on 401
 let isRedirecting = false
