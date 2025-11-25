@@ -27,6 +27,36 @@
           </p>
         </div>
 
+        <!-- Progress indicator -->
+        <div v-if="!checkingRegistration && !registrationDisabled" class="flex items-center justify-center space-x-4 py-4">
+          <div class="flex items-center">
+            <div 
+              class="flex items-center justify-center w-10 h-10 rounded-full border-2 transition-all duration-300"
+              :class="currentStep >= 1 ? 'bg-blue-600 border-blue-600 text-white' : 'border-gray-300 dark:border-gray-600 text-gray-500'"
+              style="background-color: currentStep >= 1 ? '#003366' : 'transparent'"
+            >
+              <span v-if="currentStep > 1">✓</span>
+              <span v-else>1</span>
+            </div>
+            <span class="ml-2 text-sm font-medium" :class="currentStep === 1 ? 'text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400'">
+              Informations personnelles
+            </span>
+          </div>
+          <div class="w-12 h-1 rounded" :class="currentStep >= 2 ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'" :style="{ backgroundColor: currentStep >= 2 ? '#003366' : '' }"></div>
+          <div class="flex items-center">
+            <div 
+              class="flex items-center justify-center w-10 h-10 rounded-full border-2 transition-all duration-300"
+              :class="currentStep >= 2 ? 'bg-blue-600 border-blue-600 text-white' : 'border-gray-300 dark:border-gray-600 text-gray-500'"
+              style="background-color: currentStep >= 2 ? '#003366' : 'transparent'"
+            >
+              2
+            </div>
+            <span class="ml-2 text-sm font-medium" :class="currentStep === 2 ? 'text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400'">
+              Identifiants
+            </span>
+          </div>
+        </div>
+
         <!-- Loading state -->
         <div v-if="checkingRegistration" class="flex justify-center items-center py-8">
           <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
@@ -59,16 +89,17 @@
           </button>
         </div>
         
-        <form v-else class="space-y-4" @submit.prevent="handleRegister" :class="{ 'opacity-50 pointer-events-none': registrationDisabled }">
-          <div>
-            <label for="name" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Nom complet
-            </label>
+        <form v-else class="space-y-4" @submit.prevent="handleSubmit" @keydown.enter.prevent="handleEnterKey" :class="{ 'opacity-50 pointer-events-none': registrationDisabled }">
+          <!-- Étape 1: Informations personnelles -->
+          <div v-show="currentStep === 1" class="space-y-4">
+            <div>
+              <label for="name" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Nom complet
+              </label>
             <input
               id="name"
               v-model="form.name"
               type="text"
-              required
               class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200 dark:bg-gray-700 dark:text-white"
               :class="{ 'border-red-500 focus:ring-red-500': errors.name }"
               placeholder="Votre nom complet"
@@ -86,7 +117,6 @@
               id="email"
               v-model="form.email"
               type="email"
-              required
               class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200 dark:bg-gray-700 dark:text-white"
               :class="{ 'border-red-500 focus:ring-red-500': errors.email }"
               placeholder="mail@exemple.com"
@@ -104,7 +134,6 @@
               id="phone"
               v-model="form.phone"
               type="tel"
-              required
               class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200 dark:bg-gray-700 dark:text-white"
               :class="{ 'border-red-500 focus:ring-red-500': errors.phone }"
               placeholder="+243 000 000 000"
@@ -114,6 +143,47 @@
             </p>
           </div>
           
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label for="gender" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Sexe
+              </label>
+              <select
+                id="gender"
+                v-model="form.gender"
+                class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200 dark:bg-gray-700 dark:text-white"
+                :class="{ 'border-red-500 focus:ring-red-500': errors.gender }"
+              >
+                <option value="">Sélectionnez votre sexe</option>
+                <option value="masculin">Masculin</option>
+                <option value="feminin">Féminin</option>
+                <option value="autre">Autre</option>
+              </select>
+              <p v-if="errors.gender" class="mt-1 text-sm text-red-600 dark:text-red-400">
+                {{ errors.gender[0] }}
+              </p>
+            </div>
+            
+            <div>
+              <label for="birthdate" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Date de naissance
+              </label>
+              <input
+                id="birthdate"
+                v-model="form.birthdate"
+                type="date"
+                class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200 dark:bg-gray-700 dark:text-white"
+                :class="{ 'border-red-500 focus:ring-red-500': errors.birthdate }"
+              />
+              <p v-if="errors.birthdate" class="mt-1 text-sm text-red-600 dark:text-red-400">
+                {{ errors.birthdate[0] }}
+              </p>
+            </div>
+          </div>
+          </div>
+          
+          <!-- Étape 2: Identifiants et informations professionnelles -->
+          <div v-show="currentStep === 2" class="space-y-4">
           <div>
             <label for="company" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Entreprise (optionnel)
@@ -157,7 +227,6 @@
                 id="password"
                 v-model="form.password"
                 :type="showPassword ? 'text' : 'password'"
-                required
                 class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200 dark:bg-gray-700 dark:text-white pr-12"
                 :class="{ 'border-red-500 focus:ring-red-500': errors.password }"
                 placeholder="Votre mot de passe"
@@ -190,7 +259,6 @@
                 id="password_confirmation"
                 v-model="form.password_confirmation"
                 :type="showPasswordConfirmation ? 'text' : 'password'"
-                required
                 class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200 dark:bg-gray-700 dark:text-white pr-12"
                 :class="{ 'border-red-500 focus:ring-red-500': errors.password_confirmation }"
                 placeholder="Confirmez votre mot de passe"
@@ -219,7 +287,6 @@
               id="terms"
               v-model="form.terms"
               type="checkbox"
-              required
               class="h-4 w-4 border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
               style="accent-color: #003366;"
             />
@@ -234,7 +301,9 @@
               </a>
             </label>
           </div>
+          </div>
 
+          <!-- Message d'erreur -->
           <div v-if="error" class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
             <div class="flex">
               <svg class="h-5 w-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
@@ -246,20 +315,45 @@
             </div>
           </div>
 
-          <button
-            type="submit"
-            :disabled="loading"
-            class="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:ring-blue-200 text-white font-medium rounded-lg transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-            style="background-color: #003366;"
-            @mouseenter="$event.target.style.backgroundColor = '#ffcc33'"
-            @mouseleave="$event.target.style.backgroundColor = '#003366'"
-          >
-            <span v-if="loading" class="flex items-center justify-center">
-              <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-              Création du compte...
-            </span>
-            <span v-else>Créer le compte</span>
-          </button>
+          <!-- Navigation buttons -->
+          <div class="flex gap-3">
+            <button
+              v-if="currentStep === 2"
+              type="button"
+              @click="previousStep"
+              class="flex-1 py-3 px-4 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-white font-medium rounded-lg transition duration-200"
+            >
+              Précédent
+            </button>
+            
+            <button
+              v-if="currentStep === 1"
+              type="button"
+              @click="nextStep"
+              class="flex-1 py-3 px-4 text-white font-medium rounded-lg transition duration-200"
+              style="background-color: #003366;"
+              @mouseenter="$event.target.style.backgroundColor = '#ffcc33'"
+              @mouseleave="$event.target.style.backgroundColor = '#003366'"
+            >
+              Suivant
+            </button>
+            
+            <button
+              v-if="currentStep === 2"
+              type="submit"
+              :disabled="loading"
+              class="flex-1 py-3 px-4 text-white font-medium rounded-lg transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              style="background-color: #003366;"
+              @mouseenter="!loading && ($event.target.style.backgroundColor = '#ffcc33')"
+              @mouseleave="!loading && ($event.target.style.backgroundColor = '#003366')"
+            >
+              <span v-if="loading" class="flex items-center justify-center">
+                <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                Création du compte...
+              </span>
+              <span v-else>Créer le compte</span>
+            </button>
+          </div>
         </form>
         
         <!-- Lien vers la connexion -->
@@ -377,6 +471,8 @@ export default {
       name: '',
       email: '',
       phone: '',
+      gender: '',
+      birthdate: '',
       company: '',
       position: '',
       password: '',
@@ -392,6 +488,7 @@ export default {
     const registrationDisabled = ref(false)
     const checkingRegistration = ref(true)
     const isRedirectingSSO = ref(false)
+    const currentStep = ref(1)
     
     // Fonction helper pour décoder une URL (peut être multi-encodée)
     const decodeUrl = (urlString) => {
@@ -495,15 +592,100 @@ export default {
       }
     }
 
+    const nextStep = () => {
+      // Valider les champs de l'étape 1 avant de passer à l'étape 2
+      errors.value = {}
+      error.value = ''
+      
+      // Vérifier que tous les champs obligatoires de l'étape 1 sont remplis
+      if (!form.name || !form.name.trim()) {
+        error.value = 'Le nom complet est obligatoire.'
+        return
+      }
+      if (!form.email || !form.email.trim()) {
+        error.value = 'L\'adresse email est obligatoire.'
+        return
+      }
+      // Validation basique du format email
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+      if (!emailRegex.test(form.email.trim())) {
+        error.value = 'Veuillez saisir une adresse email valide.'
+        return
+      }
+      if (!form.phone || !form.phone.trim()) {
+        error.value = 'Le numéro de téléphone est obligatoire.'
+        return
+      }
+      if (!form.gender) {
+        error.value = 'Le sexe est obligatoire.'
+        return
+      }
+      if (!form.birthdate) {
+        error.value = 'La date de naissance est obligatoire.'
+        return
+      }
+      
+      // Tout est bon, passer à l'étape 2
+      currentStep.value = 2
+      // Scroll to top
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+    
+    const previousStep = () => {
+      errors.value = {}
+      error.value = ''
+      currentStep.value = 1
+      // Scroll to top
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+    
+    const handleSubmit = () => {
+      if (currentStep.value === 1) {
+        nextStep()
+      } else if (currentStep.value === 2) {
+        handleRegister()
+      }
+    }
+    
+    const handleEnterKey = (event) => {
+      // Empêcher la soumission du formulaire avec Enter
+      // L'utilisateur doit cliquer sur les boutons
+      event.preventDefault()
+      event.stopPropagation()
+    }
+
     const handleRegister = async () => {
       // Bloquer si l'inscription est désactivée
       if (registrationDisabled.value) {
         return
       }
       
-      loading.value = true
+      // Valider les champs de l'étape 2
       errors.value = {}
       error.value = ''
+      
+      if (!form.password || !form.password.trim()) {
+        error.value = 'Le mot de passe est obligatoire.'
+        return
+      }
+      if (form.password.trim().length < 8) {
+        error.value = 'Le mot de passe doit contenir au moins 8 caractères.'
+        return
+      }
+      if (!form.password_confirmation || !form.password_confirmation.trim()) {
+        error.value = 'Veuillez confirmer votre mot de passe.'
+        return
+      }
+      if (form.password.trim() !== form.password_confirmation.trim()) {
+        error.value = 'Les mots de passe ne correspondent pas.'
+        return
+      }
+      if (!form.terms) {
+        error.value = 'Vous devez accepter les conditions d\'utilisation et la politique de confidentialité.'
+        return
+      }
+      
+      loading.value = true
 
       try {
         // Récupérer les paramètres redirect et force_token de l'URL pour les passer à l'API
@@ -563,6 +745,11 @@ export default {
       showPassword,
       showPasswordConfirmation,
       handleRegister,
+      handleSubmit,
+      handleEnterKey,
+      nextStep,
+      previousStep,
+      currentStep,
       registrationDisabled,
       checkingRegistration,
       externalSiteUrl,

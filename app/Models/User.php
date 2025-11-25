@@ -24,6 +24,8 @@ class User extends Authenticatable implements MustVerifyEmail
         'email',
         'password',
         'phone',
+        'gender',
+        'birthdate',
         'avatar',
         'avatar_filename',
         'company',
@@ -64,6 +66,7 @@ class User extends Authenticatable implements MustVerifyEmail
             'is_active' => 'boolean',
             'last_login_at' => 'datetime',
             'two_factor_confirmed_at' => 'datetime',
+            'birthdate' => 'date:Y-m-d',
             'preferences' => 'array',
         ];
     }

@@ -39,6 +39,8 @@ class SimpleAuthController extends Controller
             'email' => 'required|string|email|max:255|unique:users',
             'password' => 'required|string|min:8|confirmed',
             'phone' => 'required|string|max:20|unique:users',
+            'gender' => 'required|in:masculin,feminin,autre',
+            'birthdate' => 'required|date|before:today',
             'company' => 'nullable|string|max:255',
             'position' => 'nullable|string|max:255',
         ], [
@@ -53,6 +55,11 @@ class SimpleAuthController extends Controller
             'phone.required' => 'Le numéro de téléphone est obligatoire.',
             'phone.max' => 'Le numéro de téléphone ne peut pas dépasser 20 caractères.',
             'phone.unique' => 'Ce numéro de téléphone est déjà utilisé par un autre compte.',
+            'gender.required' => 'Le sexe est obligatoire.',
+            'gender.in' => 'Veuillez sélectionner un sexe valide.',
+            'birthdate.required' => 'La date de naissance est obligatoire.',
+            'birthdate.date' => 'Veuillez saisir une date valide.',
+            'birthdate.before' => 'La date de naissance doit être antérieure à aujourd\'hui.',
         ]);
 
         if ($validator->fails()) {
@@ -63,22 +70,55 @@ class SimpleAuthController extends Controller
             ], 422);
         }
 
-        $user = User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
-            'phone' => $request->phone,
-            'company' => $request->company,
-            'position' => $request->position,
-        ]);
+        // Créer l'utilisateur avec gestion d'erreur
+        try {
+            $user = User::create([
+                'name' => $request->name,
+                'email' => $request->email,
+                'password' => Hash::make($request->password),
+                'phone' => $request->phone,
+                'gender' => $request->gender,
+                'birthdate' => $request->birthdate,
+                'company' => $request->company,
+                'position' => $request->position,
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('SimpleAuthController: User creation failed during registration', [
+                'email' => $request->email,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Une erreur est survenue lors de la création de votre compte. Veuillez réessayer dans quelques instants.',
+                'error_code' => 'USER_CREATION_FAILED'
+            ], 500);
+        }
 
         // Log the user in
-        Auth::login($user);
+        try {
+            Auth::login($user);
+        } catch (\Exception $e) {
+            \Log::error('SimpleAuthController: Auth login failed during registration', [
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+            ]);
+            // Continuer quand même, l'authentification n'est pas critique à ce stade
+        }
 
-        // Create user session
-        $this->createUserSession($user, $request);
+        // Create user session avec gestion d'erreur
+        try {
+            $this->createUserSession($user, $request);
+        } catch (\Exception $e) {
+            \Log::error('SimpleAuthController: Session creation failed during registration', [
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+            ]);
+            // Continuer quand même, la session peut être recréée plus tard
+        }
 
-        // Envoyer un email de nouvelle connexion si activé
+        // Envoyer un email de nouvelle connexion si activé (en arrière-plan pour ne pas bloquer)
         try {
             $parts = $user->name ? preg_split('/\s+/', trim($user->name)) : [];
             $firstName = $parts[0] ?? null;
@@ -88,7 +128,11 @@ class SimpleAuthController extends Controller
             $time = now()->toDateTimeString();
             NotificationService::sendForEvent($user, 'suspicious_logins', new NewLoginMail($firstName, $lastName, $ip, $device, $time));
         } catch (\Exception $e) {
-            // Ignorer les erreurs d'envoi d'email
+            // Ignorer les erreurs d'envoi d'email - ne pas bloquer l'inscription
+            \Log::warning('SimpleAuthController: Email notification failed during registration', [
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+            ]);
         } 
 
         // Vérifier si on doit rediriger vers un domaine externe après inscription
@@ -130,38 +174,52 @@ class SimpleAuthController extends Controller
         
         // Si une redirection externe est nécessaire, construire l'URL de callback
         if ($redirectUrl) {
-            // Construire l'URL de callback avec le token
-            $parsedUrl = parse_url($redirectUrl);
-            $queryParams = [];
-            
-            if (isset($parsedUrl['query'])) {
-                parse_str($parsedUrl['query'], $queryParams);
+            try {
+                // Construire l'URL de callback avec le token
+                $parsedUrl = parse_url($redirectUrl);
+                
+                if (!$parsedUrl || !isset($parsedUrl['scheme']) || !isset($parsedUrl['host'])) {
+                    throw new \Exception('Invalid redirect URL format');
+                }
+                
+                $queryParams = [];
+                
+                if (isset($parsedUrl['query'])) {
+                    parse_str($parsedUrl['query'], $queryParams);
+                }
+                
+                $queryParams['token'] = $token;
+                $newQuery = http_build_query($queryParams);
+                
+                $callbackUrl = $parsedUrl['scheme'] . '://' . $parsedUrl['host'];
+                if (isset($parsedUrl['port'])) {
+                    $callbackUrl .= ':' . $parsedUrl['port'];
+                }
+                if (isset($parsedUrl['path'])) {
+                    $callbackUrl .= $parsedUrl['path'];
+                }
+                if ($newQuery) {
+                    $callbackUrl .= '?' . $newQuery;
+                }
+                if (isset($parsedUrl['fragment'])) {
+                    $callbackUrl .= '#' . $parsedUrl['fragment'];
+                }
+                
+                $responseData['sso_redirect_url'] = $callbackUrl;
+                $responseData['sso_token'] = $token;
+                
+                \Log::info('SimpleAuthController: SSO redirect URL generated after registration', [
+                    'callback_url' => $callbackUrl,
+                    'user_id' => $user->id,
+                ]);
+            } catch (\Exception $e) {
+                \Log::error('SimpleAuthController: Failed to build SSO redirect URL during registration', [
+                    'redirect_url' => $redirectUrl,
+                    'user_id' => $user->id,
+                    'error' => $e->getMessage(),
+                ]);
+                // Continuer sans redirection SSO - l'utilisateur sera redirigé vers le dashboard
             }
-            
-            $queryParams['token'] = $token;
-            $newQuery = http_build_query($queryParams);
-            
-            $callbackUrl = $parsedUrl['scheme'] . '://' . $parsedUrl['host'];
-            if (isset($parsedUrl['port'])) {
-                $callbackUrl .= ':' . $parsedUrl['port'];
-            }
-            if (isset($parsedUrl['path'])) {
-                $callbackUrl .= $parsedUrl['path'];
-            }
-            if ($newQuery) {
-                $callbackUrl .= '?' . $newQuery;
-            }
-            if (isset($parsedUrl['fragment'])) {
-                $callbackUrl .= '#' . $parsedUrl['fragment'];
-            }
-            
-            $responseData['sso_redirect_url'] = $callbackUrl;
-            $responseData['sso_token'] = $token;
-            
-            \Log::info('SimpleAuthController: SSO redirect URL generated after registration', [
-                'callback_url' => $callbackUrl,
-                'user_id' => $user->id,
-            ]);
         }
         
         return response()->json([
@@ -196,21 +254,33 @@ class SimpleAuthController extends Controller
                 ], 422);
             }
 
-            $token = $user->createToken('SSO Token', ['profile'])->accessToken;
-            $callbackUrl = $redirectUrl . (strpos($redirectUrl, '?') !== false ? '&' : '?') . 'token=' . $token;
-            
-            if ($request->wantsJson() || $request->expectsJson()) {
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Token SSO généré avec succès',
-                    'data' => [
-                        'token' => $token,
-                        'callback_url' => $callbackUrl,
-                    ]
+            try {
+                $token = $user->createToken('SSO Token', ['profile'])->accessToken;
+                $callbackUrl = $redirectUrl . (strpos($redirectUrl, '?') !== false ? '&' : '?') . 'token=' . $token;
+                
+                if ($request->wantsJson() || $request->expectsJson()) {
+                    return response()->json([
+                        'success' => true,
+                        'message' => 'Token SSO généré avec succès',
+                        'data' => [
+                            'token' => $token,
+                            'callback_url' => $callbackUrl,
+                        ]
+                    ]);
+                }
+                
+                return redirect($callbackUrl);
+            } catch (\Exception $e) {
+                \Log::error('SimpleAuthController: Failed to create SSO token for logged in user', [
+                    'user_id' => $user->id,
+                    'error' => $e->getMessage(),
                 ]);
+                
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Une erreur est survenue lors de la génération du token. Veuillez réessayer.'
+                ], 500);
             }
-            
-            return redirect($callbackUrl);
         }
 
         $validator = Validator::make($request->all(), [
@@ -280,21 +350,59 @@ class SimpleAuthController extends Controller
             ], 200);
         }
 
-        // Update last login info
-        $user->update([
-            'last_login_at' => now(),
-            'last_login_ip' => $request->ip(),
-            'last_login_user_agent' => $request->userAgent(),
-        ]);
+        // Update last login info avec gestion d'erreur
+        try {
+            $user->update([
+                'last_login_at' => now(),
+                'last_login_ip' => $request->ip(),
+                'last_login_user_agent' => $request->userAgent(),
+            ]);
+        } catch (\Exception $e) {
+            \Log::warning('SimpleAuthController: Failed to update last login info during login', [
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+            ]);
+            // Continuer quand même - non critique
+        }
 
-        // Create user session
-        $this->createUserSession($user, $request);
+        // Create user session avec gestion d'erreur
+        try {
+            $this->createUserSession($user, $request);
+        } catch (\Exception $e) {
+            \Log::warning('SimpleAuthController: Failed to create user session during login', [
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+            ]);
+            // Continuer quand même - la session peut être recréée plus tard
+        }
 
         // Recharger l'utilisateur pour s'assurer d'avoir les dernières données
-        $user->refresh();
+        try {
+            $user->refresh();
+        } catch (\Exception $e) {
+            \Log::warning('SimpleAuthController: Failed to refresh user during login', [
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+            ]);
+            // Continuer avec l'utilisateur tel quel
+        }
         
-        // Create access token for API authentication
-        $token = $user->createToken('API Token')->accessToken;
+        // Create access token for API authentication avec gestion d'erreur
+        try {
+            $token = $user->createToken('API Token')->accessToken;
+        } catch (\Exception $e) {
+            \Log::error('SimpleAuthController: Token creation failed during login', [
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Une erreur est survenue lors de la création de votre session. Veuillez réessayer dans quelques instants.',
+                'error_code' => 'TOKEN_CREATION_FAILED'
+            ], 500);
+        }
 
         // Vérifier si on doit rediriger vers un domaine externe après connexion
         // Pour une requête POST, les paramètres sont dans le body, pas dans la query string
@@ -357,45 +465,59 @@ class SimpleAuthController extends Controller
 
         // Si une redirection externe est nécessaire, générer le token SSO
         if ($redirectUrl) {
-            $ssoToken = $user->createToken('SSO Token', ['profile'])->accessToken;
-            
-            // Construire l'URL de callback avec le token
-            $parsedUrl = parse_url($redirectUrl);
-            $queryParams = [];
-            
-            if (isset($parsedUrl['query'])) {
-                parse_str($parsedUrl['query'], $queryParams);
+            try {
+                $ssoToken = $user->createToken('SSO Token', ['profile'])->accessToken;
+                
+                // Construire l'URL de callback avec le token
+                $parsedUrl = parse_url($redirectUrl);
+                
+                if (!$parsedUrl || !isset($parsedUrl['scheme']) || !isset($parsedUrl['host'])) {
+                    throw new \Exception('Invalid redirect URL format');
+                }
+                
+                $queryParams = [];
+                
+                if (isset($parsedUrl['query'])) {
+                    parse_str($parsedUrl['query'], $queryParams);
+                }
+                
+                $queryParams['token'] = $ssoToken;
+                $newQuery = http_build_query($queryParams);
+                
+                $callbackUrl = $parsedUrl['scheme'] . '://' . $parsedUrl['host'];
+                if (isset($parsedUrl['port'])) {
+                    $callbackUrl .= ':' . $parsedUrl['port'];
+                }
+                if (isset($parsedUrl['path'])) {
+                    $callbackUrl .= $parsedUrl['path'];
+                }
+                if ($newQuery) {
+                    $callbackUrl .= '?' . $newQuery;
+                }
+                if (isset($parsedUrl['fragment'])) {
+                    $callbackUrl .= '#' . $parsedUrl['fragment'];
+                }
+                
+                $responseData['sso_redirect_url'] = $callbackUrl;
+                $responseData['sso_token'] = $ssoToken;
+                
+                \Log::info('SimpleAuthController: SSO redirect URL generated', [
+                    'callback_url' => $callbackUrl,
+                    'user_id' => $user->id,
+                ]);
+            } catch (\Exception $e) {
+                \Log::error('SimpleAuthController: Failed to build SSO redirect URL during login', [
+                    'redirect_url' => $redirectUrl,
+                    'user_id' => $user->id,
+                    'error' => $e->getMessage(),
+                ]);
+                // Continuer sans redirection SSO - l'utilisateur sera redirigé vers le dashboard
             }
-            
-            $queryParams['token'] = $ssoToken;
-            $newQuery = http_build_query($queryParams);
-            
-            $callbackUrl = $parsedUrl['scheme'] . '://' . $parsedUrl['host'];
-            if (isset($parsedUrl['port'])) {
-                $callbackUrl .= ':' . $parsedUrl['port'];
-            }
-            if (isset($parsedUrl['path'])) {
-                $callbackUrl .= $parsedUrl['path'];
-            }
-            if ($newQuery) {
-                $callbackUrl .= '?' . $newQuery;
-            }
-            if (isset($parsedUrl['fragment'])) {
-                $callbackUrl .= '#' . $parsedUrl['fragment'];
-            }
-            
-            $responseData['sso_redirect_url'] = $callbackUrl;
-            $responseData['sso_token'] = $ssoToken;
-            
-            \Log::info('SimpleAuthController: SSO redirect URL generated', [
-                'callback_url' => $callbackUrl,
-                'user_id' => $user->id,
-            ]);
         }
         
         return response()->json([
             'success' => true,
-            'message' => 'Login successful',
+            'message' => 'Connexion réussie',
             'data' => $responseData
         ]);
     }
@@ -481,23 +603,69 @@ class SimpleAuthController extends Controller
         }
 
         // Code valide, finaliser la connexion
-        Auth::login($user);
+        try {
+            Auth::login($user);
+        } catch (\Exception $e) {
+            \Log::error('SimpleAuthController: Auth login failed during 2FA verification', [
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+            ]);
+            // Continuer quand même
+        }
 
-        // Update last login info
-        $user->update([
-            'last_login_at' => now(),
-            'last_login_ip' => $request->ip(),
-            'last_login_user_agent' => $request->userAgent(),
-        ]);
+        // Update last login info avec gestion d'erreur
+        try {
+            $user->update([
+                'last_login_at' => now(),
+                'last_login_ip' => $request->ip(),
+                'last_login_user_agent' => $request->userAgent(),
+            ]);
+        } catch (\Exception $e) {
+            \Log::warning('SimpleAuthController: Failed to update last login info during 2FA verification', [
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+            ]);
+            // Continuer quand même - non critique
+        }
 
-        // Create user session
-        $this->createUserSession($user, $request);
+        // Create user session avec gestion d'erreur
+        try {
+            $this->createUserSession($user, $request);
+        } catch (\Exception $e) {
+            \Log::warning('SimpleAuthController: Failed to create user session during 2FA verification', [
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+            ]);
+            // Continuer quand même - la session peut être recréée plus tard
+        }
 
         // Recharger l'utilisateur pour s'assurer d'avoir les dernières données
-        $user->refresh();
+        try {
+            $user->refresh();
+        } catch (\Exception $e) {
+            \Log::warning('SimpleAuthController: Failed to refresh user during 2FA verification', [
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+            ]);
+            // Continuer avec l'utilisateur tel quel
+        }
         
-        // Create access token for API authentication
-        $token = $user->createToken('API Token')->accessToken;
+        // Create access token for API authentication avec gestion d'erreur
+        try {
+            $token = $user->createToken('API Token')->accessToken;
+        } catch (\Exception $e) {
+            \Log::error('SimpleAuthController: Token creation failed during 2FA verification', [
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Une erreur est survenue lors de la création de votre session. Veuillez réessayer dans quelques instants.',
+                'error_code' => 'TOKEN_CREATION_FAILED'
+            ], 500);
+        }
 
         // Vérifier si on doit rediriger vers un domaine externe après vérification 2FA
         // Pour une requête POST, les paramètres sont dans le body, pas dans la query string
@@ -544,40 +712,54 @@ class SimpleAuthController extends Controller
 
         // Si une redirection externe est nécessaire, générer le token SSO
         if ($redirectUrl) {
-            $ssoToken = $user->createToken('SSO Token', ['profile'])->accessToken;
-            
-            // Construire l'URL de callback avec le token
-            $parsedUrl = parse_url($redirectUrl);
-            $queryParams = [];
-            
-            if (isset($parsedUrl['query'])) {
-                parse_str($parsedUrl['query'], $queryParams);
+            try {
+                $ssoToken = $user->createToken('SSO Token', ['profile'])->accessToken;
+                
+                // Construire l'URL de callback avec le token
+                $parsedUrl = parse_url($redirectUrl);
+                
+                if (!$parsedUrl || !isset($parsedUrl['scheme']) || !isset($parsedUrl['host'])) {
+                    throw new \Exception('Invalid redirect URL format');
+                }
+                
+                $queryParams = [];
+                
+                if (isset($parsedUrl['query'])) {
+                    parse_str($parsedUrl['query'], $queryParams);
+                }
+                
+                $queryParams['token'] = $ssoToken;
+                $newQuery = http_build_query($queryParams);
+                
+                $callbackUrl = $parsedUrl['scheme'] . '://' . $parsedUrl['host'];
+                if (isset($parsedUrl['port'])) {
+                    $callbackUrl .= ':' . $parsedUrl['port'];
+                }
+                if (isset($parsedUrl['path'])) {
+                    $callbackUrl .= $parsedUrl['path'];
+                }
+                if ($newQuery) {
+                    $callbackUrl .= '?' . $newQuery;
+                }
+                if (isset($parsedUrl['fragment'])) {
+                    $callbackUrl .= '#' . $parsedUrl['fragment'];
+                }
+                
+                $responseData['sso_redirect_url'] = $callbackUrl;
+                $responseData['sso_token'] = $ssoToken;
+                
+                \Log::info('SimpleAuthController: SSO redirect URL generated after 2FA', [
+                    'callback_url' => $callbackUrl,
+                    'user_id' => $user->id,
+                ]);
+            } catch (\Exception $e) {
+                \Log::error('SimpleAuthController: Failed to build SSO redirect URL during 2FA verification', [
+                    'redirect_url' => $redirectUrl,
+                    'user_id' => $user->id,
+                    'error' => $e->getMessage(),
+                ]);
+                // Continuer sans redirection SSO - l'utilisateur sera redirigé vers le dashboard
             }
-            
-            $queryParams['token'] = $ssoToken;
-            $newQuery = http_build_query($queryParams);
-            
-            $callbackUrl = $parsedUrl['scheme'] . '://' . $parsedUrl['host'];
-            if (isset($parsedUrl['port'])) {
-                $callbackUrl .= ':' . $parsedUrl['port'];
-            }
-            if (isset($parsedUrl['path'])) {
-                $callbackUrl .= $parsedUrl['path'];
-            }
-            if ($newQuery) {
-                $callbackUrl .= '?' . $newQuery;
-            }
-            if (isset($parsedUrl['fragment'])) {
-                $callbackUrl .= '#' . $parsedUrl['fragment'];
-            }
-            
-            $responseData['sso_redirect_url'] = $callbackUrl;
-            $responseData['sso_token'] = $ssoToken;
-            
-            \Log::info('SimpleAuthController: SSO redirect URL generated after 2FA', [
-                'callback_url' => $callbackUrl,
-                'user_id' => $user->id,
-            ]);
         }
         
         return response()->json([
@@ -820,88 +1002,124 @@ class SimpleAuthController extends Controller
      */
     private function determineRedirectUrl(Request $request): ?string
     {
-        $currentHost = $request->getHost();
-        $currentHost = preg_replace('/^www\./', '', strtolower($currentHost));
-        
-        // 1. Priorité : paramètre 'redirect' explicite
-        // Pour une requête POST, vérifier dans input() (body) d'abord, puis query()
-        $redirect = $request->input('redirect') 
-                 ?? $request->get('redirect')
-                 ?? $request->query('redirect')
-                 ?? ($request->all()['redirect'] ?? null);
-        
-        if ($redirect) {
+        try {
+            $currentHost = $request->getHost();
+            $currentHost = preg_replace('/^www\./', '', strtolower($currentHost));
             
-            // Laravel décode automatiquement les paramètres d'URL, mais on peut avoir un double encodage
-            // Essayer de décoder plusieurs fois si nécessaire
-            $maxDecodes = 5;
-            $decodedRedirect = $redirect;
-            for ($i = 0; $i < $maxDecodes; $i++) {
-                $testDecode = urldecode($decodedRedirect);
-                if ($testDecode === $decodedRedirect) {
-                    break; // Plus de décodage possible
-                }
-                if (filter_var($testDecode, FILTER_VALIDATE_URL)) {
-                    $decodedRedirect = $testDecode;
-                }
-            }
+            // 1. Priorité : paramètre 'redirect' explicite
+            // Pour une requête POST, vérifier dans input() (body) d'abord, puis query()
+            $redirect = $request->input('redirect') 
+                     ?? $request->get('redirect')
+                     ?? $request->query('redirect')
+                     ?? ($request->all()['redirect'] ?? null);
             
-            // Utiliser l'URL décodée si elle est valide
-            if ($decodedRedirect !== $redirect && filter_var($decodedRedirect, FILTER_VALIDATE_URL)) {
-                $redirect = $decodedRedirect;
-            }
-            
-            if ($redirect && filter_var($redirect, FILTER_VALIDATE_URL)) {
-                // Vérifier que l'URL ne pointe pas vers le même domaine
-                $redirectHost = parse_url($redirect, PHP_URL_HOST);
-                if ($redirectHost) {
-                    $redirectHost = preg_replace('/^www\./', '', strtolower($redirectHost));
-                    if ($redirectHost !== $currentHost && $redirectHost !== 'compte.herime.com') {
-                        // Vérifier que l'URL ne contient pas /login
-                        if (strpos($redirect, '/login') === false) {
-                            return $redirect;
+            if ($redirect) {
+                
+                // Laravel décode automatiquement les paramètres d'URL, mais on peut avoir un double encodage
+                // Essayer de décoder plusieurs fois si nécessaire
+                $maxDecodes = 5;
+                $decodedRedirect = $redirect;
+                for ($i = 0; $i < $maxDecodes; $i++) {
+                    try {
+                        $testDecode = urldecode($decodedRedirect);
+                        if ($testDecode === $decodedRedirect) {
+                            break; // Plus de décodage possible
                         }
+                        if (filter_var($testDecode, FILTER_VALIDATE_URL)) {
+                            $decodedRedirect = $testDecode;
+                        }
+                    } catch (\Exception $e) {
+                        break; // Arrêter le décodage en cas d'erreur
+                    }
+                }
+                
+                // Utiliser l'URL décodée si elle est valide
+                if ($decodedRedirect !== $redirect && filter_var($decodedRedirect, FILTER_VALIDATE_URL)) {
+                    $redirect = $decodedRedirect;
+                }
+                
+                if ($redirect && filter_var($redirect, FILTER_VALIDATE_URL)) {
+                    try {
+                        // Vérifier que l'URL ne pointe pas vers le même domaine
+                        $redirectHost = parse_url($redirect, PHP_URL_HOST);
+                        if ($redirectHost) {
+                            $redirectHost = preg_replace('/^www\./', '', strtolower($redirectHost));
+                            if ($redirectHost !== $currentHost && $redirectHost !== 'compte.herime.com') {
+                                // Vérifier que l'URL ne contient pas /login
+                                if (strpos($redirect, '/login') === false) {
+                                    return $redirect;
+                                }
+                            }
+                        }
+                    } catch (\Exception $e) {
+                        \Log::warning('SimpleAuthController: Error parsing redirect URL', [
+                            'redirect' => $redirect,
+                            'error' => $e->getMessage(),
+                        ]);
                     }
                 }
             }
-        }
 
-        // 2. Paramètre 'client_domain' pour construire l'URL
-        if ($request->has('client_domain') || $request->query('client_domain')) {
-            $clientDomain = $request->input('client_domain') ?: $request->query('client_domain');
-            if ($clientDomain) {
-                $scheme = $request->secure() ? 'https' : 'http';
-                $redirectPath = $request->query('redirect_path') ?: '/sso/callback';
-                return $scheme . '://' . $clientDomain . $redirectPath;
+            // 2. Paramètre 'client_domain' pour construire l'URL
+            if ($request->has('client_domain') || $request->query('client_domain')) {
+                try {
+                    $clientDomain = $request->input('client_domain') ?: $request->query('client_domain');
+                    if ($clientDomain) {
+                        $scheme = $request->secure() ? 'https' : 'http';
+                        $redirectPath = $request->query('redirect_path') ?: '/sso/callback';
+                        return $scheme . '://' . $clientDomain . $redirectPath;
+                    }
+                } catch (\Exception $e) {
+                    \Log::warning('SimpleAuthController: Error processing client_domain', [
+                        'error' => $e->getMessage(),
+                    ]);
+                }
             }
-        }
 
-        // 3. Détecter depuis le header Referer
-        $referer = $request->header('Referer');
-        if ($referer) {
-            $refererUrl = parse_url($referer);
-            $currentHost = parse_url(config('app.url'), PHP_URL_HOST);
-            
-            if (isset($refererUrl['host']) && $refererUrl['host'] !== $currentHost) {
-                $scheme = $refererUrl['scheme'] ?? ($request->secure() ? 'https' : 'http');
-                $host = $refererUrl['host'];
-                $redirectPath = $request->query('redirect_path') ?: '/sso/callback';
-                return $scheme . '://' . $host . $redirectPath;
+            // 3. Détecter depuis le header Referer
+            try {
+                $referer = $request->header('Referer');
+                if ($referer) {
+                    $refererUrl = parse_url($referer);
+                    $currentHost = parse_url(config('app.url'), PHP_URL_HOST);
+                    
+                    if (isset($refererUrl['host']) && $refererUrl['host'] !== $currentHost) {
+                        $scheme = $refererUrl['scheme'] ?? ($request->secure() ? 'https' : 'http');
+                        $host = $refererUrl['host'];
+                        $redirectPath = $request->query('redirect_path') ?: '/sso/callback';
+                        return $scheme . '://' . $host . $redirectPath;
+                    }
+                }
+            } catch (\Exception $e) {
+                \Log::warning('SimpleAuthController: Error processing Referer header', [
+                    'error' => $e->getMessage(),
+                ]);
             }
-        }
 
-        // 4. Détecter depuis le header Origin
-        $origin = $request->header('Origin');
-        if ($origin) {
-            $originUrl = parse_url($origin);
-            $currentHost = parse_url(config('app.url'), PHP_URL_HOST);
-            
-            if (isset($originUrl['host']) && $originUrl['host'] !== $currentHost) {
-                $scheme = $originUrl['scheme'] ?? ($request->secure() ? 'https' : 'http');
-                $host = $originUrl['host'];
-                $redirectPath = $request->query('redirect_path') ?: '/sso/callback';
-                return $scheme . '://' . $host . $redirectPath;
+            // 4. Détecter depuis le header Origin
+            try {
+                $origin = $request->header('Origin');
+                if ($origin) {
+                    $originUrl = parse_url($origin);
+                    $currentHost = parse_url(config('app.url'), PHP_URL_HOST);
+                    
+                    if (isset($originUrl['host']) && $originUrl['host'] !== $currentHost) {
+                        $scheme = $originUrl['scheme'] ?? ($request->secure() ? 'https' : 'http');
+                        $host = $originUrl['host'];
+                        $redirectPath = $request->query('redirect_path') ?: '/sso/callback';
+                        return $scheme . '://' . $host . $redirectPath;
+                    }
+                }
+            } catch (\Exception $e) {
+                \Log::warning('SimpleAuthController: Error processing Origin header', [
+                    'error' => $e->getMessage(),
+                ]);
             }
+        } catch (\Exception $e) {
+            \Log::error('SimpleAuthController: Error in determineRedirectUrl', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
         }
 
         return null;

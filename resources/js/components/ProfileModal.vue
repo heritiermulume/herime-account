@@ -86,6 +86,44 @@
             </div>
           </div>
 
+          <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div>
+              <label for="gender" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Sexe
+              </label>
+              <select
+                id="gender"
+                v-model="form.gender"
+                class="input-field mt-1"
+                :class="{ 'border-red-500': errors.gender }"
+              >
+                <option value="">Sélectionnez votre sexe</option>
+                <option value="masculin">Masculin</option>
+                <option value="feminin">Féminin</option>
+                <option value="autre">Autre</option>
+              </select>
+              <p v-if="errors.gender" class="mt-1 text-sm text-red-600 dark:text-red-400">
+                {{ errors.gender[0] }}
+              </p>
+            </div>
+
+            <div>
+              <label for="birthdate" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Date de naissance
+              </label>
+              <input
+                id="birthdate"
+                v-model="form.birthdate"
+                type="date"
+                class="input-field mt-1"
+                :class="{ 'border-red-500': errors.birthdate }"
+              />
+              <p v-if="errors.birthdate" class="mt-1 text-sm text-red-600 dark:text-red-400">
+                {{ errors.birthdate[0] }}
+              </p>
+            </div>
+          </div>
+
           <div>
             <label for="position" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
               Poste
@@ -193,6 +231,8 @@ export default {
     const form = reactive({
       name: '',
       phone: '',
+      gender: '',
+      birthdate: '',
       company: '',
       position: ''
     })
@@ -209,6 +249,8 @@ export default {
     if (user.value) {
       form.name = user.value.name || ''
       form.phone = user.value.phone || ''
+      form.gender = user.value.gender || ''
+      form.birthdate = user.value.birthdate || ''
       form.company = user.value.company || ''
       form.position = user.value.position || ''
     }
@@ -231,6 +273,8 @@ export default {
         // Toujours envoyer tous les champs, même s'ils sont vides
         formData.append('name', form.name || '')
         formData.append('phone', form.phone || '')
+        formData.append('gender', form.gender || '')
+        formData.append('birthdate', form.birthdate || '')
         formData.append('company', form.company || '')
         formData.append('position', form.position || '')
         

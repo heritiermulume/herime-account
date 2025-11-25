@@ -56,6 +56,8 @@ class UserController extends Controller
             'name' => 'sometimes|required|string|max:255',
             'email' => 'sometimes|required|email|max:255|unique:users,email,' . $user->id,
             'phone' => 'sometimes|nullable|string|max:20|unique:users,phone,' . $user->id,
+            'gender' => 'sometimes|nullable|in:masculin,feminin,autre',
+            'birthdate' => 'sometimes|nullable|date|before:today',
             'company' => 'sometimes|nullable|string|max:255',
             'position' => 'sometimes|nullable|string|max:255',
             'bio' => 'sometimes|nullable|string|max:1000',
@@ -70,6 +72,9 @@ class UserController extends Controller
             'email.unique' => 'Cette adresse email est déjà utilisée par un autre compte.',
             'phone.max' => 'Le numéro de téléphone ne peut pas dépasser 20 caractères.',
             'phone.unique' => 'Ce numéro de téléphone est déjà utilisé par un autre compte.',
+            'gender.in' => 'Veuillez sélectionner un sexe valide.',
+            'birthdate.date' => 'Veuillez saisir une date valide.',
+            'birthdate.before' => 'La date de naissance doit être antérieure à aujourd\'hui.',
             'company.max' => 'Le nom de l\'entreprise ne peut pas dépasser 255 caractères.',
             'position.max' => 'Le poste ne peut pas dépasser 255 caractères.',
             'bio.max' => 'La biographie ne peut pas dépasser 1000 caractères.',
@@ -90,7 +95,7 @@ class UserController extends Controller
         }
 
         // Récupérer tous les champs fillable disponibles
-        $fillableFields = ['name', 'email', 'phone', 'company', 'position', 'bio', 'location', 'website'];
+        $fillableFields = ['name', 'email', 'phone', 'gender', 'birthdate', 'company', 'position', 'bio', 'location', 'website'];
         $data = [];
         
         // Récupérer tous les champs fournis dans la requête
@@ -109,8 +114,6 @@ class UserController extends Controller
             }
         }
         
-        // Log pour debug
-
         // Handle avatar upload
         if ($request->hasFile('avatar')) {
             try {

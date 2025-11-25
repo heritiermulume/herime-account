@@ -103,6 +103,39 @@
             />
           </div>
 
+          <!-- Gender and Birthdate -->
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label for="gender" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Sexe
+              </label>
+              <select
+                id="gender"
+                v-model="form.gender"
+                class="mt-1 block w-full h-10 px-3 border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm sm:text-sm"
+                style="focus:ring-color: #003366; focus:border-color: #003366;"
+              >
+                <option value="">Sélectionnez votre sexe</option>
+                <option value="masculin">Masculin</option>
+                <option value="feminin">Féminin</option>
+                <option value="autre">Autre</option>
+              </select>
+            </div>
+            
+            <div>
+              <label for="birthdate" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Date de naissance
+              </label>
+              <input
+                id="birthdate"
+                v-model="form.birthdate"
+                type="date"
+                class="mt-1 block w-full h-10 px-3 border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm sm:text-sm"
+                style="focus:ring-color: #003366; focus:border-color: #003366;"
+              />
+            </div>
+          </div>
+
           <!-- Company -->
           <div>
             <label for="company" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -398,6 +431,8 @@ export default {
       name: '',
       email: '',
       phone: '',
+      gender: '',
+      birthdate: '',
       company: '',
       position: '',
       bio: '',
@@ -687,6 +722,8 @@ export default {
         // Ajouter tous les champs texte (même s'ils sont vides pour permettre de les effacer)
         formData.append('name', form.name || '')
         formData.append('phone', form.phone || '')
+        formData.append('gender', form.gender || '')
+        formData.append('birthdate', form.birthdate || '')
         formData.append('company', form.company || '')
         formData.append('position', form.position || '')
         formData.append('bio', form.bio || '')
@@ -786,6 +823,8 @@ export default {
           name: user.value.name || '',
           email: user.value.email || '',
           phone: user.value.phone || '',
+          gender: user.value.gender || '',
+          birthdate: user.value.birthdate || '',
           company: user.value.company || '',
           position: user.value.position || '',
           bio: user.value.bio || '',

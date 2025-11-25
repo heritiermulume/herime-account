@@ -18,9 +18,9 @@ use App\Http\Controllers\Api\SSOController;
 */
 
 // Public routes
-Route::post('register', [SimpleAuthController::class, 'register']);
-Route::post('login', [SimpleAuthController::class, 'login']);
-Route::post('login/verify-2fa', [SimpleAuthController::class, 'verifyTwoFactor']);
+Route::post('register', [SimpleAuthController::class, 'register'])->middleware('throttle:register');
+Route::post('login', [SimpleAuthController::class, 'login'])->middleware('throttle:public');
+Route::post('login/verify-2fa', [SimpleAuthController::class, 'verifyTwoFactor'])->middleware('throttle:public');
 
 // Password reset routes
 Route::post('password/forgot', [App\Http\Controllers\Api\PasswordResetController::class, 'sendResetLink']);
