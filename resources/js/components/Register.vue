@@ -175,7 +175,7 @@
                 placeholder="JJ/MM/AAAA"
                 class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200 dark:bg-gray-700 dark:text-white"
                 :class="{ 'border-red-500 focus:ring-red-500': errors.birthdate }"
-                style="max-width: 100%; height: 48px; box-sizing: border-box;"
+                style="max-width: 100%; box-sizing: border-box; -webkit-appearance: none; appearance: none;"
               />
               <p v-if="errors.birthdate" class="mt-1 text-sm text-red-600 dark:text-red-400">
                 {{ errors.birthdate[0] }}
