@@ -357,8 +357,13 @@ public function updateUserStatus(Request $request, $id): JsonResponse
             'name' => 'sometimes|required|string|max:255',
             'email' => 'sometimes|required|email|max:255|unique:users,email,' . $user->id,
             'phone' => 'sometimes|nullable|string|max:20|unique:users,phone,' . $user->id,
+            'gender' => 'sometimes|nullable|in:masculin,feminin,autre',
+            'birthdate' => 'sometimes|nullable|date|before:today',
             'company' => 'sometimes|nullable|string|max:255',
             'position' => 'sometimes|nullable|string|max:255',
+            'bio' => 'sometimes|nullable|string|max:1000',
+            'location' => 'sometimes|nullable|string|max:255',
+            'website' => 'sometimes|nullable|url|max:255',
             'is_active' => 'sometimes|boolean',
         ], [
             'name.required' => 'Le nom complet est obligatoire.',
@@ -368,8 +373,15 @@ public function updateUserStatus(Request $request, $id): JsonResponse
             'email.unique' => 'Cette adresse email est déjà utilisée par un autre compte.',
             'phone.max' => 'Le numéro de téléphone ne peut pas dépasser 20 caractères.',
             'phone.unique' => 'Ce numéro de téléphone est déjà utilisé par un autre compte.',
+            'gender.in' => 'Veuillez sélectionner un sexe valide.',
+            'birthdate.date' => 'Veuillez saisir une date valide.',
+            'birthdate.before' => 'La date de naissance doit être antérieure à aujourd\'hui.',
             'company.max' => 'Le nom de l\'entreprise ne peut pas dépasser 255 caractères.',
             'position.max' => 'Le poste ne peut pas dépasser 255 caractères.',
+            'bio.max' => 'La biographie ne peut pas dépasser 1000 caractères.',
+            'location.max' => 'La localisation ne peut pas dépasser 255 caractères.',
+            'website.url' => 'Veuillez saisir une URL valide.',
+            'website.max' => 'L\'URL du site web ne peut pas dépasser 255 caractères.',
             'is_active.boolean' => 'Le statut doit être un booléen.',
         ]);
         if ($validator->fails()) {
@@ -379,7 +391,7 @@ public function updateUserStatus(Request $request, $id): JsonResponse
                 'errors' => $validator->errors()
             ], 422);
         }
-        $user->update($request->only(['name','email','phone','company','position','is_active']));
+        $user->update($request->only(['name','email','phone','gender','birthdate','company','position','bio','location','website','is_active']));
         return response()->json([
             'success' => true,
             'message' => 'Utilisateur mis à jour avec succès',

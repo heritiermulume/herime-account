@@ -259,19 +259,83 @@
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
                   </button>
                 </div>
-                <div v-if="previewUser" class="space-y-2">
-                  <div class="flex items-center space-x-3">
-                    <img v-if="getAvatarUrl(previewUser)" :src="getAvatarUrl(previewUser)" class="h-12 w-12 rounded-full object-cover" @error="onAvatarError($event)" />
+                <div v-if="previewUser" class="space-y-4">
+                  <!-- Avatar et Nom -->
+                  <div class="flex items-center space-x-3 pb-3 border-b border-gray-200 dark:border-gray-700">
+                    <img v-if="getAvatarUrl(previewUser)" :src="getAvatarUrl(previewUser)" class="h-16 w-16 rounded-full object-cover" @error="onAvatarError($event)" />
+                    <div v-else class="h-16 w-16 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center">
+                      <span class="text-2xl font-medium text-gray-700 dark:text-gray-300">
+                        {{ previewUser.name.charAt(0).toUpperCase() }}
+                      </span>
+                    </div>
                     <div>
-                      <div class="text-sm font-semibold text-gray-900 dark:text-white">{{ previewUser.name }}</div>
-                      <div class="text-sm text-gray-600 dark:text-gray-300">{{ previewUser.email }}</div>
+                      <div class="text-lg font-semibold text-gray-900 dark:text-white">{{ previewUser.name }}</div>
+                      <div class="text-sm text-gray-600 dark:text-gray-400">{{ previewUser.email }}</div>
                     </div>
                   </div>
-                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-                    <div class="text-sm text-gray-500 dark:text-gray-400">Rôle: <span class="text-gray-900 dark:text-white">{{ previewUser.role }}</span></div>
-                    <div class="text-sm text-gray-500 dark:text-gray-400">Statut: <span class="text-gray-900 dark:text-white">{{ previewUser.is_active ? 'Actif' : 'Inactif' }}</span></div>
-                    <div class="text-sm text-gray-500 dark:text-gray-400">Entreprise: <span class="text-gray-900 dark:text-white">{{ previewUser.company || '-' }}</span></div>
-                    <div class="text-sm text-gray-500 dark:text-gray-400">Poste: <span class="text-gray-900 dark:text-white">{{ previewUser.position || '-' }}</span></div>
+                  
+                  <!-- Informations principales -->
+                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div class="text-sm">
+                      <span class="text-gray-500 dark:text-gray-400">Rôle:</span>
+                      <span class="ml-2 font-medium text-gray-900 dark:text-white">{{ previewUser.role }}</span>
+                    </div>
+                    <div class="text-sm">
+                      <span class="text-gray-500 dark:text-gray-400">Statut:</span>
+                      <span :class="[
+                        'ml-2 px-2 py-0.5 rounded-full text-xs font-medium',
+                        previewUser.is_active 
+                          ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                          : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                      ]">
+                        {{ previewUser.is_active ? 'Actif' : 'Inactif' }}
+                      </span>
+                    </div>
+                    <div class="text-sm">
+                      <span class="text-gray-500 dark:text-gray-400">Téléphone:</span>
+                      <span class="ml-2 font-medium text-gray-900 dark:text-white">{{ previewUser.phone || '-' }}</span>
+                    </div>
+                    <div class="text-sm">
+                      <span class="text-gray-500 dark:text-gray-400">Sexe:</span>
+                      <span class="ml-2 font-medium text-gray-900 dark:text-white">{{ previewUser.gender ? (previewUser.gender === 'masculin' ? 'Masculin' : previewUser.gender === 'feminin' ? 'Féminin' : 'Autre') : '-' }}</span>
+                    </div>
+                    <div class="text-sm">
+                      <span class="text-gray-500 dark:text-gray-400">Date de naissance:</span>
+                      <span class="ml-2 font-medium text-gray-900 dark:text-white">{{ previewUser.birthdate || '-' }}</span>
+                    </div>
+                    <div class="text-sm">
+                      <span class="text-gray-500 dark:text-gray-400">Entreprise:</span>
+                      <span class="ml-2 font-medium text-gray-900 dark:text-white">{{ previewUser.company || '-' }}</span>
+                    </div>
+                    <div class="text-sm sm:col-span-2">
+                      <span class="text-gray-500 dark:text-gray-400">Poste:</span>
+                      <span class="ml-2 font-medium text-gray-900 dark:text-white">{{ previewUser.position || '-' }}</span>
+                    </div>
+                    <div class="text-sm sm:col-span-2">
+                      <span class="text-gray-500 dark:text-gray-400">Localisation:</span>
+                      <span class="ml-2 font-medium text-gray-900 dark:text-white">{{ previewUser.location || '-' }}</span>
+                    </div>
+                    <div class="text-sm sm:col-span-2">
+                      <span class="text-gray-500 dark:text-gray-400">Site web:</span>
+                      <a v-if="previewUser.website" :href="previewUser.website" target="_blank" class="ml-2 font-medium text-blue-600 dark:text-blue-400 hover:underline">{{ previewUser.website }}</a>
+                      <span v-else class="ml-2 font-medium text-gray-900 dark:text-white">-</span>
+                    </div>
+                  </div>
+                  
+                  <!-- Biographie -->
+                  <div v-if="previewUser.bio" class="pt-3 border-t border-gray-200 dark:border-gray-700">
+                    <div class="text-sm text-gray-500 dark:text-gray-400 mb-1">Biographie:</div>
+                    <p class="text-sm text-gray-900 dark:text-white">{{ previewUser.bio }}</p>
+                  </div>
+                  
+                  <!-- Dates -->
+                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+                    <div class="text-xs text-gray-500 dark:text-gray-400">
+                      Créé le: {{ previewUser.created_at ? new Date(previewUser.created_at).toLocaleDateString('fr-FR') : '-' }}
+                    </div>
+                    <div class="text-xs text-gray-500 dark:text-gray-400">
+                      Dernière connexion: {{ previewUser.last_login_at ? new Date(previewUser.last_login_at).toLocaleDateString('fr-FR') : '-' }}
+                    </div>
                   </div>
                 </div>
                 <div class="mt-4 flex justify-end">
@@ -294,28 +358,67 @@
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
                   </button>
                 </div>
-                <div v-if="editUser" class="space-y-4">
+                <div v-if="editUser" class="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
                   <div>
-                    <label class="block text-sm text-gray-700 dark:text-gray-300">Nom</label>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Nom</label>
                     <input v-model="editUser.name" type="text" class="mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-yellow-500 focus:border-yellow-500 dark:bg-gray-700 dark:text-white sm:text-sm" />
                   </div>
+                  
                   <div>
-                    <label class="block text-sm text-gray-700 dark:text-gray-300">Email</label>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Email</label>
                     <input v-model="editUser.email" type="email" class="mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-yellow-500 focus:border-yellow-500 dark:bg-gray-700 dark:text-white sm:text-sm" />
                   </div>
+                  
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Téléphone</label>
+                    <input v-model="editUser.phone" type="tel" class="mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-yellow-500 focus:border-yellow-500 dark:bg-gray-700 dark:text-white sm:text-sm" />
+                  </div>
+                  
+                  <div class="grid grid-cols-2 gap-4">
+                    <div>
+                      <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Sexe</label>
+                      <select v-model="editUser.gender" class="mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-yellow-500 focus:border-yellow-500 dark:bg-gray-700 dark:text-white sm:text-sm">
+                        <option value="">Sélectionnez</option>
+                        <option value="masculin">Masculin</option>
+                        <option value="feminin">Féminin</option>
+                        <option value="autre">Autre</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Date de naissance</label>
+                      <input v-model="editUser.birthdate" type="date" placeholder="JJ/MM/AAAA" class="mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-yellow-500 focus:border-yellow-500 dark:bg-gray-700 dark:text-white sm:text-sm" style="max-width: 100%; box-sizing: border-box;" />
+                    </div>
+                  </div>
+                  
                   <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label class="block text-sm text-gray-700 dark:text-gray-300">Entreprise</label>
+                      <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Entreprise</label>
                       <input v-model="editUser.company" type="text" class="mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-yellow-500 focus:border-yellow-500 dark:bg-gray-700 dark:text-white sm:text-sm" />
                     </div>
                     <div>
-                      <label class="block text-sm text-gray-700 dark:text-gray-300">Poste</label>
+                      <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Poste</label>
                       <input v-model="editUser.position" type="text" class="mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-yellow-500 focus:border-yellow-500 dark:bg-gray-700 dark:text-white sm:text-sm" />
                     </div>
                   </div>
-                  <div class="flex items-center space-x-2">
+                  
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Biographie</label>
+                    <textarea v-model="editUser.bio" rows="3" class="mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-yellow-500 focus:border-yellow-500 dark:bg-gray-700 dark:text-white sm:text-sm" placeholder="Parlez-nous de vous..."></textarea>
+                  </div>
+                  
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Localisation</label>
+                    <input v-model="editUser.location" type="text" class="mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-yellow-500 focus:border-yellow-500 dark:bg-gray-700 dark:text-white sm:text-sm" placeholder="Ville, Pays" />
+                  </div>
+                  
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Site web</label>
+                    <input v-model="editUser.website" type="url" class="mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-yellow-500 focus:border-yellow-500 dark:bg-gray-700 dark:text-white sm:text-sm" placeholder="https://example.com" />
+                  </div>
+                  
+                  <div class="flex items-center space-x-2 pt-2 border-t border-gray-200 dark:border-gray-700">
                     <input id="is_active" type="checkbox" v-model="editUser.is_active" class="rounded border-gray-300 text-yellow-600 focus:ring-yellow-500" />
-                    <label for="is_active" class="text-sm text-gray-700 dark:text-gray-300">Actif</label>
+                    <label for="is_active" class="text-sm text-gray-700 dark:text-gray-300">Compte actif</label>
                   </div>
                 </div>
                 <div class="mt-6 flex justify-end space-x-2">
@@ -499,8 +602,13 @@ export default {
           name: u.name,
           email: u.email,
           phone: u.phone,
+          gender: u.gender,
+          birthdate: u.birthdate,
           company: u.company,
           position: u.position,
+          bio: u.bio,
+          location: u.location,
+          website: u.website,
           is_active: u.is_active
         })
         showEdit.value = false
