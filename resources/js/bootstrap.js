@@ -2,15 +2,13 @@ import axios from 'axios';
 window.axios = axios;
 
 
-// Keep console logs for debugging SSO issues
-// Disable verbose console output in production (but keep error logs)
-// Temporarily disabled to debug SSO issues
-// if (import.meta && import.meta.env && import.meta.env.PROD) {
-//   const noop = () => {};
-//   console.log = noop;
-//   console.debug = noop;
-//   console.info = noop;
-// }
+// Désactiver les logs en production (mais garder les erreurs)
+if (import.meta && import.meta.env && import.meta.env.PROD) {
+  const noop = () => {};
+  console.log = noop;
+  console.debug = noop;
+  console.info = noop;
+}
 
 // Configure axios defaults
 const baseURL = window.location.origin + '/api'
