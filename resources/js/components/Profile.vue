@@ -130,7 +130,9 @@
                 id="birthdate"
                 v-model="form.birthdate"
                 type="date"
-                placeholder="JJ/MM/AAAA"
+                placeholder="Sélectionnez votre date de naissance"
+                :max="new Date().toISOString().split('T')[0]"
+                min="1900-01-01"
                 class="mt-1 block w-full h-10 px-3 border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm sm:text-sm"
                 style="focus:ring-color: #003366; focus:border-color: #003366; max-width: 100%; box-sizing: border-box; -webkit-appearance: none; appearance: none;"
               />
