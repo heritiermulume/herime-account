@@ -712,6 +712,7 @@ export default {
         if (authStore.isSSORedirecting) {
           // Afficher l'écran de chargement pendant la redirection
           isRedirectingSSO.value = true
+          loading.value = true // Garder le loading actif
           // Ne rien faire, la redirection est déjà en cours
           return
         }
@@ -737,7 +738,10 @@ export default {
           error.value = err.message || 'Une erreur est survenue lors de la création du compte.'
         }
       } finally {
-        loading.value = false
+        // Ne pas désactiver loading si une redirection SSO est en cours
+        if (!authStore.isSSORedirecting) {
+          loading.value = false
+        }
       }
     }
 
