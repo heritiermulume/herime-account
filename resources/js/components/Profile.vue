@@ -934,6 +934,7 @@ export default {
       deleteReason,
       deletePassword,
       deleteLoading,
+      passwordError,
       triggerAvatarUpload,
       handleAvatarChange,
       toggleEmailNotifications,
