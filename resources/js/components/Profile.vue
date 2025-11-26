@@ -893,15 +893,13 @@ export default {
         // Vérifier le code de statut HTTP pour identifier le type d'erreur
         if (error.response?.status === 400) {
           // Erreur 400 = mot de passe incorrect
-          // Afficher le message d'erreur sous le champ de mot de passe
-          passwordError.value = error.response?.data?.message === 'Password is incorrect' 
-            ? 'Le mot de passe est incorrect' 
-            : (error.response?.data?.message || 'Le mot de passe est incorrect')
+          // Afficher le message d'erreur directement du backend (déjà en français)
+          passwordError.value = error.response?.data?.message || 'Le mot de passe est incorrect.'
           // Réinitialiser le champ mot de passe pour permettre une nouvelle tentative
           deletePassword.value = ''
         } else if (error.response?.status === 422) {
           // Erreur 422 = validation failed
-          const errorMessage = error.response?.data?.message || 'Veuillez vérifier les informations saisies'
+          const errorMessage = error.response?.data?.message || 'Veuillez vérifier les informations saisies.'
           notify.error('Erreur de validation', errorMessage)
         } else if (error.response?.data?.message) {
           // Autre erreur avec message spécifique
