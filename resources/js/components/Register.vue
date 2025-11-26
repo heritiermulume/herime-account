@@ -33,7 +33,7 @@
             <div 
               class="flex items-center justify-center w-10 h-10 rounded-full border-2 transition-all duration-300"
               :class="currentStep >= 1 ? 'bg-blue-600 border-blue-600 text-white' : 'border-gray-300 dark:border-gray-600 text-gray-500'"
-              style="background-color: currentStep >= 1 ? '#003366' : 'transparent'"
+              :style="{ backgroundColor: currentStep >= 1 ? '#003366' : 'transparent' }"
             >
               <span v-if="currentStep > 1">✓</span>
               <span v-else>1</span>
@@ -47,7 +47,7 @@
             <div 
               class="flex items-center justify-center w-10 h-10 rounded-full border-2 transition-all duration-300"
               :class="currentStep >= 2 ? 'bg-blue-600 border-blue-600 text-white' : 'border-gray-300 dark:border-gray-600 text-gray-500'"
-              style="background-color: currentStep >= 2 ? '#003366' : 'transparent'"
+              :style="{ backgroundColor: currentStep >= 2 ? '#003366' : 'transparent' }"
             >
               2
             </div>
@@ -722,6 +722,21 @@ export default {
       } catch (err) {
         if (err.response?.data?.errors) {
           errors.value = err.response.data.errors
+          
+          // Vérifier si les erreurs concernent des champs de l'étape 1
+          const step1Fields = ['name', 'email', 'phone', 'gender', 'birthdate']
+          const hasStep1Errors = Object.keys(errors.value).some(field => step1Fields.includes(field))
+          
+          // Si des erreurs concernent l'étape 1, y revenir automatiquement
+          if (hasStep1Errors && currentStep.value === 2) {
+            currentStep.value = 1
+            error.value = 'Veuillez vérifier les informations saisies à l\'étape 1.'
+            // Scroll to top pour voir les erreurs
+            window.scrollTo({ top: 0, behavior: 'smooth' })
+          } else if (!hasStep1Errors && Object.keys(errors.value).length > 0) {
+            // Si les erreurs concernent l'étape 2, afficher un message général
+            error.value = 'Veuillez vérifier les informations saisies.'
+          }
         } else if (err.response?.data?.message) {
           error.value = err.response.data.message
         } else if (err.response?.status === 422) {
