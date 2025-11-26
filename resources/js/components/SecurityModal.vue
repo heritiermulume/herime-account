@@ -227,7 +227,7 @@
     </div>
 
     <!-- Delete Modal -->
-    <div v-if="showDeleteModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-60" @click="showDeleteModal = false">
+    <div v-if="showDeleteModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-60" @click="closeDeleteModal">
       <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white dark:bg-gray-800" @click.stop>
         <div class="mt-3">
           <h3 class="text-lg font-medium text-red-900 dark:text-red-200 mb-4">
@@ -236,6 +236,52 @@
           <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
             Cette action est irréversible. Toutes vos données seront supprimées définitivement.
           </p>
+
+          <div v-if="deleteError" class="mb-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
+            <div class="flex">
+              <svg class="h-5 w-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path>
+              </svg>
+              <div class="ml-3">
+                <p class="text-sm text-red-800 dark:text-red-200">{{ deleteError }}</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="mb-4">
+            <label for="delete_password" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              Mot de passe
+            </label>
+            <input
+              id="delete_password"
+              v-model="deletePassword"
+              type="password"
+              class="input-field mt-1"
+              :class="{ 'border-red-500': deleteErrors.password }"
+              placeholder="Entrez votre mot de passe"
+            />
+            <p v-if="deleteErrors.password" class="mt-1 text-sm text-red-600 dark:text-red-400">
+              {{ deleteErrors.password[0] }}
+            </p>
+          </div>
+
+          <div class="mb-4">
+            <label for="delete_reason" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              Raison de la suppression
+            </label>
+            <textarea
+              id="delete_reason"
+              v-model="deleteReason"
+              rows="3"
+              class="input-field mt-1"
+              :class="{ 'border-red-500': deleteErrors.reason }"
+              placeholder="Veuillez nous expliquer pourquoi vous supprimez votre compte"
+            ></textarea>
+            <p v-if="deleteErrors.reason" class="mt-1 text-sm text-red-600 dark:text-red-400">
+              {{ deleteErrors.reason[0] }}
+            </p>
+          </div>
+
           <div class="mb-4">
             <label for="confirmation" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
               Tapez "SUPPRIMER" pour confirmer
@@ -250,7 +296,7 @@
           </div>
           <div class="flex justify-end space-x-3">
             <button
-              @click="showDeleteModal = false"
+              @click="closeDeleteModal"
               class="btn-secondary"
             >
               Annuler
@@ -298,6 +344,10 @@ export default {
     const deactivateLoading = ref(false)
     const deleteLoading = ref(false)
     const deleteConfirmation = ref('')
+    const deletePassword = ref('')
+    const deleteReason = ref('')
+    const deleteErrors = ref({})
+    const deleteError = ref('')
 
     const changePassword = async () => {
       passwordLoading.value = true
@@ -349,12 +399,14 @@ export default {
 
     const deleteAccount = async () => {
       deleteLoading.value = true
+      deleteErrors.value = {}
+      deleteError.value = ''
       
       try {
         const response = await axios.delete('/user/delete', {
           data: {
-            password: passwordForm.current_password,
-            confirmation: deleteConfirmation.value
+            password: deletePassword.value,
+            reason: deleteReason.value
           }
         })
         
@@ -363,11 +415,22 @@ export default {
           router.push('/login')
         }
       } catch (err) {
-        alert(err.response?.data?.message || 'Erreur lors de la suppression')
+        if (err.response?.data?.errors) {
+          deleteErrors.value = err.response.data.errors
+        }
+        deleteError.value = err.response?.data?.message || 'Erreur lors de la suppression du compte.'
       } finally {
         deleteLoading.value = false
-        showDeleteModal.value = false
       }
+    }
+
+    const closeDeleteModal = () => {
+      showDeleteModal.value = false
+      deleteConfirmation.value = ''
+      deletePassword.value = ''
+      deleteReason.value = ''
+      deleteErrors.value = {}
+      deleteError.value = ''
     }
 
     const close = () => {
@@ -385,9 +448,14 @@ export default {
       deactivateLoading,
       deleteLoading,
       deleteConfirmation,
+      deletePassword,
+      deleteReason,
+      deleteErrors,
+      deleteError,
       changePassword,
       deactivateAccount,
       deleteAccount,
+      closeDeleteModal,
       close
     }
   }

@@ -349,12 +349,16 @@ class UserController extends Controller
         $validator = Validator::make($request->all(), [
             'password' => 'required|string',
             'reason' => 'required|string|max:1000',
+        ], [
+            'password.required' => 'Le mot de passe est obligatoire.',
+            'reason.required' => 'La raison de la suppression est obligatoire.',
+            'reason.max' => 'La raison ne peut pas dépasser 1000 caractères.',
         ]);
 
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Validation failed',
+                'message' => 'Veuillez vérifier les informations saisies.',
                 'errors' => $validator->errors()
             ], 422);
         }
@@ -363,7 +367,7 @@ class UserController extends Controller
         if (!Hash::check($request->password, $user->password)) {
             return response()->json([
                 'success' => false,
-                'message' => 'Password is incorrect'
+                'message' => 'Le mot de passe est incorrect.'
             ], 400);
         }
 
