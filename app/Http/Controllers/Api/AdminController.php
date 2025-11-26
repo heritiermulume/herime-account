@@ -165,20 +165,26 @@ class AdminController extends Controller
         $perPage = $request->get('per_page', 15);
         $users = $query->orderBy('created_at', 'desc')->paginate($perPage);
         
-        // Format users to include avatar_url
+        // Format users to include avatar_url et tous les champs utiles pour l'admin
         $formattedUsers = $users->getCollection()->map(function ($user) {
             return [
                 'id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,
                 'phone' => $user->phone,
+                'gender' => $user->gender,
+                'birthdate' => $user->birthdate ? $user->birthdate->toDateString() : null,
                 'company' => $user->company,
                 'position' => $user->position,
+                'bio' => $user->bio,
+                'location' => $user->location,
+                'website' => $user->website,
                 'role' => $user->role ?? 'user',
                 'is_active' => $user->is_active ?? true,
                 'avatar' => $user->avatar,
                 'avatar_filename' => $user->avatar_filename,
                 'avatar_url' => $user->avatar_url,
+                'last_login_at' => $user->last_login_at ? $user->last_login_at->toIso8601String() : null,
                 'created_at' => $user->created_at ? $user->created_at->toIso8601String() : null,
                 'updated_at' => $user->updated_at ? $user->updated_at->toIso8601String() : null,
             ];
@@ -365,6 +371,7 @@ public function updateUserStatus(Request $request, $id): JsonResponse
             'location' => 'sometimes|nullable|string|max:255',
             'website' => 'sometimes|nullable|url|max:255',
             'is_active' => 'sometimes|boolean',
+            'avatar' => 'sometimes|nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
         ], [
             'name.required' => 'Le nom complet est obligatoire.',
             'name.max' => 'Le nom ne peut pas dépasser 255 caractères.',
@@ -383,6 +390,9 @@ public function updateUserStatus(Request $request, $id): JsonResponse
             'website.url' => 'Veuillez saisir une URL valide.',
             'website.max' => 'L\'URL du site web ne peut pas dépasser 255 caractères.',
             'is_active.boolean' => 'Le statut doit être un booléen.',
+            'avatar.image' => 'Le fichier doit être une image.',
+            'avatar.mimes' => 'L\'avatar doit être au format JPEG, PNG, JPG, GIF ou WEBP.',
+            'avatar.max' => 'L\'avatar ne peut pas dépasser 2 Mo.',
         ]);
         if ($validator->fails()) {
             return response()->json([
@@ -391,7 +401,45 @@ public function updateUserStatus(Request $request, $id): JsonResponse
                 'errors' => $validator->errors()
             ], 422);
         }
-        $user->update($request->only(['name','email','phone','gender','birthdate','company','position','bio','location','website','is_active']));
+
+        // Préparer les données à mettre à jour (y compris is_active)
+        $data = $request->only(['name','email','phone','gender','birthdate','company','position','bio','location','website','is_active']);
+
+        // Gestion de l'avatar (même logique que dans UserController@updateProfile)
+        if ($request->hasFile('avatar')) {
+            try {
+                $file = $request->file('avatar');
+
+                // Supprimer l'ancien avatar si présent
+                $oldAvatarToDelete = $user->avatar_filename ?? ($user->avatar && strpos($user->avatar, '/api/user/avatar/') === false ? $user->avatar : null);
+                if ($oldAvatarToDelete) {
+                    $oldAvatarPath = 'avatars/' . basename($oldAvatarToDelete);
+                    if (\Illuminate\Support\Facades\Storage::disk('private')->exists($oldAvatarPath)) {
+                        \Illuminate\Support\Facades\Storage::disk('private')->delete($oldAvatarPath);
+                    }
+                }
+
+                // Sauvegarder le nouveau fichier
+                $extension = $file->getClientOriginalExtension();
+                $filename = \App\Services\ImageService::generateUniqueFilename($extension);
+                $avatarPath = 'avatars/' . $filename;
+
+                \App\Services\ImageService::compressAndSave($file, 'private', $avatarPath, 1048576, 85);
+
+                // Construire l'URL d'avatar sécurisée
+                $baseUrl = config('app.url');
+                $avatarUrl = rtrim($baseUrl, '/') . '/api/user/avatar/' . $user->id;
+
+                $data['avatar'] = $avatarUrl;
+                $data['avatar_filename'] = $filename;
+            } catch (\Exception $e) {
+                // Ne pas bloquer la mise à jour si l'avatar échoue
+            }
+        }
+
+        if (!empty($data)) {
+            $user->update($data);
+        }
         return response()->json([
             'success' => true,
             'message' => 'Utilisateur mis à jour avec succès',

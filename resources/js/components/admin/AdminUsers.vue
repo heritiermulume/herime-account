@@ -359,6 +359,44 @@
                   </button>
                 </div>
                 <div v-if="editUser" class="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
+                  <!-- Avatar -->
+                  <div class="flex items-center space-x-4">
+                    <div class="flex-shrink-0">
+                      <div v-if="editAvatarPreview || getAvatarUrl(editUser)" class="h-16 w-16 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-700">
+                        <img
+                          :src="editAvatarPreview || getAvatarUrl(editUser)"
+                          :alt="editUser.name"
+                          class="h-full w-full object-cover"
+                          @error="onAvatarError($event)"
+                        />
+                      </div>
+                      <div v-else class="h-16 w-16 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center">
+                        <span class="text-lg font-medium text-gray-700 dark:text-gray-300">
+                          {{ editUser.name?.charAt(0).toUpperCase() }}
+                        </span>
+                      </div>
+                    </div>
+                    <div>
+                      <input
+                        ref="editAvatarInput"
+                        type="file"
+                        accept="image/*"
+                        class="hidden"
+                        @change="handleEditAvatarChange"
+                      />
+                      <button
+                        type="button"
+                        @click="triggerEditAvatarUpload"
+                        class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600"
+                      >
+                        Changer la photo
+                      </button>
+                      <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                        JPG, PNG ou GIF. Max 2MB.
+                      </p>
+                    </div>
+                  </div>
+
                   <div>
                     <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Nom</label>
                     <input v-model="editUser.name" type="text" class="mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-yellow-500 focus:border-yellow-500 dark:bg-gray-700 dark:text-white sm:text-sm" />
@@ -423,7 +461,7 @@
                 </div>
                 <div class="mt-6 flex justify-end space-x-2">
                   <button class="px-4 py-2 rounded bg-gray-200 dark:bg-gray-700 dark:text-white hover:bg-gray-300 dark:hover:bg-gray-600" @click="showEdit = false">Annuler</button>
-                  <button class="px-4 py-2 rounded bg-green-600 text-white hover:bg-green-700" @click="saveEdit">Enregistrer</button>
+                  <button class="px-4 py-2 rounded bg-green-600 text-white hover:bg-green-700" @click="saveEdit">Mettre à jour</button>
                 </div>
               </div>
             </div>
@@ -469,7 +507,7 @@
 </template>
 
 <script>
-import { ref, reactive, onMounted, computed } from 'vue'
+import { ref, reactive, onMounted, computed, inject } from 'vue'
 import Pagination from '../Pagination.vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../../stores/auth'
@@ -488,6 +526,9 @@ export default {
     const error = ref('')
     
     const user = computed(() => authStore.user)
+
+    // Notifications globales (même système que la page Profil)
+    const notify = inject('notify', null)
     
     const filters = reactive({
       search: '',
@@ -587,6 +628,8 @@ export default {
 
     const previewUser = ref(null)
     const editUser = ref(null)
+    const editAvatarPreview = ref(null)
+    const editAvatarFile = ref(null)
     const showPreview = ref(false)
     const showEdit = ref(false)
     const showDelete = ref(false)
@@ -594,26 +637,102 @@ export default {
     const deleteLoading = ref(false)
     const deleteError = ref('')
     const openPreview = (u) => { previewUser.value = u; showPreview.value = true }
-    const openEdit = (u) => { editUser.value = { ...u }; showEdit.value = true }
+    const openEdit = (u) => { 
+      editUser.value = { ...u }
+      editAvatarPreview.value = null
+      editAvatarFile.value = null
+      showEdit.value = true 
+    }
+
+    const editAvatarInput = ref(null)
+
+    const triggerEditAvatarUpload = () => {
+      if (editAvatarInput.value) {
+        editAvatarInput.value.click()
+      }
+    }
+
+    const handleEditAvatarChange = (event) => {
+      const file = event.target.files[0]
+      if (!file) return
+
+      // Type invalide
+      if (!file.type.startsWith('image/')) {
+        if (notify) notify.error('Erreur', 'Le fichier doit être une image')
+        event.target.value = ''
+        return
+      }
+
+      // Taille maximale 2MB (alignée avec la validation backend)
+      if (file.size > 2 * 1024 * 1024) {
+        if (notify) notify.error('Erreur', 'La photo ne doit pas dépasser 2MB')
+        event.target.value = ''
+        return
+      }
+
+      editAvatarFile.value = file
+      editAvatarPreview.value = URL.createObjectURL(file)
+    }
+
     const saveEdit = async () => {
       try {
         const u = editUser.value
-        await axios.put(`/admin/users/${u.id}`, {
-          name: u.name,
-          email: u.email,
-          phone: u.phone,
-          gender: u.gender,
-          birthdate: u.birthdate,
-          company: u.company,
-          position: u.position,
-          bio: u.bio,
-          location: u.location,
-          website: u.website,
-          is_active: u.is_active
-        })
+        const hasAvatar = !!editAvatarFile.value
+
+        if (hasAvatar) {
+          const formData = new FormData()
+          formData.append('name', u.name || '')
+          formData.append('email', u.email || '')
+          formData.append('phone', u.phone || '')
+          formData.append('gender', u.gender || '')
+          formData.append('birthdate', u.birthdate || '')
+          formData.append('company', u.company || '')
+          formData.append('position', u.position || '')
+          formData.append('bio', u.bio || '')
+          formData.append('location', u.location || '')
+          formData.append('website', u.website || '')
+          formData.append('is_active', u.is_active ? '1' : '0')
+          formData.append('avatar', editAvatarFile.value)
+
+          // Utiliser POST avec _method=PUT pour que Laravel route bien vers updateUser
+          formData.append('_method', 'PUT')
+
+          await axios.post(`/admin/users/${u.id}`, formData, {
+            headers: {
+              'Content-Type': 'multipart/form-data'
+            }
+          })
+        } else {
+          await axios.put(`/admin/users/${u.id}`, {
+            name: u.name,
+            email: u.email,
+            phone: u.phone,
+            gender: u.gender,
+            birthdate: u.birthdate,
+            company: u.company,
+            position: u.position,
+            bio: u.bio,
+            location: u.location,
+            website: u.website,
+            is_active: u.is_active
+          })
+        }
+
         showEdit.value = false
+        editAvatarPreview.value = null
+        editAvatarFile.value = null
         await fetchUsers(pagination.value?.current_page || 1)
+        // Si tout s'est bien passé, notifier
+        if (notify) notify.success('Succès', 'Utilisateur mis à jour avec succès')
       } catch (err) {
+        // Afficher un message d'erreur lisible (notamment pour l'avatar trop lourd)
+        if (notify) {
+          if (err.response?.data?.errors?.avatar?.[0]) {
+            notify.error('Erreur', err.response.data.errors.avatar[0])
+          } else if (err.response?.data?.message) {
+            notify.error('Erreur', err.response.data.message)
+          }
+        }
       }
     }
 
@@ -689,12 +808,16 @@ export default {
       saveEdit,
       previewUser,
       editUser,
+      editAvatarPreview,
       showPreview,
       showEdit,
       showDelete,
       deleteTarget,
       deleteLoading,
-      deleteError
+      deleteError,
+      editAvatarInput,
+      triggerEditAvatarUpload,
+      handleEditAvatarChange
     }
   }
 }
